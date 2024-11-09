@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "dev": "deno run --watch main.ts",
+    "index:deposit": "apibara run src/indexers/deposits.ts --allow-env .env"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "prisma": "npm:prisma@^5.22.0"
+  },
+  "nodeModulesDir": "auto"
+}
