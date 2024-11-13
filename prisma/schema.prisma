@@ -4,9 +4,73 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRES_CONNECTION_STRING")
 }
 
-model Delegator {
-  address String @id
+model deposits {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  timestamp    Int
+  sender       String
+  owner        String
+  assets       String
+  shares       String
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model withdraw_queue {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  caller       String
+  amount_strk  String
+  amount_kstrk String
+  timestamp    Int
+  cursor       BigInt? @map("_cursor")
+  receiver     String
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model received_funds {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  amount       String
+  sender       String
+  unprocessed  String
+  intransit    String
+  timestamp    Int
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model dispatch_to_stake {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  delegator    String
+  amount       String
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model dispatch_to_withdraw_queue {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  amount       String
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
 }
