@@ -20,24 +20,71 @@ export const config: Config<Starknet, Postgres> = {
     header: { weak: true },
     events: [{
       fromAddress: contracts.lst as FieldElement,
-      includeTransaction: true,
-      keys: [
-        hash.getSelectorFromName("DispatchToWithdrawQueue") as FieldElement,
-      ],
+      keys: [hash.getSelectorFromName("DelegatorUpdate") as FieldElement],
     }],
   },
   sinkType: "postgres",
   sinkOptions: {
     connectionString: Deno.env.get("POSTGRES_CONNECTION_STRING"),
-    tableName: "dispatch_to_withdraw_queue",
+    tableName: "unstake_action",
   },
 };
 
-// #[derive(Drop, Copy, starknet::Event)]
-// pub struct DispatchToWithdrawQueue {
-//     pub amount: u256,
+// #[derive(Drop, Copy, Serde, starknet::Store, starknet::Event)]
+// pub struct DelegatorInfo {
+//     pub is_active: bool,
+//     pub delegator_index: u32
 // }
 
+// #[derive(Drop, Copy, Serde, starknet::Event)]
+// struct DelegatorUpdate {
+//     pub delegator: ContractAddress,
+//     pub info: DelegatorInfo,
+// }
+export function factory({ header, events }: Block) {
+  if (!events || !header) return [];
+
+  const filters = events.filter(({ event }) => {
+    if (!event || !event.data || !event.keys) {
+      throw new Error("ReceivedFunds: Expected event with data");
+    }
+
+    const is_active = Boolean(event.data[1]);
+    return is_active == true;
+  }).flatMap(({ event }) => {
+    if (!event || !event.data || !event.keys) {
+      throw new Error("ReceivedFunds: Expected event with data");
+    }
+
+    const delegatorAddress = event.data[0];
+    return [
+      {
+        fromAddress: delegatorAddress,
+        keys: [
+          hash.getSelectorFromName(
+            "UnstakeIntentStarted",
+          ) as FieldElement,
+        ],
+      },
+    ];
+  });
+
+  if (filters.length == 0) {
+    return {};
+  }
+
+  return {
+    filter: {
+      header: { weak: true },
+      events: filters,
+    },
+  };
+}
+
+// #[derive(Drop, starknet::Event)]
+// pub struct UnstakeAction {
+//     amount: u128,
+// }
 export default function transform({ header, events }: Block) {
   if (!events || !header) return [];
 
@@ -45,8 +92,9 @@ export default function transform({ header, events }: Block) {
 
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
-      throw new Error("dispatch_to_withdraw_queue:Expected event with data");
+      throw new Error("ReceivedFunds: Expected event with data");
     }
+
     console.log(
       "event keys and data length",
       event.keys.length,

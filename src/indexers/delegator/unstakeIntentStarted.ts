@@ -20,34 +20,75 @@ export const config: Config<Starknet, Postgres> = {
     header: { weak: true },
     events: [{
       fromAddress: contracts.lst as FieldElement,
-      includeTransaction: true,
-      keys: [hash.getSelectorFromName("ReceivedFunds") as FieldElement],
+      keys: [hash.getSelectorFromName("DelegatorUpdate") as FieldElement],
     }],
   },
   sinkType: "postgres",
   sinkOptions: {
     connectionString: Deno.env.get("POSTGRES_CONNECTION_STRING"),
-    tableName: "received_funds",
+    tableName: "unstake_action",
   },
 };
 
+// #[derive(Drop, Copy, Serde, starknet::Store, starknet::Event)]
+// pub struct DelegatorInfo {
+//     pub is_active: bool,
+//     pub delegator_index: u32
+// }
+
 // #[derive(Drop, Copy, Serde, starknet::Event)]
-// pub struct ReceivedFunds {
-//     amount: u256,
-//     sender: ContractAddress,
-//     unprocessed: u256,
-//     intransit: u256,
-//     timestamp: u64
+// struct DelegatorUpdate {
+//     pub delegator: ContractAddress,
+//     pub info: DelegatorInfo,
+// }
+export function factory({ header, events }: Block) {
+  if (!events || !header) return [];
+
+  const filters = events.filter(({ event }) => {
+    if (!event || !event.data || !event.keys) {
+      throw new Error("ReceivedFunds: Expected event with data");
+    }
+
+    const is_active = Boolean(event.data[1]);
+    return is_active == true;
+  }).flatMap(({ event }) => {
+    if (!event || !event.data || !event.keys) {
+      throw new Error("ReceivedFunds: Expected event with data");
+    }
+
+    const delegatorAddress = event.data[0];
+    return [
+      {
+        fromAddress: delegatorAddress,
+        keys: [
+          hash.getSelectorFromName(
+            "UnstakeIntentStarted",
+          ) as FieldElement,
+        ],
+      },
+    ];
+  });
+
+  if (filters.length == 0) {
+    return {};
+  }
+
+  return {
+    filter: {
+      header: { weak: true },
+      events: filters,
+    },
+  };
+}
+
+// #[derive(Drop, starknet::Event)]
+// pub struct UnstakeIntentStarted {
+//     pub amount: u128,
 // }
 export default function transform({ header, events }: Block) {
   if (!events || !header) return [];
 
-  const { blockNumber, timestamp } = header;
-  // Convert timestamp to unix timestamp
-  const timestamp_unix = Math.floor(
-    new Date(timestamp as string).getTime() / 1000,
-  );
-
+  const { blockNumber } = header;
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
       throw new Error("ReceivedFunds: Expected event with data");
@@ -60,23 +101,12 @@ export default function transform({ header, events }: Block) {
     );
 
     const amount = toBigInt(event.data.at(0)).toString();
-    const sender = event.data.at(2);
-    const unprocessed = event.data.at(3);
-    const intransit = event.data.at(5);
-
-    if (timestamp_unix.toString() == event.data.at(6)) {
-      throw Error("ReceivedFunds: Timestamp incorrect");
-    }
 
     const depositData = {
       block_number: blockNumber,
       tx_index: receipt.transactionIndex ?? 0,
       event_index: event.index ?? 0,
       amount,
-      sender,
-      unprocessed,
-      intransit,
-      timestamp: timestamp_unix,
     };
 
     console.log("event data", depositData);

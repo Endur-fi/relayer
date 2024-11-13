@@ -5,7 +5,7 @@ import type {
   Starknet,
 } from "npm:@apibara/indexer@0.4.1/starknet";
 import type { Postgres } from "npm:@apibara/indexer/sink/postgres";
-import { hash } from "npm:starknet";
+import { hash } from "https://esm.sh/starknet@6.11.0";
 
 import { ADDRESSES as contracts } from "../../constants.js";
 import { toBigInt } from "../../utils.ts";
