@@ -7,8 +7,8 @@ import type {
 import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 import { hash } from "https://esm.sh/starknet@6.11.0";
 
-import { ADDRESSES as contracts } from "../../constants.js";
-import { toBigInt } from "../../utils.ts";
+import { toBigInt } from "../../common/utils.ts";
+import { getAddresses } from "../../common/constants.ts";
 
 export const config: Config<Starknet, Postgres> = {
   streamUrl: Deno.env.get("STREAM_URL"),
@@ -19,7 +19,7 @@ export const config: Config<Starknet, Postgres> = {
   filter: {
     header: { weak: true },
     events: [{
-      fromAddress: contracts.lst as FieldElement,
+      fromAddress: getAddresses().LST as FieldElement,
       includeTransaction: true,
       keys: [hash.getSelectorFromName("Deposit") as FieldElement],
     }],

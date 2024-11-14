@@ -5,7 +5,7 @@
   },
   "imports": {
     "@apibara/indexer": "npm:@apibara/indexer@0.4.1",
-    "@std/assert": "jsr:@std/assert@1",
+    "@std/assert": "jsr:@std/assert@^1.0.8",
     "prisma": "npm:prisma@^5.22.0",
     "starknet": "npm:starknet@6.11.0"
   },
