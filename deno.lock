@@ -1,14 +1,12 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@std/assert@*": "1.0.8",
     "jsr:@std/assert@^1.0.8": "1.0.8",
     "jsr:@std/internal@^1.0.5": "1.0.5",
-    "npm:@apibara/indexer@*": "0.4.1",
     "npm:@apibara/indexer@0.4.1": "0.4.1",
-    "npm:@types/node@*": "22.5.4",
+    "npm:@prisma/client@*": "5.22.0",
+    "npm:@prisma/client@^5.22.0": "5.22.0",
     "npm:prisma@^5.22.0": "5.22.0",
-    "npm:starknet@*": "6.11.0",
     "npm:starknet@6.11.0": "6.11.0"
   },
   "jsr": {
@@ -50,6 +48,9 @@
     },
     "@noble/hashes@1.5.0": {
       "integrity": "sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA=="
+    },
+    "@prisma/client@5.22.0": {
+      "integrity": "sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA=="
     },
     "@prisma/debug@5.22.0": {
       "integrity": "sha512-AUt44v3YJeggO2ZU5BkXI7M4hu9BF2zzH2iF2V5pyXT/lRTyWiElZ7It+bRH1EshoMRxHgpYg4VB6rCM+mG5jQ=="
@@ -110,12 +111,6 @@
     },
     "@starknet-io/types-js@0.7.7": {
       "integrity": "sha512-WLrpK7LIaIb8Ymxu6KF/6JkGW1sso988DweWu7p5QY/3y7waBIiPvzh27D9bX5KIJNRDyOoOVoHVEKYUYWZ/RQ=="
-    },
-    "@types/node@22.5.4": {
-      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
-      "dependencies": [
-        "undici-types"
-      ]
     },
     "abi-wan-kanabi@1.0.3": {
       "integrity": "sha512-Xwva0AnhXx/IVlzo3/kwkI7Oa7ZX7codtcSn+Gmoa2PmjGPF/0jeVud9puasIPtB7V50+uBdUj4Mh3iATqtBvg==",
@@ -348,9 +343,6 @@
     "typescript@4.9.5": {
       "integrity": "sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g=="
     },
-    "undici-types@6.19.8": {
-      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
-    },
     "universalify@0.2.0": {
       "integrity": "sha512-CJ1QgKmNg3CwvAv/kOFmtnEN05f0D/cn9QntgNOQlQF9dgvVTHj3t+8JPdjqawCHk7V/KA+fbUqzZ9XWhcqPUg=="
     },
@@ -414,8 +406,14 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.8",
       "npm:@apibara/indexer@0.4.1",
-      "npm:prisma@^5.22.0",
+      "npm:@prisma/client@^5.22.0",
       "npm:starknet@6.11.0"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@prisma/client@^5.22.0",
+        "npm:prisma@^5.22.0"
+      ]
+    }
   }
 }

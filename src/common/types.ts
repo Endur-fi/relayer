@@ -1,4 +1,4 @@
-import { Account, RpcProvider } from "npm:starknet";
+import { Account, RpcProvider } from "starknet";
 
 export interface NetworkConfig {
   provider: RpcProvider;
@@ -6,7 +6,7 @@ export interface NetworkConfig {
   network: Network;
 }
 
-export declare enum Network {
+export enum Network {
   mainnet = "mainnet",
   sepolia = "sepolia",
   devnet = "devnet",
