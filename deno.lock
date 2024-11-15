@@ -1,14 +1,15 @@
 {
   "version": "4",
   "specifiers": {
-    "jsr:@std/assert@*": "1.0.8",
     "jsr:@std/assert@^1.0.8": "1.0.8",
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "npm:@apibara/indexer@*": "0.4.1",
     "npm:@apibara/indexer@0.4.1": "0.4.1",
+    "npm:@prisma/client@^5.22.0": "5.22.0_prisma@5.22.0",
     "npm:@types/node@*": "22.5.4",
+    "npm:prisma@*": "5.22.0",
+    "npm:prisma@5.22.0": "5.22.0",
     "npm:prisma@^5.22.0": "5.22.0",
-    "npm:starknet@*": "6.11.0",
     "npm:starknet@6.11.0": "6.11.0"
   },
   "jsr": {
@@ -50,6 +51,12 @@
     },
     "@noble/hashes@1.5.0": {
       "integrity": "sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA=="
+    },
+    "@prisma/client@5.22.0_prisma@5.22.0": {
+      "integrity": "sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==",
+      "dependencies": [
+        "prisma"
+      ]
     },
     "@prisma/debug@5.22.0": {
       "integrity": "sha512-AUt44v3YJeggO2ZU5BkXI7M4hu9BF2zzH2iF2V5pyXT/lRTyWiElZ7It+bRH1EshoMRxHgpYg4VB6rCM+mG5jQ=="
@@ -414,6 +421,7 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.8",
       "npm:@apibara/indexer@0.4.1",
+      "npm:@prisma/client@^5.22.0",
       "npm:prisma@^5.22.0",
       "npm:starknet@6.11.0"
     ]
