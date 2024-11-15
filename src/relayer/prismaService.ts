@@ -1,4 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+// import { type PrismaClient } from "../../generated/client/index.d.ts";
+// import { createRequire } from "node:module";
+// const require = createRequire(import.meta.url);
+// const Prisma = require("./src/generated/client/index.js");
+
+import { prisma, PrismaClient } from "../../prisma/client.ts";
 
 interface IPrismaService {
   getDepositsLastDay(): Promise<bigint>;
@@ -6,9 +11,9 @@ interface IPrismaService {
 }
 
 export class PrismaService implements IPrismaService {
-  readonly prisma: PrismaClient;
+  prisma: PrismaClient;
   constructor() {
-    this.prisma = new PrismaClient();
+    this.prisma = prisma;
   }
 
   async getDepositsLastDay() {
