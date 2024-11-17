@@ -5,21 +5,27 @@ generator client {
   output          = "./generated/client"
 }
 
+generator typegraphql {
+  provider = "typegraphql-prisma"
+  output   = "./generated/type-graphql"
+}
+
 datasource db {
   provider = "postgresql"
-  url      = env("POSTGRES_CONNECTION_STRING")
+  url      = env("DATABASE_URL")
 }
 
 model deposits {
   block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  timestamp    Int
-  sender       String
-  owner        String
-  assets       String
-  shares       String
-  cursor       BigInt? @map("_cursor")
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+
+  timestamp Int
+  sender    String
+  owner     String
+  assets    String
+  shares    String
+  cursor    BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
@@ -27,14 +33,20 @@ model deposits {
 
 model withdraw_queue {
   block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  tx_hash      String
+
   caller       String
   amount_strk  String
   amount_kstrk String
-  timestamp    Int
-  cursor       BigInt? @map("_cursor")
+  request_id   String
+  is_claimed   Boolean
+  claim_time   Int
   receiver     String
+
+  timestamp Int
+  cursor    BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
