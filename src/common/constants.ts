@@ -1,7 +1,15 @@
 import { getNetwork } from "./utils.ts";
 import { Network } from "./types.ts";
 
-const sepolia = {
+type NetworkAddresses = {
+  LST: string;
+  WithdrawQueue: string;
+  Treasury: string;
+  Admin: string;
+  Delgator: string[];
+};
+
+const sepolia: NetworkAddresses = {
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
     "0x4b55e5722cdc06d585862f4fb4952f5471bacfb5d8870569183e1bf88cf01c9",
@@ -14,7 +22,7 @@ const sepolia = {
   ],
 };
 
-const mainnet = {
+const mainnet: NetworkAddresses = {
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
     "0x4b55e5722cdc06d585862f4fb4952f5471bacfb5d8870569183e1bf88cf01c9",
@@ -27,7 +35,7 @@ const mainnet = {
   ],
 };
 
-export function getAddresses() {
+export function getAddresses(): NetworkAddresses {
   const network = getNetwork();
   switch (network) {
     case Network.sepolia: {

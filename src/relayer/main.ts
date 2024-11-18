@@ -1,18 +1,18 @@
-// import { getAccount, getProvider } from "../common/utils.ts";
-// import { Network, NetworkConfig } from "../common/types.ts";
-// import { LST } from "./lstService.ts";
-import { PrismaService } from "./prismaService.ts";
+import { NestFactory } from "@nestjs/core";
+import { Module } from "@nestjs/common";
+import "@nestjs/platform-express";
+import { AppController } from "./controllers/app.controller.ts";
+import { PrismaService } from "./services/prismaService.ts";
+import { PrismaController } from "./controllers/prisma.controller.ts";
 
-function main() {
-  // const networkConfig: NetworkConfig = {
-  //   network: Network.sepolia,
-  //   provider: getProvider(),
-  //   account: getAccount(),
-  // };
-  // const lst = new LST(networkConfig);
-  // await lst.sendToWithdrawQueue(BigInt(10));
-  const prismaSerivce = new PrismaService();
-  prismaSerivce.getDepositsLastDay();
+@Module({
+  providers: [PrismaService],
+  controllers: [AppController, PrismaController],
+})
+class AppModule {}
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(Deno.env.get("PORT") ?? 3000);
 }
-
-main();
+bootstrap();

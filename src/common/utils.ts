@@ -20,9 +20,9 @@ export function getAccount(): Account {
 }
 
 export function getNetwork(): Network {
-  assert(Deno.env.has("Network"), "Network not configured in .env");
+  assert(Deno.env.has("NETWORK"), "Network not configured in .env");
 
-  const network = Deno.env.get("Network") as string;
+  const network = Deno.env.get("NETWORK") as string;
   if (network == Network.sepolia) {
     return Network.sepolia;
   } else if (network == Network.mainnet) {
