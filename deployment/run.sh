@@ -7,9 +7,9 @@ fi
 echo "Running indexers"
 /usr/bin/supervisord -c /app/supervisord.conf
 
-echo "Sleeping 10s"
-sleep 10
-cat withdraw_queue.log
+echo "Sleeping 30s"
+sleep 30
+cat /var/log/supervisor/withdraw_queue.log
 
 echo "Starting server"
 node index.js
