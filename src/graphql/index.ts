@@ -1,13 +1,15 @@
-import "https://esm.sh/reflect-metadata@0.2.2"; // Reflect metadata polyfill
-import { ApolloServer } from "https://esm.sh/@apollo/server";
-import type { PrismaClient } from "../../prisma/generated/client/index.js";
-import { buildSchema, Resolver, Query, Arg } from "https://esm.sh/type-graphql@2.0.0-rc.2";
-import { startStandaloneServer } from "https://esm.sh/@apollo/server/standalone";
+// cannot do bcz this needs generated graphpl typings
+// and they use relative paths which fails Deno
+
+import "reflect-metadata"; // Reflect metadata polyfill
+import { ApolloServer } from "@apollo/server";
+import { PrismaClient } from "@prisma/client";
+import { buildSchema, Resolver, Query, Arg } from "type-graphql";
+import { startStandaloneServer } from "@apollo/server/standalone";
 
 import { 
-    Withdraw_queue,
     FindManyWithdraw_queueResolver
-} from "../../prisma/generated/type-graphql/index.ts";
+} from "@generated/type-graphql";
 
 const prisma = new PrismaClient();
 
@@ -25,7 +27,7 @@ async function main() {
 
   const { url } = await startStandaloneServer(server, {
     context: async () => ({ prisma }),
-    listen: { port: parseInt(Deno.env.get("PORT") || '') || 4000 },
+    listen: { port: parseInt(process.env.PORT || '4000' )},
   });
   console.log(`Server is running, GraphQL Playground available at ${url}`);
 }
