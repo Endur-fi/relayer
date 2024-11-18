@@ -90,8 +90,13 @@ app.get('/status', async (req, res) => {
       headBlock
     });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({ error: error.message });
   }
+});
+
+app.get(`/status/server`, async (req, res) => {
+    return res.status(200).json({ message: 'Server is running' });
 });
 
 // Start the Express server
