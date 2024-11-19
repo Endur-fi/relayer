@@ -1,4 +1,4 @@
-import { prisma, PrismaClient } from "../../../prisma/client.ts";
+import { deposits, prisma, PrismaClient } from "../../../prisma/client.ts";
 
 interface IPrismaService {
   getDepositsLastDay(): Promise<bigint>;
@@ -51,6 +51,73 @@ export class PrismaService implements IPrismaService {
 
     // return BigInt(2);
     return totalWithdrawals;
+  }
+
+  async getDeposits(from: number, to: number) {
+    const deposits = await this.prisma.deposits.findMany({
+      where: {
+        timestamp: {
+          gte: Number(from),
+          lt: Number(to),
+        },
+      },
+    });
+
+    deposits?.forEach(
+      (
+        _e: typeof deposits[0],
+        index: number,
+        depositsArray: typeof deposits,
+      ) => {
+        depositsArray[index].cursor = depositsArray[index].cursor.toString();
+      },
+    );
+    return deposits;
+  }
+
+  async getWithdraws(from: number, to: number) {
+    const withdraws = await this.prisma.withdraw_queue.findMany({
+      where: {
+        timestamp: {
+          gte: Number(from),
+          lt: Number(to),
+        },
+      },
+    });
+
+    withdraws?.forEach(
+      (
+        _e: typeof withdraws[0],
+        index: number,
+        withdrawsArray: typeof withdraws,
+      ) => {
+        withdrawsArray[index].cursor = withdrawsArray[index].cursor.toString();
+      },
+    );
+    return withdraws;
+  }
+
+  async getTotalWithdraws(from: number, to: number) {
+    const withdraws = await this.getWithdraws(from, to);
+    const totalWithdrawals = withdraws?.reduce(
+      (sum: bigint, e: typeof withdraws[0]) => {
+        return sum + BigInt(e.amount_kstrk);
+      },
+      BigInt(0),
+    );
+    return totalWithdrawals;
+  }
+
+  async getTotalDeposits(from: number, to: number) {
+    const deposits = await this.getDeposits(from, to);
+    const totalDeposits = deposits?.reduce(
+      (sum: bigint, e: typeof deposits[0]) => {
+        return sum + BigInt(e.assets);
+      },
+      BigInt(0),
+    );
+
+    return totalDeposits;
   }
 
   async getNetFlowLastDay(): Promise<bigint> {

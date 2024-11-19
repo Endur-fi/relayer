@@ -6,6 +6,7 @@ type NetworkAddresses = {
   WithdrawQueue: string;
   Treasury: string;
   Admin: string;
+  Strk: string;
   Delgator: string[];
 };
 
@@ -16,12 +17,15 @@ const sepolia: NetworkAddresses = {
   Treasury:
     "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
   Admin: "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
+  Strk: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
   Delgator: [
     "0x7fc5c5b4c6f30e9914322954750a59a44cf46ae935e6e4bdc7e74f688546041",
     "0x246f8bf539817de93d5fac4eca0052ba40e684a5ddddd7b7027f1744e3d927f",
   ],
 };
 
+// ❗❗❗    The below getAddresses are random    ❗❗❗
+// ❗❗❗ Update the addressess before deployment ❗❗❗
 const mainnet: NetworkAddresses = {
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
@@ -29,6 +33,7 @@ const mainnet: NetworkAddresses = {
   Treasury:
     "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
   Admin: "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
+  Strk: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
   Delgator: [
     "0x7fc5c5b4c6f30e9914322954750a59a44cf46ae935e6e4bdc7e74f688546041",
     "0x246f8bf539817de93d5fac4eca0052ba40e684a5ddddd7b7027f1744e3d927f",

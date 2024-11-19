@@ -1,4 +1,4 @@
-import { Account, RpcProvider, num } from "https://esm.sh/starknet@6.11.0";
+import { Account, num, RpcProvider } from "starknet";
 import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { Network } from "./types.ts";
 
@@ -46,15 +46,16 @@ export function toBoolean(value: string) {
 }
 
 export function toNumber(el: string) {
-  if (!el) return 0
+  if (!el) return 0;
   return Number(el.toString());
 }
 
 export function standariseAddress(address: string | bigint) {
   let _a = address;
   if (!address) {
-      _a = "0";
+    _a = "0";
   }
   const a = num.getHexString(num.getDecimalString(_a.toString()));
   return a;
 }
+

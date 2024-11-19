@@ -2,8 +2,15 @@
 `pnpm install`
 
 # Prisma
-1. Generate through prisma  
-```deno run --allow-env=.env  --allow-read --allow-write --allow-run npm:prisma@latest generate`
+1. Generate through prisma
+```
+deno run --allow-env --allow-ffi --allow-sys --allow-read --allow-write --allow-run npm:prisma@latest generate
+```
+or instead just run
+```
+deno run -A npm:prisma generate
+```
+
 
 # Commands
 

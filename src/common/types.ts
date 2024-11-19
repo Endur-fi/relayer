@@ -1,3 +1,5 @@
+// import { Account, RpcProvider } from "https://esm.sh/starknet@6.11.0";
+// import { Account, RpcProvider } from "npm:starknet";
 import { Account, RpcProvider } from "starknet";
 
 export interface NetworkConfig {
