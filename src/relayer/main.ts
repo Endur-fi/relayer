@@ -4,7 +4,7 @@ import "@nestjs/platform-express";
 import { StatusController } from "./controllers/status.controller.ts";
 import { PrismaService } from "./services/prismaService.ts";
 import { PrismaController } from "./controllers/prisma.controller.ts";
-import { LstController } from "./controllers/admin.controller.ts";
+import { LstController } from "./controllers/lst.controller.ts";
 import { LSTService } from "./services/lstService.ts";
 import { ConfigService } from "./services/configService.ts";
 

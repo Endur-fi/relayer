@@ -74,6 +74,7 @@ model dispatch_to_stake {
   delegator    String
   amount       String
   cursor       BigInt? @map("_cursor")
+  timestamp    String // Not emitted in the actual event
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])

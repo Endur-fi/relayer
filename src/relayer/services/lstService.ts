@@ -35,17 +35,41 @@ export class LSTService implements ILSTService {
   }
 
   async sendToWithdrawQueue(amount: bigint) {
-    const lstBalance = await this.Strk.balance_of(this.LST.address);
+    try {
+      const lstBalance = await this.Strk.balance_of(this.LST.address);
+      console.log("Lst Balance is", lstBalance);
 
-    assert(
-      BigInt(lstBalance.toString()) >= amount,
-      "Not enough balance to send to Withdrawqueue",
-    );
-    this.LST.send_to_withdraw_queue(amount);
+      assert(
+        BigInt(lstBalance.toString()) >= amount,
+        "Not enough balance to send to Withdrawqueue",
+      );
+      this.LST.send_to_withdraw_queue(amount);
+    } catch (error) {
+      console.error("Failed to send to withdraw queue:", error);
+      throw error;
+    }
   }
 
-  stake(delegator: string, amount: bigint) {
-    this.LST.stake(delegator, amount);
+  async stake(delegator: string, amount: bigint) {
+    try {
+      const lastStake = await this.prismaService.prisma.dispatch_to_stake
+        .findFirst();
+      console.log("FirstStaking", lastStake);
+      if (lastStake) {
+        const current_time = Math.floor(Date.now() / 1000);
+        // At least 20 hours have passed
+        assert(
+          lastStake.timestamp < current_time - 20 * 3600,
+          "20 hours not passed",
+        );
+      }
+
+      console.log("delegator", delegator, "amount", amount);
+      this.LST.stake(delegator, amount);
+    } catch (error) {
+      console.error("Staking failed:", error);
+      throw error;
+    }
   }
 
   async runDailyJob() {

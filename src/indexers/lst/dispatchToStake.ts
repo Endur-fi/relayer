@@ -39,7 +39,7 @@ export const config: Config<Starknet, Postgres> = {
 export default function transform({ header, events }: Block) {
   if (!events || !header) return [];
 
-  const { blockNumber } = header;
+  const { blockNumber, timestamp } = header;
 
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
@@ -60,6 +60,7 @@ export default function transform({ header, events }: Block) {
       tx_index: receipt.transactionIndex ?? 0,
       event_index: event.index ?? 0,
       delegator,
+      timestamp,
       amount,
     };
 

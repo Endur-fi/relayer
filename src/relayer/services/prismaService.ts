@@ -1,4 +1,5 @@
 import { deposits, prisma, PrismaClient } from "../../../prisma/client.ts";
+import { Injectable } from "@nestjs/common";
 
 interface IPrismaService {
   getDepositsLastDay(): Promise<bigint>;
@@ -6,6 +7,7 @@ interface IPrismaService {
   getNetFlowLastDay(): Promise<bigint>;
 }
 
+@Injectable()
 export class PrismaService implements IPrismaService {
   prisma: PrismaClient;
   constructor() {

@@ -8,45 +8,85 @@ export class PrismaController {
   ) {}
 
   @Get("/get-deposits-last-day")
-  getDepositsLastDay() {
-    return this.prisma.getDepositsLastDay();
+  async getDepositsLastDay() {
+    try {
+      return await this.prisma.getDepositsLastDay();
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-withdrawals-last-day")
-  getWithdrawalsLastDay() {
-    return this.prisma.getWithdrawalsLastDay();
+  async getWithdrawalsLastDay() {
+    try {
+      return await this.prisma.getWithdrawalsLastDay();
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-net-flow-last-day")
-  getNetFlowLastDay() {
-    return this.prisma.getNetFlowLastDay();
+  async getNetFlowLastDay() {
+    try {
+      return await this.prisma.getNetFlowLastDay();
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-deposits")
-  getDeposits(@Query("from") from: number, @Query("to") to: number) {
-    return this.prisma.getDeposits(from, to);
+  async getDeposits(@Query("from") from: number, @Query("to") to: number) {
+    try {
+      return await this.prisma.getDeposits(from, to);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-withdraws")
-  getWithdraws(@Query("from") from: number, @Query("to") to: number) {
-    return this.prisma.getWithdraws(from, to);
+  async getWithdraws(@Query("from") from: number, @Query("to") to: number) {
+    try {
+      return await this.prisma.getWithdraws(from, to);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-total-deposits")
-  getTotalDeposits(@Query("from") from: number, @Query("to") to: number) {
-    return this.prisma.getTotalDeposits(from, to);
+  async getTotalDeposits(@Query("from") from: number, @Query("to") to: number) {
+    try {
+      return await this.prisma.getTotalDeposits(from, to);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-total-withdraws")
-  getTotalWithdraws(@Query("from") from: number, @Query("to") to: number) {
-    return this.prisma.getTotalWithdraws(from, to);
+  async getTotalWithdraws(@Query("from") from: number, @Query("to") to: number) {
+    try {
+      return await this.prisma.getTotalWithdraws(from, to);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 
   @Get("/get-net-flow")
   async getTotalFlow(@Query("from") from: number, @Query("to") to: number) {
-    const deposits = await this.prisma.getTotalDeposits(from, to);
-    const withdraws = await this.prisma.getTotalWithdraws(from, to);
-    const netFlow = BigInt(deposits) - BigInt(withdraws);
-    return netFlow;
+    try {
+      const deposits = await this.prisma.getTotalDeposits(from, to);
+      const withdraws = await this.prisma.getTotalWithdraws(from, to);
+      const netFlow = BigInt(deposits) - BigInt(withdraws);
+      return netFlow;
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
   }
 }
