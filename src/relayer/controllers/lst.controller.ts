@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post } from "@nestjs/common";
+import { Body, Controller, Post } from "@nestjs/common";
 import { LSTService } from "../services/lstService.ts";
 
 @Controller("lst")

@@ -7,10 +7,17 @@ import { PrismaController } from "./controllers/prisma.controller.ts";
 import { LstController } from "./controllers/lst.controller.ts";
 import { LSTService } from "./services/lstService.ts";
 import { ConfigService } from "./services/configService.ts";
+import { WqController } from "./controllers/wq.controller.ts";
+import { WithdrawalQueueService } from "./services/withdrawalQueueService.ts";
 
 @Module({
-  providers: [PrismaService, LSTService, ConfigService],
-  controllers: [StatusController, PrismaController, LstController],
+  providers: [PrismaService, LSTService, ConfigService, WithdrawalQueueService],
+  controllers: [
+    StatusController,
+    PrismaController,
+    LstController,
+    WqController,
+  ],
 })
 class AppModule {}
 
