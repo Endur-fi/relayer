@@ -14,7 +14,7 @@ export class WqController {
       return { success: true };
     } catch (error) {
       console.error("Failed to claim: ", error);
-      throw error;
+      return error;
     }
   }
 
@@ -28,7 +28,7 @@ export class WqController {
       return { success: true };
     } catch (error) {
       console.error("Failed to claim: ", error);
-      throw error;
+      return error;
     }
   }
 }

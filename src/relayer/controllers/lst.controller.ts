@@ -3,7 +3,7 @@ import { LSTService } from "../services/lstService.ts";
 
 @Controller("lst")
 export class LstController {
-  constructor(private lst: LSTService) {}
+  constructor(private lst: LSTService) { }
 
   // TODO : Should this be a Put/Post
   // These apis must be protected under vpn/using `.pem` files of ec2
@@ -16,7 +16,7 @@ export class LstController {
       return { success: true };
     } catch (error) {
       console.error("Request failed:", error);
-      throw error;
+      return error;
     }
   }
 
@@ -33,7 +33,7 @@ export class LstController {
       return { success: true };
     } catch (error) {
       console.error("Stake request failed:", error);
-      throw error;
+      return error;
     }
   }
 }

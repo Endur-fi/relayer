@@ -13,7 +13,7 @@ export class PrismaController {
       return await this.prisma.getDepositsLastDay();
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -23,7 +23,7 @@ export class PrismaController {
       return await this.prisma.getWithdrawalsLastDay();
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -33,7 +33,7 @@ export class PrismaController {
       return await this.prisma.getNetFlowLastDay();
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -43,7 +43,7 @@ export class PrismaController {
       return await this.prisma.getDeposits(from, to);
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -53,7 +53,7 @@ export class PrismaController {
       return await this.prisma.getWithdraws(from, to);
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -63,17 +63,20 @@ export class PrismaController {
       return await this.prisma.getTotalDeposits(from, to);
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
   @Get("/get-total-withdraws")
-  async getTotalWithdraws(@Query("from") from: number, @Query("to") to: number) {
+  async getTotalWithdraws(
+    @Query("from") from: number,
+    @Query("to") to: number,
+  ) {
     try {
       return await this.prisma.getTotalWithdraws(from, to);
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 
@@ -86,7 +89,7 @@ export class PrismaController {
       return netFlow;
     } catch (error) {
       console.error(error);
-      throw error;
+      return error;
     }
   }
 }

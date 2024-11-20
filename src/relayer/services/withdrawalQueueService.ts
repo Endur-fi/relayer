@@ -20,7 +20,11 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     config: ConfigService,
     prismaService: PrismaService,
   ) {
-    this.WQ = new Contract(WQAbi, getAddresses().LST, config.get("account"))
+    this.WQ = new Contract(
+      WQAbi,
+      getAddresses().WithdrawQueue,
+      config.get("account"),
+    )
       .typedv2(WQAbi);
 
     this.Strk = new Contract(
@@ -32,9 +36,10 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     this.prismaService = prismaService;
   }
 
-  claimWithdrawal(request_id: number) {
+  async claimWithdrawal(request_id: number) {
     try {
-      this.WQ.claim_withdrawal(request_id);
+      const res = await this.WQ.claim_withdrawal(request_id);
+      console.log("Result", res);
     } catch (error) {
       console.error("Failed to claim withdrawal: ", error);
       throw error;
