@@ -41,4 +41,10 @@ RUN /root/.deno/bin/deno --version
 # generate prisma client
 RUN /root/.deno/bin/deno run -A npm:prisma generate
 
-CMD ["/root/.deno/bin/deno", "task", "prod"]
+# create run.sh to run multiple indexers at once
+RUN chmod +x run.relayer.sh
+RUN cat ./run.relayer.sh
+
+ENTRYPOINT ["./run.relayer.sh"]
+
+# CMD ["/root/.deno/bin/deno", "task", "prod"]
