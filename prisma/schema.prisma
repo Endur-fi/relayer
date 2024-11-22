@@ -46,9 +46,9 @@ model withdraw_queue {
   tx_hash      String
 
   caller       String
-  amount_strk  String
-  amount_kstrk String
-  request_id   String
+  amount_strk  BigInt
+  amount_kstrk BigInt
+  request_id   BigInt
   is_claimed   Boolean
   claim_time   Int
   receiver     String

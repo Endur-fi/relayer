@@ -110,6 +110,34 @@ export class PrismaService implements IPrismaService {
     return totalWithdrawals;
   }
 
+  async getPendingWithdraws(minAmount: bigint) {
+    const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
+      orderBy: {
+        request_id: "asc",
+      },
+      where: {
+        amount_strk: {
+          gte: minAmount,
+        },
+        is_claimed: false,
+        NOT: {
+          request_id: {
+            in: await prisma.withdraw_queue.findMany({
+              where: { is_claimed: true },
+              select: { request_id: true },
+            }).then(results => results.map(r => r.request_id)),
+          },
+        },
+      },
+      select: {
+        request_id: true,
+        amount_strk: true,
+      }
+    });
+
+    return pendingWithdraws;
+  }
+
   async getTotalDeposits(from: number, to: number) {
     const deposits = await this.getDeposits(from, to);
     const totalDeposits = deposits?.reduce(
