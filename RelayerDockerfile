@@ -31,7 +31,11 @@ RUN npm install -g yarn
 RUN yarn install
 RUN npx prisma db push
 
-#home/teja9999/.nvm/versions/node/v18.20.1/bin/node
+# install deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+RUN source ~/.bashrc
+RUN echo "checking deno version"
+RUN deno --version
 
 # install apibara
 RUN chmod +x apibara_install.sh
@@ -45,12 +49,6 @@ RUN wget https://github.com/apibara/dna/releases/download/sink-postgres%2Fv0.8.0
 RUN gzip -d sink-postgres-x86_64-linux.gz
 RUN chmod +x sink-postgres-x86_64-linux
 RUN /root/.local/share/apibara/bin/apibara plugins install --file sink-postgres-x86_64-linux
-
-# install deno
-RUN curl -fsSL https://deno.land/install.sh | sh
-RUN source ~/.bashrc
-RUN echo "checking deno version"
-RUN deno --version
 
 # create run.sh to run multiple indexers at once
 RUN chmod +x run.sh
