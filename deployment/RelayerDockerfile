@@ -3,8 +3,9 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
+ADD abis /app/abis
 ADD prisma /app/prisma
-COPY .env package.json /app
+COPY .env package.json deno.json deno.lock /app
 COPY deployment/* /app
 
 # install deps
@@ -30,12 +31,14 @@ RUN node -v && npm -v
 # yarn install
 RUN npm install -g yarn
 RUN yarn install
-RUN npx prisma db push
+RUN npm install -g typegraphql-prisma
 
 # install deno
 RUN curl -fsSL https://deno.land/install.sh | sh
 RUN echo "checking deno version"
 RUN /root/.deno/bin/deno --version
 
-# ENTRYPOINT ["deno
+# generate prisma client
+RUN /root/.deno/bin/deno run -A npm:prisma generate
+
 CMD ["/root/.deno/bin/deno", "task", "dev"]
