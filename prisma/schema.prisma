@@ -53,7 +53,7 @@ model withdraw_queue {
   claim_time   Int
   receiver     String
 
-  is_rejected  Boolean // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
+  is_rejected  Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
   
   timestamp Int
   cursor    BigInt? @map("_cursor")
