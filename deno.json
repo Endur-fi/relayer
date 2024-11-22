@@ -1,6 +1,7 @@
 {
   "tasks": {
     "dev": "deno run --watch --allow-ffi --allow-read --allow-env --allow-net src/relayer/main.ts PORT=4455",
+    "prod": "deno run --allow-ffi --allow-read --allow-env --allow-net src/relayer/main.ts",
     "index": "sh ./run-indexers.sh",
     "wq-indexer": "apibara run --allow-env=.env src/indexers/withdraw_queue/withdrawQueue.ts --sink-id=10041 --status-server-address=0.0.0.0:4140"
   },
