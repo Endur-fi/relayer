@@ -12,10 +12,11 @@ import { WithdrawalQueueService } from "./services/withdrawalQueueService.ts";
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronService } from "./cron.service.ts";
 import "npm:reflect-metadata";
+import { NotifService } from "./services/notifService.ts";
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  providers: [PrismaService, LSTService, ConfigService, WithdrawalQueueService, CronService],
+  providers: [PrismaService, LSTService, ConfigService, WithdrawalQueueService, CronService, NotifService],
   controllers: [
     StatusController,
     PrismaController,
@@ -31,3 +32,28 @@ async function bootstrap() {
 }
 bootstrap();
 
+
+// // deps.ts
+// import { NestFactory } from "npm:@nestjs/core";
+// import { Module, Injectable } from "npm:@nestjs/common";
+// import { ScheduleModule } from "npm:@nestjs/schedule";
+
+// // main.ts
+// import "npm:reflect-metadata";
+
+// @Module({
+//   imports: [
+//     ScheduleModule.forRoot({
+//       enable: true,
+//     }),
+//   ],
+//   providers: [],
+// })
+// export class AppModule {}
+
+// async function bootstrap() {
+//   const app = await NestFactory.create(AppModule);
+//   await app.init();
+// }
+
+// bootstrap();

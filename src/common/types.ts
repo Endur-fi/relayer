@@ -6,6 +6,7 @@ export interface NetworkConfig {
   provider: RpcProvider;
   account: Account;
   network: Network;
+  tgToken?: string;
 }
 
 export enum Network {

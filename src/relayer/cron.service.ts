@@ -3,6 +3,20 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { WithdrawalQueueService } from "./services/withdrawalQueueService.ts";
 import { ConfigService } from "./services/configService.ts";
 import { PrismaService } from "./services/prismaService.ts";
+import { Web3Number } from "@strkfarm/sdk";
+import { Account, Call, RpcProvider } from 'starknet';
+import { TryCatchAsync } from "../common/utils.ts";
+import { NotifService } from "./services/notifService.ts";
+
+function getCronSettings(action: 'process-withdraw-queue') {
+  const config = new ConfigService();
+  switch(action) {
+    case 'process-withdraw-queue':
+      return config.isSepolia() ? CronExpression.EVERY_5_MINUTES : CronExpression.EVERY_HOUR;
+    default:
+      throw new Error(`Unknown action: ${action}`);
+  }
+}
 
 @Injectable()
 export class CronService {
@@ -10,23 +24,114 @@ export class CronService {
   readonly config: ConfigService;
   readonly withdrawalQueueService: WithdrawalQueueService;
   readonly prismaService: PrismaService;
+  readonly notifService: NotifService;
 
   constructor(
     config: ConfigService,
     withdrawalQueueService: WithdrawalQueueService,
     prismaService: PrismaService,
+    notifService: NotifService,
   ) {
     this.config = config;
     this.withdrawalQueueService = withdrawalQueueService;
     this.prismaService = prismaService;
+    this.notifService = notifService;
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS)
-  processWithdrawQueue() {
-    this.logger.debug('running processWithdrawQueue task');
-    
+  // Run the same task on startup
+  @TryCatchAsync()
+  onModuleInit() {
+    console.log('Running task on application start...');
+    this.processWithdrawQueue();
+    this.sendStats();
+  }
+
+  @Cron(getCronSettings('process-withdraw-queue'))
+  @TryCatchAsync()
+  async processWithdrawQueue() {
+    this.logger.log('Running processWithdrawQueue task');
+
+    // note update this to 0.01 STRK later
+    const min_amount = new Web3Number("0.0", 18);
+
     // get pending withdrawals
-    const pendingWithdrawals = this.prismaService.getPendingWithdrawals(BigInt(10 ** 16));
+    const [pendingWithdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(min_amount);
     this.logger.debug(`Found ${pendingWithdrawals.length} pending withdrawals`);
+
+    // load account
+    const account: Account = this.config.get("account");
+    const provider: RpcProvider = this.config.get("provider");
+    
+    const balanceRes = await this.withdrawalQueueService.getSTRKBalance();
+    let balanceLeft = Web3Number.fromWei(balanceRes.toString(), 18);
+    this.logger.log(`Balance left: ${balanceLeft.toString()}`);
+    
+    // claim withdrawals
+    // send 10 at a time
+    const MAX_WITHDRAWALS = 1;
+    for (let i = 0; i < pendingWithdrawals.length; i += MAX_WITHDRAWALS) {
+      const batch = pendingWithdrawals.slice(i, i + MAX_WITHDRAWALS);
+      this.logger.log(`Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS-1}`);
+
+      // loop and generate SN Call objects
+      const calls: Call[] = [];
+      for (const w of batch) {
+        const amount_strk = Web3Number.fromWei(w.amount_strk, 18);
+        if (amount_strk.lte(balanceLeft)) {
+          this.logger.debug(`Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`);
+          const call = this.withdrawalQueueService.getClaimWithdrawalCall(w.request_id);
+          calls.push(call);
+          balanceLeft = balanceLeft.minus(amount_strk.toString());
+        } else {
+          // We skip the rest of the withdrawals if we don't have enough balance now
+          this.logger.warn(`Skipping withdrawal >= ID#${w.request_id} due to insufficient balance`);
+          break;
+        }
+      }
+
+      // if no withdrawals to claim, break entire loop
+      if (calls.length === 0) {
+        this.logger.warn(`No withdrawals to claim`);
+        break;
+      }
+
+      // send transactions to claim withdrawals
+      // note: nonce is set to 'pending' to get the next nonce
+      const nonce = await account.getNonce('pending')
+      this.logger.debug(`Claiming ${calls.length} withdrawals with nonce ${nonce}`);
+      const res = await account.execute(calls, {
+        nonce: nonce,
+      });
+      this.notifService.sendMessage(`Claimed ${res.transaction_hash} withdrawals`);
+      await provider.waitForTransaction(res.transaction_hash);
+      this.notifService.sendMessage(`Transaction ${res.transaction_hash} confirmed`);
+
+      // if less than MAX_WITHDRAWALS, break entire loop as there are no more withdrawals to claim
+      if (calls.length < MAX_WITHDRAWALS) {
+        this.logger.warn(`No more withdrawals to claim`);
+        break;
+      }
+    }
+
+    this.logger.log(`Rejected ${rejected_ids.length} withdrawals`);
+    this.logger.log(`Completed processWithdrawQueue task`);
+  }
+
+  @Cron(CronExpression.EVERY_6_HOURS)
+  @TryCatchAsync()
+  async sendStats() {
+    const [pending_withdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(new Web3Number("0.0", 18));
+    const balanceRes = await this.withdrawalQueueService.getSTRKBalance();
+    const balanceLeft = Web3Number.fromWei(balanceRes.toString(), 18);
+    const stats = await this.withdrawalQueueService.getWithdrawalQueueState();
+    this.notifService.sendMessage(`Pending Withdrawals: ${pending_withdrawals.length}`);
+    this.notifService.sendMessage(`Rejected ${rejected_ids.length} withdrawals`);
+    this.notifService.sendMessage(`Balance left: ${balanceLeft.toString()}`);
+    this.notifService.sendMessage(`Withdrawal Queue State: \n
+      Last Fill ID: ${stats.last_fill_id}\n
+      Max Request ID: ${stats.max_request_id}\n
+      Unprocessed Withdraw Queue Amount: ${stats.unprocessed_withdraw_queue_amount.toString()} STRK\n
+      Intransit Amount: ${stats.intransit_amount.toString()} STRK\n
+    `);
   }
 }

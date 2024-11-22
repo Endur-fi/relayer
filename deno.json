@@ -1,7 +1,8 @@
 {
   "tasks": {
     "dev": "deno run --watch --allow-ffi --allow-read --allow-env --allow-net src/relayer/main.ts PORT=4455",
-    "index": "sh ./run-indexers.sh"
+    "index": "sh ./run-indexers.sh",
+    "wq-indexer": "apibara run --allow-env=.env src/indexers/withdraw_queue/withdrawQueue.ts --sink-id=10041 --status-server-address=0.0.0.0:4140"
   },
   "imports": {
     "@apibara/indexer": "npm:@apibara/indexer@0.4.1",
@@ -13,7 +14,8 @@
     "@nestjs/schedule": "npm:@nestjs/schedule@4.1.1",
     "@std/assert": "jsr:@std/assert@1.0.8",
     "prisma": "npm:prisma@5.22.0",
-    "starknet": "npm:starknet@6.11.0"
+    "starknet": "npm:starknet@6.11.0",
+    "@strkfarm/sdk": "npm:@strkfarm/sdk@1.0.7"
   },
   "nodeModulesDir": "auto",
   "compilerOptions": {
