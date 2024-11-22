@@ -46,13 +46,15 @@ model withdraw_queue {
   tx_hash      String
 
   caller       String
-  amount_strk  BigInt
-  amount_kstrk BigInt
+  amount_strk  String
+  amount_kstrk String
   request_id   BigInt
   is_claimed   Boolean
   claim_time   Int
   receiver     String
 
+  is_rejected  Boolean // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
+  
   timestamp Int
   cursor    BigInt? @map("_cursor")
 
