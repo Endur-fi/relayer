@@ -41,4 +41,4 @@ RUN /root/.deno/bin/deno --version
 # generate prisma client
 RUN /root/.deno/bin/deno run -A npm:prisma generate
 
-CMD ["/root/.deno/bin/deno", "task", "pro"]
+CMD ["/root/.deno/bin/deno", "task", "prod"]
