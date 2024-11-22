@@ -68,7 +68,7 @@ export class CronService {
     
     // claim withdrawals
     // send 10 at a time
-    const MAX_WITHDRAWALS = 1;
+    const MAX_WITHDRAWALS = 10;
     for (let i = 0; i < pendingWithdrawals.length; i += MAX_WITHDRAWALS) {
       const batch = pendingWithdrawals.slice(i, i + MAX_WITHDRAWALS);
       this.logger.log(`Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS-1}`);

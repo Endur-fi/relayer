@@ -11,6 +11,7 @@ COPY deployment/* /app
 RUN apt-get -y update; apt-get -y install curl
 RUN apt-get -y install jq
 RUN apt-get install wget -y
+RUN apt-get install unzip -y
 RUN apt-get install gzip -y
 
 # install supervisor
