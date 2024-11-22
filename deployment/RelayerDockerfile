@@ -5,7 +5,7 @@ WORKDIR /app
 ADD src /app/src
 ADD abis /app/abis
 ADD prisma /app/prisma
-COPY .env package.json deno.json deno.lock /app
+COPY .env deno.json /app
 COPY deployment/* /app
 
 # install deps
@@ -29,8 +29,6 @@ RUN apt-get install -y nodejs
 RUN node -v && npm -v
 
 # yarn install
-RUN npm install -g yarn
-RUN yarn install
 RUN npm install -g typegraphql-prisma
 
 # install deno
