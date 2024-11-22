@@ -1,4 +1,4 @@
-import { Account, num, RpcProvider } from "starknet";
+import { Account, num, RpcProvider } from "https://esm.sh/starknet@6.11.0";
 import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { Network } from "./types.ts";
 
