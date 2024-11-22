@@ -1,3 +1,4 @@
+console.log("Hello, world!");
 import { NestFactory } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import "@nestjs/platform-express";
@@ -14,6 +15,7 @@ import { CronService } from "./cron.service.ts";
 import "npm:reflect-metadata";
 import { NotifService } from "./services/notifService.ts";
 
+console.log("Hello, world!2");
 @Module({
   imports: [ScheduleModule.forRoot()],
   providers: [PrismaService, LSTService, ConfigService, WithdrawalQueueService, CronService, NotifService],
@@ -26,12 +28,15 @@ import { NotifService } from "./services/notifService.ts";
 })
 class AppModule {}
 
+console.log("Hello, world!3");
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   await app.listen(Deno.env.get("PORT") ?? 3000);
 }
+console.log("Hello, world!4");
 bootstrap();
-
+console.log("Hello, world!5");
 
 // // deps.ts
 // import { NestFactory } from "npm:@nestjs/core";
