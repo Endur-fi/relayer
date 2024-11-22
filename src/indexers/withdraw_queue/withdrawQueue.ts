@@ -27,7 +27,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "withdraw_queue",
-    noTls: true
+    noTls: true // true for private urls, false for public urls
   },
 };
 
@@ -81,6 +81,7 @@ export default function transform({ header, events }: Block) {
         amount_kstrk: toBigInt(event.data.at(4)).toString(),
         is_claimed: toBoolean(event.data.at(6)),
         claim_time: toNumber(event.data.at(8)),
+        is_rejected: false,
         timestamp: timestamp_unix,
       };
     } else if (event.data.length == 9) {
@@ -99,6 +100,7 @@ export default function transform({ header, events }: Block) {
         amount_kstrk: toBigInt(event.data.at(3)).toString(),
         is_claimed: toBoolean(event.data.at(5)),
         claim_time: toNumber(event.data.at(7)),
+        is_rejected: false,
         timestamp: timestamp_unix,
       };
     } else {
