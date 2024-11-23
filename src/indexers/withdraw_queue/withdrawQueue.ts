@@ -27,7 +27,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "withdraw_queue",
-    noTls: false // true for private urls, false for public urls
+    noTls: true // true for private urls, false for public urls
   },
 };
 
