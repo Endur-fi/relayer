@@ -1,11 +1,16 @@
 #!/bin/bash
 
-echo "Running indexers"
-/usr/bin/supervisord -c /app/supervisord.relayer.conf
+echo "Installing deno"
+/root/.deno/bin/deno install --allow-scripts
 
-echo "Sleeping 30s"
-sleep 30
-cat /var/log/supervisor/relayer.log
+echo "Running relayer"
+/root/.deno/bin/deno run prod
 
-echo "Sleeping 30s"
-sleep 30
+# /usr/bin/supervisord -c /app/supervisord.relayer.conf
+
+# echo "Sleeping 30s"
+# sleep 30
+# cat /var/log/supervisor/relayer.log
+
+# echo "Sleeping 30s"
+# sleep 30

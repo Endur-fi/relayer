@@ -5,7 +5,7 @@ WORKDIR /app
 ADD src /app/src
 ADD abis /app/abis
 ADD prisma /app/prisma
-COPY .env deno.json /app
+COPY .env deno.json package.json deno.lock /app
 COPY deployment/* /app
 
 # install deps

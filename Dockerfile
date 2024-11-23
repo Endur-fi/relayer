@@ -3,15 +3,14 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
-ADD prisma /app/prisma
-COPY .env package.json /app
+COPY .env package.json schema.prisma /app
+COPY apibara_install.sh /app
 COPY deployment/* /app
 
 # install deps
 RUN apt-get -y update; apt-get -y install curl
 RUN apt-get -y install jq
 RUN apt-get install wget -y
-RUN apt-get install unzip -y
 RUN apt-get install gzip -y
 
 # install supervisor

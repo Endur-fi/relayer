@@ -22,6 +22,7 @@
     "npm:graphql-fields@2.0.3": "2.0.3",
     "npm:graphql-scalars@1.23.0": "1.23.0_graphql@16.9.0",
     "npm:graphql@16.9.0": "16.9.0",
+    "npm:prisma@*": "5.22.0",
     "npm:prisma@5.22.0": "5.22.0",
     "npm:prisma@^5.22.0": "5.22.0",
     "npm:reflect-metadata@*": "0.2.2",
