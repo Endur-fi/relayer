@@ -27,7 +27,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "withdraw_queue",
-    noTls: true // true for private urls, false for public urls
+    noTls: false // true for private urls, false for public urls
   },
 };
 
@@ -123,7 +123,7 @@ export default function transform({ header, events }: Block) {
         claim_time: toNumber(event.data.at(7)),
         cumulative_requested_amount_snapshot: toBigInt(event.data.at(8)).toString(),
         is_rejected: false,
-        timestamp: timestamp
+        timestamp: timestamp_unix
       };
     } else {
       console.error("unexpected event data length", event.data.length);
