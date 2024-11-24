@@ -13,7 +13,7 @@ type NetworkAddresses = {
 const sepolia: NetworkAddresses = {
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
-    "0x4b55e5722cdc06d585862f4fb4952f5471bacfb5d8870569183e1bf88cf01c9",
+    "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
   Treasury:
     "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
   Admin: "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
@@ -29,7 +29,7 @@ const sepolia: NetworkAddresses = {
 const mainnet: NetworkAddresses = {
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
-    "0x4b55e5722cdc06d585862f4fb4952f5471bacfb5d8870569183e1bf88cf01c9",
+    "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
   Treasury:
     "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
   Admin: "0x054D159fA98b0f67b3d3B287aaE0340BF595D8f2A96ed99532785AEEF08c1eDe",
