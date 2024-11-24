@@ -67,25 +67,8 @@ export default function transform({ header, events }: Block) {
     const transactionHash = transaction.meta.hash;
 
     let eventData: any = null;
-    if (event.data.length == 10) {
-      // pre-audit version where request id is u256 and no request id in event
-      eventData = {
-        block_number: blockNumber,
-        tx_index: transaction.meta?.transactionIndex ?? 0,
-        event_index: event.index ?? 0,
-        tx_hash: transactionHash,
-        receiver: standariseAddress(event.data.at(0)),
-        caller: standariseAddress(event.data.at(1)),
-        request_id: '0',
-        amount_strk: toBigInt(event.data.at(2)).toString(),
-        amount_kstrk: toBigInt(event.data.at(4)).toString(),
-        is_claimed: toBoolean(event.data.at(6)),
-        claim_time: toNumber(event.data.at(8)),
-        is_rejected: false,
-        timestamp: timestamp_unix,
-      };
-    } else if (event.data.length == 9) {
-      // post-audit version where request id is u128 and request id is in event
+    if (event.data.length == 11) {
+      // post-audit version where cummulative sum is added and keys are indexed
       // also event is indexed
       eventData = {
         block_number: blockNumber,
@@ -100,8 +83,9 @@ export default function transform({ header, events }: Block) {
         amount_kstrk: toBigInt(event.data.at(3)).toString(),
         is_claimed: toBoolean(event.data.at(5)),
         claim_time: toNumber(event.data.at(7)),
+        cumulative_requested_amount_snapshot: toBigInt(event.data.at(8)).toString(),
         is_rejected: false,
-        timestamp: timestamp_unix,
+        timestamp: timestamp_unix
       };
     } else {
       console.error("unexpected event data length", event.data.length);
