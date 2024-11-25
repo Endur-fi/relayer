@@ -128,7 +128,6 @@ export class CronService {
     this.notifService.sendMessage(`Rejected ${rejected_ids.length} withdrawals`);
     this.notifService.sendMessage(`Balance left: ${balanceLeft.toString()}`);
     this.notifService.sendMessage(`Withdrawal Queue State: \n
-      Last Fill ID: ${stats.last_fill_id}\n
       Max Request ID: ${stats.max_request_id}\n
       Unprocessed Withdraw Queue Amount: ${stats.unprocessed_withdraw_queue_amount.toString()} STRK\n
       Intransit Amount: ${stats.intransit_amount.toString()} STRK\n

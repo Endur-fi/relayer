@@ -8,7 +8,6 @@ import { Injectable } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
 
 interface IWithdrawalQueueState {
-  last_fill_id: number;
   max_request_id: number;
   unprocessed_withdraw_queue_amount: Web3Number;
   intransit_amount: Web3Number;
@@ -84,7 +83,6 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   async getWithdrawalQueueState() {
     const res = await this.WQ.get_queue_state();
     return {
-      last_fill_id: Number(res.last_fill_id),
       max_request_id: Number(res.max_request_id),
       unprocessed_withdraw_queue_amount: Web3Number.fromWei(res.unprocessed_withdraw_queue_amount.toString(), 18),
       intransit_amount: Web3Number.fromWei(res.intransit_amount.toString(), 18),
