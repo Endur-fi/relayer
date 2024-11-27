@@ -7,7 +7,12 @@ import type {
 import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 import { hash } from "https://esm.sh/starknet@6.11.0";
 
-import { standariseAddress, toBigInt, toBoolean, toNumber } from "../../common/utils.ts";
+import {
+  standariseAddress,
+  toBigInt,
+  toBoolean,
+  toNumber,
+} from "../../common/utils.ts";
 import { getAddresses } from "../../common/constants.ts";
 
 export const config: Config<Starknet, Postgres> = {
@@ -27,7 +32,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "withdraw_queue",
-    noTls: true // true for private urls, false for public urls
+    noTls: true, // true for private urls, false for public urls
   },
 };
 
@@ -60,43 +65,44 @@ export default function transform({ header, events }: Block) {
 
   return events.map(({ event, transaction }) => {
     try {
-    if (!event || !event.data || !event.keys || !transaction.meta) {
-      console.error("withdraw_queue:Expected event with data");
-      return null;
-    }
-    const transactionHash = transaction.meta.hash;
+      if (!event || !event.data || !event.keys || !transaction.meta) {
+        console.error("withdraw_queue:Expected event with data");
+        return null;
+      }
+      const transactionHash = transaction.meta.hash;
 
-    let eventData: any = null;
-    if (event.data.length == 11) {
-      // post-audit version where cummulative sum is added and keys are indexed
-      // also event is indexed
-      eventData = {
-        block_number: blockNumber,
-        tx_index: transaction.meta?.transactionIndex ?? 0,
-        event_index: event.index ?? 0,
-        tx_hash: transactionHash,
+      let eventData: any = null;
+      if (event.data.length == 11) {
+        // post-audit version where cummulative sum is added and keys are indexed
+        // also event is indexed
+        eventData = {
+          block_number: blockNumber,
+          tx_index: transaction.meta?.transactionIndex ?? 0,
+          event_index: event.index ?? 0,
+          tx_hash: transactionHash,
 
-        receiver: standariseAddress(event.keys.at(1)),
-        caller: standariseAddress(event.keys.at(2)),
-        request_id: toNumber(event.data.at(0)).toString(),
-        amount_strk: toBigInt(event.data.at(1)).toString(),
-        amount_kstrk: toBigInt(event.data.at(3)).toString(),
-        is_claimed: toBoolean(event.data.at(5)),
-        claim_time: toNumber(event.data.at(7)),
-        cumulative_requested_amount_snapshot: toBigInt(event.data.at(8)).toString(),
-        is_rejected: false,
-        timestamp: timestamp_unix
-      };
-    } else {
-      console.error("unexpected event data length", event.data.length);
-      return null;
-    }
+          receiver: standariseAddress(event.keys.at(1)),
+          caller: standariseAddress(event.keys.at(2)),
+          request_id: toNumber(event.data.at(0)).toString(),
+          amount_strk: toBigInt(event.data.at(1)).toString(),
+          amount_kstrk: toBigInt(event.data.at(3)).toString(),
+          is_claimed: toBoolean(event.data.at(5)),
+          claim_time: toNumber(event.data.at(7)),
+          cumulative_requested_amount_snapshot: toBigInt(event.data.at(8))
+            .toString(),
+          is_rejected: false,
+          timestamp: timestamp_unix,
+        };
+      } else {
+        console.error("unexpected event data length", event.data.length);
+        return null;
+      }
 
-    console.log("event data", eventData);
-    return eventData;
-    } catch(e) {
+      console.log("event data", eventData);
+      return eventData;
+    } catch (e) {
       console.error("Error in withdraw_queue transform", e);
-      return null
+      return null;
     }
   }).filter((x) => x !== null);
 }

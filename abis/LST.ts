@@ -2,7 +2,7 @@ export const ABI = [
   {
     "type": "impl",
     "name": "MyERC4626Impl",
-    "interface_name": "lst::lst::interface::IERC4626"
+    "interface_name": "lst::lst::interface::IERC4626",
   },
   {
     "type": "struct",
@@ -10,13 +10,13 @@ export const ABI = [
     "members": [
       {
         "name": "low",
-        "type": "core::integer::u128"
+        "type": "core::integer::u128",
       },
       {
         "name": "high",
-        "type": "core::integer::u128"
-      }
-    ]
+        "type": "core::integer::u128",
+      },
+    ],
   },
   {
     "type": "interface",
@@ -28,10 +28,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -39,10 +39,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -50,15 +50,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -66,15 +66,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "shares",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -82,15 +82,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -98,15 +98,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -114,19 +114,19 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
+            "type": "core::integer::u256",
           },
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -134,15 +134,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -150,15 +150,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "shares",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -166,19 +166,19 @@ export const ABI = [
         "inputs": [
           {
             "name": "shares",
-            "type": "core::integer::u256"
+            "type": "core::integer::u256",
           },
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -186,15 +186,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "owner",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -202,15 +202,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -218,23 +218,23 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
+            "type": "core::integer::u256",
           },
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "owner",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -242,15 +242,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "owner",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -258,15 +258,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "shares",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -274,30 +274,30 @@ export const ABI = [
         "inputs": [
           {
             "name": "shares",
-            "type": "core::integer::u256"
+            "type": "core::integer::u256",
           },
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "owner",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "external"
-      }
-    ]
+        "state_mutability": "external",
+      },
+    ],
   },
   {
     "type": "impl",
     "name": "LSTAdditionalImpl",
-    "interface_name": "lst::lst::interface::ILSTAdditional"
+    "interface_name": "lst::lst::interface::ILSTAdditional",
   },
   {
     "type": "struct",
@@ -305,17 +305,17 @@ export const ABI = [
     "members": [
       {
         "name": "data",
-        "type": "core::array::Array::<core::bytes_31::bytes31>"
+        "type": "core::array::Array::<core::bytes_31::bytes31>",
       },
       {
         "name": "pending_word",
-        "type": "core::felt252"
+        "type": "core::felt252",
       },
       {
         "name": "pending_word_len",
-        "type": "core::integer::u32"
-      }
-    ]
+        "type": "core::integer::u32",
+      },
+    ],
   },
   {
     "type": "struct",
@@ -323,9 +323,9 @@ export const ABI = [
     "members": [
       {
         "name": "contract_address",
-        "type": "core::starknet::contract_address::ContractAddress"
-      }
-    ]
+        "type": "core::starknet::contract_address::ContractAddress",
+      },
+    ],
   },
   {
     "type": "struct",
@@ -333,9 +333,9 @@ export const ABI = [
     "members": [
       {
         "name": "contract_address",
-        "type": "core::starknet::contract_address::ContractAddress"
-      }
-    ]
+        "type": "core::starknet::contract_address::ContractAddress",
+      },
+    ],
   },
   {
     "type": "struct",
@@ -343,29 +343,29 @@ export const ABI = [
     "members": [
       {
         "name": "deposit_fee_bps",
-        "type": "core::integer::u256"
+        "type": "core::integer::u256",
       },
       {
         "name": "withdraw_fee_bps",
-        "type": "core::integer::u256"
+        "type": "core::integer::u256",
       },
       {
         "name": "rewards_fee_bps",
-        "type": "core::integer::u256"
+        "type": "core::integer::u256",
       },
       {
         "name": "treasury",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
       },
       {
         "name": "withdraw_queue",
-        "type": "lst::withdrawal_queue::interface::IWithdrawalQueueDispatcher"
+        "type": "lst::withdrawal_queue::interface::IWithdrawalQueueDispatcher",
       },
       {
         "name": "staker",
-        "type": "contracts::staking::interface::IStakingDispatcher"
-      }
-    ]
+        "type": "contracts::staking::interface::IStakingDispatcher",
+      },
+    ],
   },
   {
     "type": "enum",
@@ -373,13 +373,13 @@ export const ABI = [
     "variants": [
       {
         "name": "False",
-        "type": "()"
+        "type": "()",
       },
       {
         "name": "True",
-        "type": "()"
-      }
-    ]
+        "type": "()",
+      },
+    ],
   },
   {
     "type": "struct",
@@ -387,13 +387,13 @@ export const ABI = [
     "members": [
       {
         "name": "is_active",
-        "type": "core::bool"
+        "type": "core::bool",
       },
       {
         "name": "delegator_index",
-        "type": "core::integer::u32"
-      }
-    ]
+        "type": "core::integer::u32",
+      },
+    ],
   },
   {
     "type": "interface",
@@ -405,23 +405,23 @@ export const ABI = [
         "inputs": [
           {
             "name": "assets",
-            "type": "core::integer::u256"
+            "type": "core::integer::u256",
           },
           {
             "name": "receiver",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "referral",
-            "type": "core::byte_array::ByteArray"
-          }
+            "type": "core::byte_array::ByteArray",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -429,11 +429,11 @@ export const ABI = [
         "inputs": [
           {
             "name": "config",
-            "type": "lst::lst::interface::Config"
-          }
+            "type": "lst::lst::interface::Config",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -441,10 +441,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "lst::lst::interface::Config"
-          }
+            "type": "lst::lst::interface::Config",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -452,15 +452,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "delegator",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -468,11 +468,11 @@ export const ABI = [
         "inputs": [
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -480,11 +480,11 @@ export const ABI = [
         "inputs": [
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -492,15 +492,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "delegator",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -508,15 +508,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "delegator",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "info",
-            "type": "lst::lst::interface::DelegatorInfo"
-          }
+            "type": "lst::lst::interface::DelegatorInfo",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -524,29 +524,29 @@ export const ABI = [
         "inputs": [
           {
             "name": "delegator",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
         "name": "claim_rewards",
         "inputs": [],
         "outputs": [],
-        "state_mutability": "external"
-      }
-    ]
+        "state_mutability": "external",
+      },
+    ],
   },
   {
     "type": "impl",
     "name": "CommonCompImpl",
-    "interface_name": "lst::utils::common::ICommon"
+    "interface_name": "lst::utils::common::ICommon",
   },
   {
     "type": "interface",
@@ -558,25 +558,25 @@ export const ABI = [
         "inputs": [
           {
             "name": "new_class",
-            "type": "core::starknet::class_hash::ClassHash"
-          }
+            "type": "core::starknet::class_hash::ClassHash",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
         "name": "pause",
         "inputs": [],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
         "name": "unpause",
         "inputs": [],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -584,10 +584,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -595,10 +595,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -606,25 +606,25 @@ export const ABI = [
         "inputs": [
           {
             "name": "new_owner",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
         "name": "renounce_ownership",
         "inputs": [],
         "outputs": [],
-        "state_mutability": "external"
-      }
-    ]
+        "state_mutability": "external",
+      },
+    ],
   },
   {
     "type": "impl",
     "name": "ERC4626MetadataImpl",
-    "interface_name": "openzeppelin_token::erc20::interface::IERC20Metadata"
+    "interface_name": "openzeppelin_token::erc20::interface::IERC20Metadata",
   },
   {
     "type": "interface",
@@ -636,10 +636,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::byte_array::ByteArray"
-          }
+            "type": "core::byte_array::ByteArray",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -647,10 +647,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::byte_array::ByteArray"
-          }
+            "type": "core::byte_array::ByteArray",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -658,17 +658,17 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::integer::u8"
-          }
+            "type": "core::integer::u8",
+          },
         ],
-        "state_mutability": "view"
-      }
-    ]
+        "state_mutability": "view",
+      },
+    ],
   },
   {
     "type": "impl",
     "name": "ERC20Impl",
-    "interface_name": "openzeppelin_token::erc20::interface::IERC20"
+    "interface_name": "openzeppelin_token::erc20::interface::IERC20",
   },
   {
     "type": "interface",
@@ -680,10 +680,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -691,15 +691,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "account",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -707,19 +707,19 @@ export const ABI = [
         "inputs": [
           {
             "name": "owner",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "spender",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -727,19 +727,19 @@ export const ABI = [
         "inputs": [
           {
             "name": "recipient",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -747,23 +747,23 @@ export const ABI = [
         "inputs": [
           {
             "name": "sender",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "recipient",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "external"
+        "state_mutability": "external",
       },
       {
         "type": "function",
@@ -771,26 +771,26 @@ export const ABI = [
         "inputs": [
           {
             "name": "spender",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "external"
-      }
-    ]
+        "state_mutability": "external",
+      },
+    ],
   },
   {
     "type": "impl",
     "name": "ERC20CamelOnlyImpl",
-    "interface_name": "openzeppelin_token::erc20::interface::IERC20CamelOnly"
+    "interface_name": "openzeppelin_token::erc20::interface::IERC20CamelOnly",
   },
   {
     "type": "interface",
@@ -802,10 +802,10 @@ export const ABI = [
         "inputs": [],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -813,15 +813,15 @@ export const ABI = [
         "inputs": [
           {
             "name": "account",
-            "type": "core::starknet::contract_address::ContractAddress"
-          }
+            "type": "core::starknet::contract_address::ContractAddress",
+          },
         ],
         "outputs": [
           {
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
-        "state_mutability": "view"
+        "state_mutability": "view",
       },
       {
         "type": "function",
@@ -829,25 +829,25 @@ export const ABI = [
         "inputs": [
           {
             "name": "sender",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "recipient",
-            "type": "core::starknet::contract_address::ContractAddress"
+            "type": "core::starknet::contract_address::ContractAddress",
           },
           {
             "name": "amount",
-            "type": "core::integer::u256"
-          }
+            "type": "core::integer::u256",
+          },
         ],
         "outputs": [
           {
-            "type": "core::bool"
-          }
+            "type": "core::bool",
+          },
         ],
-        "state_mutability": "external"
-      }
-    ]
+        "state_mutability": "external",
+      },
+    ],
   },
   {
     "type": "constructor",
@@ -855,37 +855,38 @@ export const ABI = [
     "inputs": [
       {
         "name": "name",
-        "type": "core::byte_array::ByteArray"
+        "type": "core::byte_array::ByteArray",
       },
       {
         "name": "symbol",
-        "type": "core::byte_array::ByteArray"
+        "type": "core::byte_array::ByteArray",
       },
       {
         "name": "asset",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
       },
       {
         "name": "owner",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "type": "core::starknet::contract_address::ContractAddress",
       },
       {
         "name": "config",
-        "type": "lst::lst::interface::Config"
-      }
-    ]
+        "type": "lst::lst::interface::Config",
+      },
+    ],
   },
   {
     "type": "event",
-    "name": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
+    "name":
+      "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
     "kind": "struct",
     "members": [
       {
         "name": "class_hash",
         "type": "core::starknet::class_hash::ClassHash",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -894,10 +895,11 @@ export const ABI = [
     "variants": [
       {
         "name": "Upgraded",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
-        "kind": "nested"
-      }
-    ]
+        "type":
+          "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
+        "kind": "nested",
+      },
+    ],
   },
   {
     "type": "event",
@@ -907,9 +909,9 @@ export const ABI = [
       {
         "name": "account",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -919,9 +921,9 @@ export const ABI = [
       {
         "name": "account",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -931,54 +933,57 @@ export const ABI = [
       {
         "name": "Paused",
         "type": "openzeppelin_security::pausable::PausableComponent::Paused",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "Unpaused",
         "type": "openzeppelin_security::pausable::PausableComponent::Unpaused",
-        "kind": "nested"
-      }
-    ]
+        "kind": "nested",
+      },
+    ],
   },
   {
     "type": "event",
-    "name": "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
+    "name":
+      "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
     "kind": "enum",
-    "variants": []
+    "variants": [],
   },
   {
     "type": "event",
-    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+    "name":
+      "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
     "kind": "struct",
     "members": [
       {
         "name": "previous_owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "new_owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
-      }
-    ]
+        "kind": "key",
+      },
+    ],
   },
   {
     "type": "event",
-    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+    "name":
+      "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
     "kind": "struct",
     "members": [
       {
         "name": "previous_owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "new_owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
-      }
-    ]
+        "kind": "key",
+      },
+    ],
   },
   {
     "type": "event",
@@ -987,21 +992,23 @@ export const ABI = [
     "variants": [
       {
         "name": "OwnershipTransferred",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
-        "kind": "nested"
+        "type":
+          "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+        "kind": "nested",
       },
       {
         "name": "OwnershipTransferStarted",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
-        "kind": "nested"
-      }
-    ]
+        "type":
+          "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+        "kind": "nested",
+      },
+    ],
   },
   {
     "type": "event",
     "name": "lst::utils::common::CommonComp::Event",
     "kind": "enum",
-    "variants": []
+    "variants": [],
   },
   {
     "type": "event",
@@ -1011,24 +1018,24 @@ export const ABI = [
       {
         "name": "sender",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "assets",
         "type": "core::integer::u256",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "shares",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1038,29 +1045,29 @@ export const ABI = [
       {
         "name": "sender",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "receiver",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "assets",
         "type": "core::integer::u256",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "shares",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1070,14 +1077,14 @@ export const ABI = [
       {
         "name": "Deposit",
         "type": "lst::lst::erc4626::ERC4626Component::Deposit",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "Withdraw",
         "type": "lst::lst::erc4626::ERC4626Component::Withdraw",
-        "kind": "nested"
-      }
-    ]
+        "kind": "nested",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1087,19 +1094,19 @@ export const ABI = [
       {
         "name": "from",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "to",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "value",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1109,19 +1116,19 @@ export const ABI = [
       {
         "name": "owner",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "spender",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "kind": "key",
       },
       {
         "name": "value",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1131,14 +1138,14 @@ export const ABI = [
       {
         "name": "Transfer",
         "type": "openzeppelin_token::erc20::erc20::ERC20Component::Transfer",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "Approval",
         "type": "openzeppelin_token::erc20::erc20::ERC20Component::Approval",
-        "kind": "nested"
-      }
-    ]
+        "kind": "nested",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1148,14 +1155,14 @@ export const ABI = [
       {
         "name": "delegator",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "amount",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1165,9 +1172,9 @@ export const ABI = [
       {
         "name": "amount",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1177,14 +1184,14 @@ export const ABI = [
       {
         "name": "delegator",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "info",
         "type": "lst::lst::interface::DelegatorInfo",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1194,19 +1201,19 @@ export const ABI = [
       {
         "name": "amount",
         "type": "core::integer::u256",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "token",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "receiver",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1216,19 +1223,19 @@ export const ABI = [
       {
         "name": "referrer",
         "type": "core::byte_array::ByteArray",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "referee",
         "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "kind": "data",
       },
       {
         "name": "assets",
         "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
+        "kind": "data",
+      },
+    ],
   },
   {
     "type": "event",
@@ -1237,64 +1244,67 @@ export const ABI = [
     "variants": [
       {
         "name": "UpgradeableEvent",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
-        "kind": "flat"
+        "type":
+          "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
+        "kind": "flat",
       },
       {
         "name": "PausableEvent",
         "type": "openzeppelin_security::pausable::PausableComponent::Event",
-        "kind": "flat"
+        "kind": "flat",
       },
       {
         "name": "ReentrancyGuardEvent",
-        "type": "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
-        "kind": "flat"
+        "type":
+          "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
+        "kind": "flat",
       },
       {
         "name": "OwnableEvent",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
-        "kind": "flat"
+        "type":
+          "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+        "kind": "flat",
       },
       {
         "name": "CommonCompEvent",
         "type": "lst::utils::common::CommonComp::Event",
-        "kind": "flat"
+        "kind": "flat",
       },
       {
         "name": "ERC4626Event",
         "type": "lst::lst::erc4626::ERC4626Component::Event",
-        "kind": "flat"
+        "kind": "flat",
       },
       {
         "name": "ERC20Event",
         "type": "openzeppelin_token::erc20::erc20::ERC20Component::Event",
-        "kind": "flat"
+        "kind": "flat",
       },
       {
         "name": "DispatchToStake",
         "type": "lst::lst::interface::DispatchToStake",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "DispatchToWithdrawQueue",
         "type": "lst::lst::interface::DispatchToWithdrawQueue",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "DelegatorUpdate",
         "type": "lst::lst::lst::LST::DelegatorUpdate",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "Fee",
         "type": "lst::lst::interface::Fee",
-        "kind": "nested"
+        "kind": "nested",
       },
       {
         "name": "Referral",
         "type": "lst::lst::lst::LST::Referral",
-        "kind": "nested"
-      }
-    ]
-  }
+        "kind": "nested",
+      },
+    ],
+  },
 ] as const;
