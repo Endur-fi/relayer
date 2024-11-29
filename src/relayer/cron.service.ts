@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { WithdrawalQueueService } from "./services/withdrawalQueueService.ts";
-import { ConfigService } from "./services/configService.ts";
-import { PrismaService } from "./services/prismaService.ts";
+import { WithdrawalQueueService } from "./services/withdrawalQueueService";
+import { ConfigService } from "./services/configService";
+import { PrismaService } from "./services/prismaService";
 import { Web3Number } from "@strkfarm/sdk";
 import { Account, Call, RpcProvider } from 'starknet';
-import { TryCatchAsync } from "../common/utils.ts";
-import { NotifService } from "./services/notifService.ts";
+import { TryCatchAsync } from "../common/utils";
+import { NotifService } from "./services/notifService";
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -65,7 +65,7 @@ export class CronService {
     const balanceRes = await this.withdrawalQueueService.getSTRKBalance();
     let balanceLeft = Web3Number.fromWei(balanceRes.toString(), 18);
     this.logger.log(`Balance left: ${balanceLeft.toString()}`);
-    
+    return;
     // claim withdrawals
     // send 10 at a time
     const MAX_WITHDRAWALS = 10;

@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { LSTService } from "../services/lstService.ts";
+import { LSTService } from "../services/lstService";
 
 @Controller("lst")
 export class LstController {

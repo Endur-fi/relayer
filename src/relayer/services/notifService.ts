@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { TelegramNotif } from '@strkfarm/sdk';
-import { ConfigService } from "./configService.ts";
+import { ConfigService } from "./configService";
 
 interface INotifService {
   sendMessage(msg: string): void;
@@ -8,14 +8,16 @@ interface INotifService {
 
 @Injectable()
 export class NotifService implements INotifService {
-  private readonly logger = new Logger(NotifService.name);
-  private readonly telegram: TelegramNotif | null = null;
+  readonly logger = new Logger(NotifService.name);
+  readonly telegram: TelegramNotif | null = null;
+  readonly config: ConfigService;
 
   constructor(config: ConfigService) {
     const tgToken = config.get("tgToken");
     if (tgToken) {
       this.telegram = new TelegramNotif(tgToken, false);
     }
+    this.config = config;
   }
 
   sendMessage(msg: string): void {

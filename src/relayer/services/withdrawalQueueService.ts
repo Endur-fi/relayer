@@ -1,11 +1,12 @@
-import { Contract, Call } from "npm:starknet";
-import { PrismaService } from "./prismaService.ts";
-import { ConfigService } from "./configService.ts";
-import { getAddresses } from "../../common/constants.ts";
-import { ABI as WQAbi } from "../../../abis/WithdrawalQueue.ts";
-import { ABI as StrkAbi } from "../../../abis/Strk.ts";
+import { Contract, Call } from "starknet";
+import { PrismaService } from "./prismaService";
+import { ConfigService } from "./configService";
+import { getAddresses } from "../../common/constants";
+import { ABI as WQAbi } from "../../../abis/WithdrawalQueue";
+import { ABI as StrkAbi } from "../../../abis/Strk";
 import { Injectable } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
+import { getNetwork } from "../../common/utils";
 
 interface IWithdrawalQueueState {
   max_request_id: number;
@@ -33,14 +34,14 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   ) {
     this.WQ = new Contract(
       WQAbi,
-      getAddresses().WithdrawQueue,
+      getAddresses(getNetwork()).WithdrawQueue,
       config.get("account"),
     )
       .typedv2(WQAbi);
 
     this.Strk = new Contract(
       StrkAbi,
-      getAddresses().Strk,
+      getAddresses(getNetwork()).Strk,
       config.get("account"),
     ).typedv2(StrkAbi);
 
@@ -57,7 +58,7 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     }
   }
 
-  getClaimWithdrawalCall(request_id: number): Call {
+  getClaimWithdrawalCall(request_id: number | bigint): Call {
     return this.WQ.populate("claim_withdrawal", [request_id]);
   }
 
@@ -77,7 +78,7 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   }
 
   getSTRKBalance() {
-    return this.Strk.balanceOf(getAddresses().WithdrawQueue) as Promise<bigint>;
+    return this.Strk.balanceOf(getAddresses(getNetwork()).WithdrawQueue) as Promise<bigint>;
   }
 
   async getWithdrawalQueueState() {

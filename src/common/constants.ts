@@ -1,5 +1,8 @@
-import { getNetwork } from "./utils.ts";
-import { Network } from "./types.ts";
+export enum Network {
+  mainnet = "mainnet",
+  sepolia = "sepolia",
+  devnet = "devnet",
+}
 
 type NetworkAddresses = {
   LST: string;
@@ -40,13 +43,12 @@ const mainnet: NetworkAddresses = {
   ],
 };
 
-export function getAddresses(): NetworkAddresses {
-  const network = getNetwork();
+export function getAddresses(network: Network): NetworkAddresses {
   switch (network) {
-    case Network.sepolia: {
+    case 'sepolia': {
       return sepolia;
     }
-    case Network.mainnet: {
+    case 'mainnet': {
       return mainnet;
     }
     default: {

@@ -8,9 +8,12 @@ deno run --allow-env --allow-ffi --allow-sys --allow-read --allow-write --allow-
 ```
 or instead just run
 ```
-deno run -A npm:prisma generate
+npm install -g typegraphql-prisma
 ```
-
+```
+deno run -A --unstable npm:prisma generate --no-engine
+```
+Reference: https://www.prisma.io/docs/orm/prisma-client/deployment/edge/deploy-to-deno-deploy
 
 # Commands
 

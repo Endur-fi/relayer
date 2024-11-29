@@ -1,5 +1,6 @@
-import { Network, NetworkConfig } from "../../common/types.ts";
-import { getAccount, getProvider, getTGToken } from "../../common/utils.ts";
+import { Network } from "../../common/constants";
+import { NetworkConfig } from "../../common/types";
+import { getAccount, getProvider, getTGToken } from "../../common/utils";
 import { Injectable } from "@nestjs/common";
 
 @Injectable()

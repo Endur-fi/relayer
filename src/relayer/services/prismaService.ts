@@ -1,4 +1,4 @@
-import { deposits, prisma, PrismaClient } from "../../../prisma/client.ts";
+import { deposits, prisma, PrismaClient } from "../../../prisma/client";
 import { Injectable, Logger } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
 
@@ -73,7 +73,7 @@ export class PrismaService implements IPrismaService {
         index: number,
         depositsArray: typeof deposits,
       ) => {
-        depositsArray[index].cursor = depositsArray[index].cursor.toString();
+        depositsArray[index].cursor = BigInt(depositsArray[index].cursor?.toString() ?? 0);
       },
     );
     return deposits;
@@ -95,7 +95,7 @@ export class PrismaService implements IPrismaService {
         index: number,
         withdrawsArray: typeof withdraws,
       ) => {
-        withdrawsArray[index].cursor = withdrawsArray[index].cursor.toString();
+        withdrawsArray[index].cursor = BigInt(withdrawsArray[index].cursor?.toString() ?? 0);
       },
     );
     return withdraws;
@@ -112,7 +112,10 @@ export class PrismaService implements IPrismaService {
     return totalWithdrawals;
   }
 
-  async getPendingWithdraws(minAmount: Web3Number) {
+  async getPendingWithdraws(minAmount: Web3Number): Promise<[{
+    amount_strk: string;
+    request_id: bigint;
+  }[], bigint[]]> {
     const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
       orderBy: {
         request_id: "asc",
@@ -141,7 +144,8 @@ export class PrismaService implements IPrismaService {
     // filter out withdrawals that are less than minAmount
     // also isolate the rejected ones and mark them as rejected
     let rejected_ids: bigint[] = [];
-    const filteredWithdraws = pendingWithdraws.filter(
+    const filteredWithdraws = [];
+    pendingWithdraws.filter(
       (withdraw: any) => {
         const amount = Web3Number.fromWei(withdraw.amount_strk, 18);
         if (amount.lt(minAmount)) {
