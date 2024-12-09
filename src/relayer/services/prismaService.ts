@@ -141,11 +141,11 @@ export class PrismaService implements IPrismaService {
       }
     });
 
+
     // filter out withdrawals that are less than minAmount
     // also isolate the rejected ones and mark them as rejected
     let rejected_ids: bigint[] = [];
-    const filteredWithdraws = [];
-    pendingWithdraws.filter(
+    const filteredWithdraws = pendingWithdraws.filter(
       (withdraw: any) => {
         const amount = Web3Number.fromWei(withdraw.amount_strk, 18);
         if (amount.lt(minAmount)) {

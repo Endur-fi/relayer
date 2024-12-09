@@ -31,4 +31,8 @@ export class ConfigService {
   isSepolia(): boolean {
     return this.config.network === Network.sepolia;
   }
+
+  provider() {
+    return this.config.provider;
+  }
 }

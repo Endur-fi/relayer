@@ -6,6 +6,7 @@ import { NotifService } from "../relayer/services/notifService";
 import { ConfigService } from "../relayer/services/configService";
 import { Network } from "./constants";
 import assert = require("assert");
+import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 
 export function getProvider(): RpcProvider {
   const env: any = dotenv.config().parsed;
@@ -16,14 +17,22 @@ export function getProvider(): RpcProvider {
 }
 
 export function getAccount(): Account {
-  assert(process.env.PRIVATE_KEY, "PRIVATE KEY not set in .env");
-  assert(process.env.ACCOUNT_ADDRESS, "PRIVATE KEY not set in .env");
+  assert(process.env.ACCOUNT_SECURE_PASSWORD, "ACCOUNT_SECURE_PASSWORD not set in .env");
+  assert(process.env.ACCOUNT_KEY, "ACCOUNT_KEY not set in .env");
 
+  const config: IConfig = {
+    provider: getProvider(),
+    network: getNetwork(),
+    stage: 'production',
+  }
   // initialize provider
-  const provider = getProvider();
-  const privateKey = process.env.PRIVATE_KEY as string;
-  const accountAddress = process.env.ACCOUNT_ADDRESS as string;
-  return new Account(provider, accountAddress, privateKey);
+  const storeConfig = getDefaultStoreConfig(config.network);
+  const store = new Store(config, {
+      ...storeConfig,
+      PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
+  });
+  
+  return store.getAccount(process.env.ACCOUNT_KEY);
 }
 
 export function getNetwork(): Network {

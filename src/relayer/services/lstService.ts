@@ -1,28 +1,34 @@
-import { Contract } from "starknet";
+import { Contract, uint256 } from "starknet";
 import { ABI as LSTAbi } from "../../../abis/LST";
 import { ABI as StrkAbi } from "../../../abis/Strk";
 import { getAddresses } from "../../common/constants";
 import { PrismaService } from "./prismaService";
 import { ConfigService } from "./configService";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { getNetwork } from "../../common/utils";
+import { Web3Number } from "@strkfarm/sdk";
+
 import assert = require("assert");
 interface ILSTService {
-  sendToWithdrawQueue(amount: bigint): void;
+  sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
+  getSTRKBalance(): Promise<Web3Number>;
   runDailyJob(): void;
 }
 
 @Injectable()
 export class LSTService implements ILSTService {
+  private readonly logger = new Logger(LSTService.name);
   readonly prismaService: PrismaService;
-  readonly Strk;
-  readonly LST;
+  readonly config: ConfigService;
+  readonly Strk: Contract;
+  readonly LST: Contract;
 
   constructor(
     config: ConfigService,
     prismaService: PrismaService,
   ) {
+    this.config = config;
     this.LST = new Contract(LSTAbi, getAddresses(getNetwork()).LST, config.get("account"))
       .typedv2(LSTAbi);
 
@@ -35,20 +41,27 @@ export class LSTService implements ILSTService {
     this.prismaService = prismaService;
   }
 
-  async sendToWithdrawQueue(amount: bigint) {
+  async sendToWithdrawQueue(amount: Web3Number) {
     try {
-      const lstBalance = await this.Strk.balance_of(this.LST.address);
-      console.log("Lst Balance is", lstBalance);
+      const lstBalance = await this.getSTRKBalance();
 
       assert(
-        BigInt(lstBalance.toString()) >= amount,
+        lstBalance.gte(amount),
         "Not enough balance to send to Withdrawqueue",
       );
-      this.LST.send_to_withdraw_queue(amount);
+      const tx = await this.LST.send_to_withdraw_queue(uint256.bnToUint256(amount.toWei()));
+      this.logger.log(`Send to WQ tx: `, tx);
+      await this.config.provider().waitForTransaction(tx.transaction_hash);
+      this.logger.log(`Send to WQ tx confirmed`);
     } catch (error) {
       console.error("Failed to send to withdraw queue:", error);
       throw error;
     }
+  }
+
+  async getSTRKBalance() {
+    const amount = await this.Strk.balanceOf(getAddresses(getNetwork()).LST);
+    return Web3Number.fromWei(amount.toString(), 18);
   }
 
   async stake(delegator: string, amount: bigint) {

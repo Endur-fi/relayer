@@ -1,12 +1,12 @@
 export const ABI = [
   {
-    "type": "impl",
     "name": "MyERC4626Impl",
+    "type": "impl",
     "interface_name": "lst::lst::interface::IERC4626"
   },
   {
-    "type": "struct",
     "name": "core::integer::u256",
+    "type": "struct",
     "members": [
       {
         "name": "low",
@@ -19,12 +19,12 @@ export const ABI = [
     ]
   },
   {
-    "type": "interface",
     "name": "lst::lst::interface::IERC4626",
+    "type": "interface",
     "items": [
       {
-        "type": "function",
         "name": "asset",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -34,8 +34,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "total_assets",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -45,8 +45,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "convert_to_shares",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -61,8 +61,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "convert_to_assets",
+        "type": "function",
         "inputs": [
           {
             "name": "shares",
@@ -77,8 +77,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "max_deposit",
+        "type": "function",
         "inputs": [
           {
             "name": "receiver",
@@ -93,8 +93,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "preview_deposit",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -109,8 +109,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "deposit",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -129,8 +129,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "max_mint",
+        "type": "function",
         "inputs": [
           {
             "name": "receiver",
@@ -145,8 +145,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "preview_mint",
+        "type": "function",
         "inputs": [
           {
             "name": "shares",
@@ -161,8 +161,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "mint",
+        "type": "function",
         "inputs": [
           {
             "name": "shares",
@@ -181,8 +181,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "max_withdraw",
+        "type": "function",
         "inputs": [
           {
             "name": "owner",
@@ -197,8 +197,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "preview_withdraw",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -213,8 +213,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "withdraw",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -237,8 +237,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "max_redeem",
+        "type": "function",
         "inputs": [
           {
             "name": "owner",
@@ -253,8 +253,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "preview_redeem",
+        "type": "function",
         "inputs": [
           {
             "name": "shares",
@@ -269,8 +269,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "redeem",
+        "type": "function",
         "inputs": [
           {
             "name": "shares",
@@ -295,13 +295,13 @@ export const ABI = [
     ]
   },
   {
-    "type": "impl",
     "name": "LSTAdditionalImpl",
+    "type": "impl",
     "interface_name": "lst::lst::interface::ILSTAdditional"
   },
   {
-    "type": "struct",
     "name": "core::byte_array::ByteArray",
+    "type": "struct",
     "members": [
       {
         "name": "data",
@@ -318,8 +318,8 @@ export const ABI = [
     ]
   },
   {
-    "type": "struct",
     "name": "lst::withdrawal_queue::interface::IWithdrawalQueueDispatcher",
+    "type": "struct",
     "members": [
       {
         "name": "contract_address",
@@ -328,8 +328,8 @@ export const ABI = [
     ]
   },
   {
-    "type": "struct",
     "name": "contracts::staking::interface::IStakingDispatcher",
+    "type": "struct",
     "members": [
       {
         "name": "contract_address",
@@ -338,8 +338,8 @@ export const ABI = [
     ]
   },
   {
-    "type": "struct",
     "name": "lst::lst::interface::Config",
+    "type": "struct",
     "members": [
       {
         "name": "deposit_fee_bps",
@@ -364,12 +364,16 @@ export const ABI = [
       {
         "name": "staker",
         "type": "contracts::staking::interface::IStakingDispatcher"
+      },
+      {
+        "name": "validator",
+        "type": "core::starknet::contract_address::ContractAddress"
       }
     ]
   },
   {
-    "type": "enum",
     "name": "core::bool",
+    "type": "enum",
     "variants": [
       {
         "name": "False",
@@ -382,8 +386,8 @@ export const ABI = [
     ]
   },
   {
-    "type": "struct",
     "name": "lst::lst::interface::DelegatorInfo",
+    "type": "struct",
     "members": [
       {
         "name": "is_active",
@@ -396,12 +400,24 @@ export const ABI = [
     ]
   },
   {
-    "type": "interface",
     "name": "lst::lst::interface::ILSTAdditional",
+    "type": "interface",
     "items": [
       {
+        "name": "initializer",
         "type": "function",
+        "inputs": [
+          {
+            "name": "calldata",
+            "type": "core::array::Array::<core::felt252>"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
         "name": "deposit_with_referral",
+        "type": "function",
         "inputs": [
           {
             "name": "assets",
@@ -424,8 +440,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "set_config",
+        "type": "function",
         "inputs": [
           {
             "name": "config",
@@ -436,8 +452,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "get_config",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -447,8 +463,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "stake",
+        "type": "function",
         "inputs": [
           {
             "name": "delegator",
@@ -463,8 +479,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "send_to_withdraw_queue",
+        "type": "function",
         "inputs": [
           {
             "name": "amount",
@@ -475,8 +491,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "before_unstake",
+        "type": "function",
         "inputs": [
           {
             "name": "amount",
@@ -487,8 +503,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "add_delegator",
+        "type": "function",
         "inputs": [
           {
             "name": "delegator",
@@ -503,8 +519,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "update_delegator_info",
+        "type": "function",
         "inputs": [
           {
             "name": "delegator",
@@ -519,8 +535,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "is_delegator",
+        "type": "function",
         "inputs": [
           {
             "name": "delegator",
@@ -535,8 +551,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "claim_rewards",
+        "type": "function",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
@@ -544,17 +560,17 @@ export const ABI = [
     ]
   },
   {
-    "type": "impl",
     "name": "CommonCompImpl",
+    "type": "impl",
     "interface_name": "lst::utils::common::ICommon"
   },
   {
-    "type": "interface",
     "name": "lst::utils::common::ICommon",
+    "type": "interface",
     "items": [
       {
-        "type": "function",
         "name": "upgrade",
+        "type": "function",
         "inputs": [
           {
             "name": "new_class",
@@ -565,22 +581,22 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "pause",
+        "type": "function",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "unpause",
+        "type": "function",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "is_paused",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -590,8 +606,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "owner",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -601,8 +617,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "transfer_ownership",
+        "type": "function",
         "inputs": [
           {
             "name": "new_owner",
@@ -613,8 +629,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "renounce_ownership",
+        "type": "function",
         "inputs": [],
         "outputs": [],
         "state_mutability": "external"
@@ -622,17 +638,112 @@ export const ABI = [
     ]
   },
   {
+    "name": "AccessControlImpl",
     "type": "impl",
+    "interface_name": "openzeppelin_access::accesscontrol::interface::IAccessControl"
+  },
+  {
+    "name": "openzeppelin_access::accesscontrol::interface::IAccessControl",
+    "type": "interface",
+    "items": [
+      {
+        "name": "has_role",
+        "type": "function",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "core::felt252"
+          },
+          {
+            "name": "account",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "name": "get_role_admin",
+        "type": "function",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::felt252"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "name": "grant_role",
+        "type": "function",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "core::felt252"
+          },
+          {
+            "name": "account",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "name": "revoke_role",
+        "type": "function",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "core::felt252"
+          },
+          {
+            "name": "account",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "name": "renounce_role",
+        "type": "function",
+        "inputs": [
+          {
+            "name": "role",
+            "type": "core::felt252"
+          },
+          {
+            "name": "account",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      }
+    ]
+  },
+  {
     "name": "ERC4626MetadataImpl",
+    "type": "impl",
     "interface_name": "openzeppelin_token::erc20::interface::IERC20Metadata"
   },
   {
-    "type": "interface",
     "name": "openzeppelin_token::erc20::interface::IERC20Metadata",
+    "type": "interface",
     "items": [
       {
-        "type": "function",
         "name": "name",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -642,8 +753,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "symbol",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -653,8 +764,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "decimals",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -666,17 +777,17 @@ export const ABI = [
     ]
   },
   {
-    "type": "impl",
     "name": "ERC20Impl",
+    "type": "impl",
     "interface_name": "openzeppelin_token::erc20::interface::IERC20"
   },
   {
-    "type": "interface",
     "name": "openzeppelin_token::erc20::interface::IERC20",
+    "type": "interface",
     "items": [
       {
-        "type": "function",
         "name": "total_supply",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -686,8 +797,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "balance_of",
+        "type": "function",
         "inputs": [
           {
             "name": "account",
@@ -702,8 +813,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "allowance",
+        "type": "function",
         "inputs": [
           {
             "name": "owner",
@@ -722,8 +833,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "transfer",
+        "type": "function",
         "inputs": [
           {
             "name": "recipient",
@@ -742,8 +853,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "transfer_from",
+        "type": "function",
         "inputs": [
           {
             "name": "sender",
@@ -766,8 +877,8 @@ export const ABI = [
         "state_mutability": "external"
       },
       {
-        "type": "function",
         "name": "approve",
+        "type": "function",
         "inputs": [
           {
             "name": "spender",
@@ -788,17 +899,17 @@ export const ABI = [
     ]
   },
   {
-    "type": "impl",
     "name": "ERC20CamelOnlyImpl",
+    "type": "impl",
     "interface_name": "openzeppelin_token::erc20::interface::IERC20CamelOnly"
   },
   {
-    "type": "interface",
     "name": "openzeppelin_token::erc20::interface::IERC20CamelOnly",
+    "type": "interface",
     "items": [
       {
-        "type": "function",
         "name": "totalSupply",
+        "type": "function",
         "inputs": [],
         "outputs": [
           {
@@ -808,8 +919,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "balanceOf",
+        "type": "function",
         "inputs": [
           {
             "name": "account",
@@ -824,8 +935,8 @@ export const ABI = [
         "state_mutability": "view"
       },
       {
-        "type": "function",
         "name": "transferFrom",
+        "type": "function",
         "inputs": [
           {
             "name": "sender",
@@ -850,8 +961,8 @@ export const ABI = [
     ]
   },
   {
-    "type": "constructor",
     "name": "constructor",
+    "type": "constructor",
     "inputs": [
       {
         "name": "name",
@@ -876,424 +987,539 @@ export const ABI = [
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "data",
         "name": "class_hash",
-        "type": "core::starknet::class_hash::ClassHash",
-        "kind": "data"
+        "type": "core::starknet::class_hash::ClassHash"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "enum",
     "name": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
-    "kind": "enum",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
         "name": "Upgraded",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded",
-        "kind": "nested"
+        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Upgraded"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_security::pausable::PausableComponent::Paused",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "data",
         "name": "account",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "type": "core::starknet::contract_address::ContractAddress"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_security::pausable::PausableComponent::Unpaused",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "data",
         "name": "account",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
+        "type": "core::starknet::contract_address::ContractAddress"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "enum",
     "name": "openzeppelin_security::pausable::PausableComponent::Event",
-    "kind": "enum",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
         "name": "Paused",
-        "type": "openzeppelin_security::pausable::PausableComponent::Paused",
-        "kind": "nested"
+        "type": "openzeppelin_security::pausable::PausableComponent::Paused"
       },
       {
+        "kind": "nested",
         "name": "Unpaused",
-        "type": "openzeppelin_security::pausable::PausableComponent::Unpaused",
-        "kind": "nested"
+        "type": "openzeppelin_security::pausable::PausableComponent::Unpaused"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "enum",
     "name": "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
-    "kind": "enum",
+    "type": "event",
     "variants": []
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "previous_owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "new_owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "previous_owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "new_owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       }
     ]
   },
   {
-    "type": "event",
-    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
     "kind": "enum",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
         "name": "OwnershipTransferred",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
-        "kind": "nested"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred"
       },
       {
+        "kind": "nested",
         "name": "OwnershipTransferStarted",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
-        "kind": "nested"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted"
       }
     ]
   },
   {
-    "type": "event",
-    "name": "lst::utils::common::CommonComp::Event",
     "kind": "enum",
+    "name": "lst::utils::common::CommonComp::Event",
+    "type": "event",
     "variants": []
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "lst::lst::erc4626::ERC4626Component::Deposit",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "sender",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "data",
         "name": "assets",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       },
       {
+        "kind": "data",
         "name": "shares",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "lst::lst::erc4626::ERC4626Component::Withdraw",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "sender",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "receiver",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "data",
         "name": "assets",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       },
       {
+        "kind": "data",
         "name": "shares",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "enum",
     "name": "lst::lst::erc4626::ERC4626Component::Event",
-    "kind": "enum",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
         "name": "Deposit",
-        "type": "lst::lst::erc4626::ERC4626Component::Deposit",
-        "kind": "nested"
+        "type": "lst::lst::erc4626::ERC4626Component::Deposit"
       },
       {
+        "kind": "nested",
         "name": "Withdraw",
-        "type": "lst::lst::erc4626::ERC4626Component::Withdraw",
-        "kind": "nested"
+        "type": "lst::lst::erc4626::ERC4626Component::Withdraw"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_token::erc20::erc20::ERC20Component::Transfer",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "from",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "to",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "data",
         "name": "value",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "struct",
     "name": "openzeppelin_token::erc20::erc20::ERC20Component::Approval",
-    "kind": "struct",
+    "type": "event",
     "members": [
       {
+        "kind": "key",
         "name": "owner",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "key",
         "name": "spender",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "key"
+        "type": "core::starknet::contract_address::ContractAddress"
       },
       {
+        "kind": "data",
         "name": "value",
-        "type": "core::integer::u256",
-        "kind": "data"
+        "type": "core::integer::u256"
       }
     ]
   },
   {
-    "type": "event",
+    "kind": "enum",
     "name": "openzeppelin_token::erc20::erc20::ERC20Component::Event",
-    "kind": "enum",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
         "name": "Transfer",
-        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Transfer",
-        "kind": "nested"
+        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Transfer"
       },
       {
+        "kind": "nested",
         "name": "Approval",
-        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Approval",
-        "kind": "nested"
+        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Approval"
       }
     ]
   },
   {
-    "type": "event",
-    "name": "lst::lst::interface::DispatchToStake",
-    "kind": "struct",
-    "members": [
-      {
-        "name": "delegator",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      },
-      {
-        "name": "amount",
-        "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "lst::lst::interface::DispatchToWithdrawQueue",
-    "kind": "struct",
-    "members": [
-      {
-        "name": "amount",
-        "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "lst::lst::lst::LST::DelegatorUpdate",
-    "kind": "struct",
-    "members": [
-      {
-        "name": "delegator",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      },
-      {
-        "name": "info",
-        "type": "lst::lst::interface::DelegatorInfo",
-        "kind": "data"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "lst::lst::interface::Fee",
-    "kind": "struct",
-    "members": [
-      {
-        "name": "amount",
-        "type": "core::integer::u256",
-        "kind": "data"
-      },
-      {
-        "name": "token",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      },
-      {
-        "name": "receiver",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "lst::lst::lst::LST::Referral",
-    "kind": "struct",
-    "members": [
-      {
-        "name": "referrer",
-        "type": "core::byte_array::ByteArray",
-        "kind": "data"
-      },
-      {
-        "name": "referee",
-        "type": "core::starknet::contract_address::ContractAddress",
-        "kind": "data"
-      },
-      {
-        "name": "assets",
-        "type": "core::integer::u256",
-        "kind": "data"
-      }
-    ]
-  },
-  {
-    "type": "event",
-    "name": "lst::lst::lst::LST::Event",
     "kind": "enum",
+    "name": "lst::utils::access_control::MyAccessControlComp::Event",
+    "type": "event",
+    "variants": []
+  },
+  {
+    "kind": "struct",
+    "name": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleGranted",
+    "type": "event",
+    "members": [
+      {
+        "kind": "data",
+        "name": "role",
+        "type": "core::felt252"
+      },
+      {
+        "kind": "data",
+        "name": "account",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "data",
+        "name": "sender",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleRevoked",
+    "type": "event",
+    "members": [
+      {
+        "kind": "data",
+        "name": "role",
+        "type": "core::felt252"
+      },
+      {
+        "kind": "data",
+        "name": "account",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "data",
+        "name": "sender",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleAdminChanged",
+    "type": "event",
+    "members": [
+      {
+        "kind": "data",
+        "name": "role",
+        "type": "core::felt252"
+      },
+      {
+        "kind": "data",
+        "name": "previous_admin_role",
+        "type": "core::felt252"
+      },
+      {
+        "kind": "data",
+        "name": "new_admin_role",
+        "type": "core::felt252"
+      }
+    ]
+  },
+  {
+    "kind": "enum",
+    "name": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::Event",
+    "type": "event",
     "variants": [
       {
+        "kind": "nested",
+        "name": "RoleGranted",
+        "type": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleGranted"
+      },
+      {
+        "kind": "nested",
+        "name": "RoleRevoked",
+        "type": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleRevoked"
+      },
+      {
+        "kind": "nested",
+        "name": "RoleAdminChanged",
+        "type": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::RoleAdminChanged"
+      }
+    ]
+  },
+  {
+    "kind": "enum",
+    "name": "openzeppelin_introspection::src5::SRC5Component::Event",
+    "type": "event",
+    "variants": []
+  },
+  {
+    "kind": "struct",
+    "name": "lst::lst::interface::DispatchToStake",
+    "type": "event",
+    "members": [
+      {
+        "kind": "key",
+        "name": "delegator",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "data",
+        "name": "amount",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "lst::lst::interface::DispatchToWithdrawQueue",
+    "type": "event",
+    "members": [
+      {
+        "kind": "data",
+        "name": "amount",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "lst::lst::lst::LST::DelegatorUpdate",
+    "type": "event",
+    "members": [
+      {
+        "kind": "key",
+        "name": "delegator",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "data",
+        "name": "info",
+        "type": "lst::lst::interface::DelegatorInfo"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "lst::lst::interface::Fee",
+    "type": "event",
+    "members": [
+      {
+        "kind": "data",
+        "name": "amount",
+        "type": "core::integer::u256"
+      },
+      {
+        "kind": "key",
+        "name": "token",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "key",
+        "name": "receiver",
+        "type": "core::starknet::contract_address::ContractAddress"
+      }
+    ]
+  },
+  {
+    "kind": "struct",
+    "name": "lst::lst::lst::LST::Referral",
+    "type": "event",
+    "members": [
+      {
+        "kind": "key",
+        "name": "referrer",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "kind": "key",
+        "name": "referee",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "kind": "data",
+        "name": "assets",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "kind": "enum",
+    "name": "lst::lst::lst::LST::Event",
+    "type": "event",
+    "variants": [
+      {
+        "kind": "flat",
         "name": "UpgradeableEvent",
-        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event",
-        "kind": "flat"
+        "type": "openzeppelin_upgrades::upgradeable::UpgradeableComponent::Event"
       },
       {
+        "kind": "flat",
         "name": "PausableEvent",
-        "type": "openzeppelin_security::pausable::PausableComponent::Event",
-        "kind": "flat"
+        "type": "openzeppelin_security::pausable::PausableComponent::Event"
       },
       {
+        "kind": "flat",
         "name": "ReentrancyGuardEvent",
-        "type": "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event",
-        "kind": "flat"
+        "type": "openzeppelin_security::reentrancyguard::ReentrancyGuardComponent::Event"
       },
       {
+        "kind": "flat",
         "name": "OwnableEvent",
-        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
-        "kind": "flat"
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event"
       },
       {
+        "kind": "flat",
         "name": "CommonCompEvent",
-        "type": "lst::utils::common::CommonComp::Event",
-        "kind": "flat"
+        "type": "lst::utils::common::CommonComp::Event"
       },
       {
+        "kind": "flat",
         "name": "ERC4626Event",
-        "type": "lst::lst::erc4626::ERC4626Component::Event",
-        "kind": "flat"
+        "type": "lst::lst::erc4626::ERC4626Component::Event"
       },
       {
+        "kind": "flat",
         "name": "ERC20Event",
-        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Event",
-        "kind": "flat"
+        "type": "openzeppelin_token::erc20::erc20::ERC20Component::Event"
       },
       {
+        "kind": "flat",
+        "name": "MyAccessControlCompEvent",
+        "type": "lst::utils::access_control::MyAccessControlComp::Event"
+      },
+      {
+        "kind": "flat",
+        "name": "AccessControlComponentEvent",
+        "type": "openzeppelin_access::accesscontrol::accesscontrol::AccessControlComponent::Event"
+      },
+      {
+        "kind": "flat",
+        "name": "SRC5Event",
+        "type": "openzeppelin_introspection::src5::SRC5Component::Event"
+      },
+      {
+        "kind": "nested",
         "name": "DispatchToStake",
-        "type": "lst::lst::interface::DispatchToStake",
-        "kind": "nested"
+        "type": "lst::lst::interface::DispatchToStake"
       },
       {
+        "kind": "nested",
         "name": "DispatchToWithdrawQueue",
-        "type": "lst::lst::interface::DispatchToWithdrawQueue",
-        "kind": "nested"
+        "type": "lst::lst::interface::DispatchToWithdrawQueue"
       },
       {
+        "kind": "nested",
         "name": "DelegatorUpdate",
-        "type": "lst::lst::lst::LST::DelegatorUpdate",
-        "kind": "nested"
+        "type": "lst::lst::lst::LST::DelegatorUpdate"
       },
       {
+        "kind": "nested",
         "name": "Fee",
-        "type": "lst::lst::interface::Fee",
-        "kind": "nested"
+        "type": "lst::lst::interface::Fee"
       },
       {
+        "kind": "nested",
         "name": "Referral",
-        "type": "lst::lst::lst::LST::Referral",
-        "kind": "nested"
+        "type": "lst::lst::lst::LST::Referral"
       }
     ]
   }

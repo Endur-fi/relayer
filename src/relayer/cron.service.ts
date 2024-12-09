@@ -7,6 +7,7 @@ import { Web3Number } from "@strkfarm/sdk";
 import { Account, Call, RpcProvider } from 'starknet';
 import { TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
+import { LSTService } from './services/lstService';
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -25,25 +26,28 @@ export class CronService {
   readonly withdrawalQueueService: WithdrawalQueueService;
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
+  readonly lstService: LSTService;
 
   constructor(
     config: ConfigService,
     withdrawalQueueService: WithdrawalQueueService,
     prismaService: PrismaService,
+    lstService: LSTService,
     notifService: NotifService,
   ) {
     this.config = config;
     this.withdrawalQueueService = withdrawalQueueService;
     this.prismaService = prismaService;
+    this.lstService = lstService;
     this.notifService = notifService;
   }
 
   // Run the same task on startup
   @TryCatchAsync()
-  onModuleInit() {
+  async onModuleInit() {
     console.log('Running task on application start...');
-    this.processWithdrawQueue();
-    this.sendStats();
+    await this.processWithdrawQueue();
+    await this.sendStats();
   }
 
   @Cron(getCronSettings('process-withdraw-queue'))
@@ -51,8 +55,9 @@ export class CronService {
   async processWithdrawQueue() {
     this.logger.log('Running processWithdrawQueue task');
 
+    await this.withdrawToWQ();
     // note update this to 0.01 STRK later
-    const min_amount = new Web3Number("0.0", 18);
+    const min_amount = new Web3Number("0.01", 18);
 
     // get pending withdrawals
     const [pendingWithdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(min_amount);
@@ -62,10 +67,9 @@ export class CronService {
     const account: Account = this.config.get("account");
     const provider: RpcProvider = this.config.get("provider");
     
-    const balanceRes = await this.withdrawalQueueService.getSTRKBalance();
-    let balanceLeft = Web3Number.fromWei(balanceRes.toString(), 18);
+    let balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     this.logger.log(`Balance left: ${balanceLeft.toString()}`);
-    return;
+
     // claim withdrawals
     // send 10 at a time
     const MAX_WITHDRAWALS = 10;
@@ -133,4 +137,26 @@ export class CronService {
       Intransit Amount: ${stats.intransit_amount.toString()} STRK\n
     `);
   }
+
+  async withdrawToWQ() {
+    const wqState = await this.withdrawalQueueService.getWithdrawalQueueState();
+
+    const balanceAmount = await this.lstService.getSTRKBalance();
+    this.logger.log('LST Balance amount: ', balanceAmount.toString());
+    const requiredAmount = wqState.unprocessed_withdraw_queue_amount;
+    this.logger.log('WQ Required amount: ', requiredAmount.toString());
+
+    if (balanceAmount.gt(0) && requiredAmount.gt(0)) {
+        const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
+        this.logger.log('transferAmount: ', transferAmount.toString())
+        await this.lstService.sendToWithdrawQueue(transferAmount);
+    } else {
+      if (balanceAmount.lte(0)) {
+        this.logger.log('No balance to send to WQ');
+      } else if (requiredAmount.lte(0)) {
+        this.logger.log('No required amount in WQ');
+      }
+    }
+}
+
 }
