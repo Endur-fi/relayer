@@ -125,14 +125,14 @@ export class PrismaService implements IPrismaService {
             in: await prisma.withdraw_queue.findMany({
               where: { is_claimed: true },
               select: { request_id: true },
-            }).then(results => results.map(r => r.request_id)),
+            }).then((results) => results.map((r) => r.request_id)),
           },
         },
       },
       select: {
         request_id: true,
         amount_strk: true,
-      }
+      },
     });
 
     return pendingWithdraws;

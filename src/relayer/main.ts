@@ -9,18 +9,24 @@ import { LSTService } from "./services/lstService.ts";
 import { ConfigService } from "./services/configService.ts";
 import { WqController } from "./controllers/wq.controller.ts";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService.ts";
-import { ScheduleModule } from '@nestjs/schedule';
+import { ScheduleModule } from "@nestjs/schedule";
 import { CronService } from "./cron.service.ts";
 import "npm:reflect-metadata";
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  providers: [PrismaService, LSTService, ConfigService, WithdrawalQueueService, CronService],
+  providers: [
+    PrismaService,
+    LSTService,
+    ConfigService,
+    WithdrawalQueueService,
+    CronService,
+  ],
   controllers: [
     StatusController,
     PrismaController,
     LstController,
-    WqController 
+    WqController,
   ],
 })
 class AppModule {}
@@ -30,4 +36,3 @@ async function bootstrap() {
   await app.listen(Deno.env.get("PORT") ?? 3000);
 }
 bootstrap();
-

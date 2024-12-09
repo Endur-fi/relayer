@@ -3,7 +3,7 @@ import { LSTService } from "../services/lstService.ts";
 
 @Controller("lst")
 export class LstController {
-  constructor(private lst: LSTService) { }
+  constructor(private lst: LSTService) {}
 
   // TODO : Should this be a Put/Post
   // These apis must be protected under vpn/using `.pem` files of ec2

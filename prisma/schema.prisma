@@ -39,22 +39,38 @@ model deposits {
   @@index([cursor])
 }
 
+model deposits_with_referral {
+  block_number Int
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+
+  timestamp Int
+  referrer  String
+  referee   String
+  assets    String
+
+  cursor BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
 model withdraw_queue {
   block_number Int
   tx_index     Int    @default(0)
   event_index  Int    @default(0)
   tx_hash      String
 
-  caller       String
-  amount_strk  String
-  amount_kstrk String
-  request_id   BigInt
-  is_claimed   Boolean
-  claim_time   Int
-  receiver     String
+  caller                               String
+  amount_strk                          String
+  amount_kstrk                         String
+  request_id                           BigInt
+  is_claimed                           Boolean
+  claim_time                           Int
+  receiver                             String
   cumulative_requested_amount_snapshot String
-  is_rejected  Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
-  
+  is_rejected                          Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
+
   timestamp Int
   cursor    BigInt? @map("_cursor")
 
