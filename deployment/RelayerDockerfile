@@ -1,0 +1,48 @@
+FROM ubuntu:22.04 as base
+RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+
+WORKDIR /app
+ADD src /app/src
+ADD abis /app/abis
+ADD prisma /app/prisma
+COPY .env deno.json package.json deno.lock /app
+COPY deployment/* /app
+
+# install deps
+RUN apt-get -y update; apt-get -y install curl
+RUN apt-get -y install jq
+RUN apt-get install wget -y
+RUN apt-get install unzip -y
+RUN apt-get install gzip -y
+
+# install supervisor
+RUN apt-get install -y supervisor
+RUN mkdir -p /var/log/supervisor
+
+# Add NodeSource repository for the desired Node.js version (e.g., 18.x)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+
+# Install Node.js
+RUN apt-get install -y nodejs
+
+# Verify Node.js installation
+RUN node -v && npm -v
+
+# yarn install
+RUN npm install -g typegraphql-prisma
+
+# install deno
+RUN curl -fsSL https://deno.land/install.sh | sh
+RUN echo "checking deno version"
+RUN /root/.deno/bin/deno --version
+
+# generate prisma client
+RUN /root/.deno/bin/deno run -A npm:prisma generate
+
+# create run.sh to run multiple indexers at once
+RUN chmod +x run.relayer.sh
+RUN cat ./run.relayer.sh
+
+ENTRYPOINT ["./run.relayer.sh"]
+
+# CMD ["/root/.deno/bin/deno", "task", "prod"]

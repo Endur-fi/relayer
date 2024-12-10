@@ -1,7 +1,6 @@
 // Custom path for Deno
 generator client_deno {
   provider        = "prisma-client-js"
-  binaryTargets   = ["native", "darwin-arm64"]
   previewFeatures = ["deno"]
   output          = "./generated/client"
 }

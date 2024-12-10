@@ -1,17 +1,30 @@
-import { Contract } from "npm:starknet";
-import { PrismaService } from "./prismaService.ts";
-import { ConfigService } from "./configService.ts";
-import { getAddresses } from "../../common/constants.ts";
-import { ABI as WQAbi } from "../../../abis/WithdrawalQueue.ts";
-import { ABI as StrkAbi } from "../../../abis/Strk.ts";
-import { Injectable } from "@nestjs/common";
+import { Contract, Call } from "starknet";
+import { PrismaService } from "./prismaService";
+import { ConfigService } from "./configService";
+import { getAddresses } from "../../common/constants";
+import { ABI as WQAbi } from "../../../abis/WithdrawalQueue";
+import { ABI as StrkAbi } from "../../../abis/Strk";
+import { Injectable, Logger } from "@nestjs/common";
+import { Web3Number } from "@strkfarm/sdk";
+import { getNetwork } from "../../common/utils";
+
+interface IWithdrawalQueueState {
+  max_request_id: number;
+  unprocessed_withdraw_queue_amount: Web3Number;
+  intransit_amount: Web3Number;
+}
 
 interface IWithdrawalQueueService {
   claimWithdrawal(request_id: number): void;
+  getClaimWithdrawalCall(request_id: number): Call;
+  claimWithdrawalInRange(from: number, to: number): void;
+  getSTRKBalance(): Promise<Web3Number>;
+  getWithdrawalQueueState(): Promise<IWithdrawalQueueState>;
 }
 
 @Injectable()
 export class WithdrawalQueueService implements IWithdrawalQueueService {
+  private readonly logger = new Logger(WithdrawalQueueService.name);
   readonly prismaService: PrismaService;
   readonly Strk;
   readonly WQ;
@@ -22,14 +35,14 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   ) {
     this.WQ = new Contract(
       WQAbi,
-      getAddresses().WithdrawQueue,
+      getAddresses(getNetwork()).WithdrawQueue,
       config.get("account"),
     )
       .typedv2(WQAbi);
 
     this.Strk = new Contract(
       StrkAbi,
-      getAddresses().Strk,
+      getAddresses(getNetwork()).Strk,
       config.get("account"),
     ).typedv2(StrkAbi);
 
@@ -46,6 +59,10 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     }
   }
 
+  getClaimWithdrawalCall(request_id: number | bigint): Call {
+    return this.WQ.populate("claim_withdrawal", [request_id]);
+  }
+
   claimWithdrawalInRange(from: number, to: number) {
     let i;
     try {
@@ -58,6 +75,21 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
         error,
       );
       throw error;
+    }
+  }
+
+  async getSTRKBalance() {
+    const amount = await this.Strk.balanceOf(getAddresses(getNetwork()).WithdrawQueue);
+    return Web3Number.fromWei(amount.toString(), 18);
+  }
+
+  async getWithdrawalQueueState() {
+    const res = await this.WQ.get_queue_state();
+    console.log("WithdrawalQueueState", res);
+    return {
+      max_request_id: Number(res.max_request_id),
+      unprocessed_withdraw_queue_amount: Web3Number.fromWei(res.unprocessed_withdraw_queue_amount.toString(), 18),
+      intransit_amount: Web3Number.fromWei(res.intransit_amount.toString(), 18),
     }
   }
 }

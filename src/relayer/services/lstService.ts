@@ -1,53 +1,67 @@
-import { Contract } from "npm:starknet";
-import { ABI as LSTAbi } from "../../../abis/LST.ts";
-import { ABI as StrkAbi } from "../../../abis/Strk.ts";
-import { getAddresses } from "../../common/constants.ts";
-import { PrismaService } from "./prismaService.ts";
-import { ConfigService } from "./configService.ts";
-import { assert } from "@std/assert";
-import { Injectable } from "@nestjs/common";
+import { Contract, uint256 } from "starknet";
+import { ABI as LSTAbi } from "../../../abis/LST";
+import { ABI as StrkAbi } from "../../../abis/Strk";
+import { getAddresses } from "../../common/constants";
+import { PrismaService } from "./prismaService";
+import { ConfigService } from "./configService";
+import { Injectable, Logger } from "@nestjs/common";
+import { getNetwork } from "../../common/utils";
+import { Web3Number } from "@strkfarm/sdk";
+
+import assert = require("assert");
 interface ILSTService {
-  sendToWithdrawQueue(amount: bigint): void;
+  sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
+  getSTRKBalance(): Promise<Web3Number>;
   runDailyJob(): void;
 }
 
 @Injectable()
 export class LSTService implements ILSTService {
+  private readonly logger = new Logger(LSTService.name);
   readonly prismaService: PrismaService;
-  readonly Strk;
-  readonly LST;
+  readonly config: ConfigService;
+  readonly Strk: Contract;
+  readonly LST: Contract;
 
   constructor(
     config: ConfigService,
     prismaService: PrismaService,
   ) {
-    this.LST = new Contract(LSTAbi, getAddresses().LST, config.get("account"))
+    this.config = config;
+    this.LST = new Contract(LSTAbi, getAddresses(getNetwork()).LST, config.get("account"))
       .typedv2(LSTAbi);
 
     this.Strk = new Contract(
       StrkAbi,
-      getAddresses().Strk,
+      getAddresses(getNetwork()).Strk,
       config.get("account"),
     ).typedv2(StrkAbi);
 
     this.prismaService = prismaService;
   }
 
-  async sendToWithdrawQueue(amount: bigint) {
+  async sendToWithdrawQueue(amount: Web3Number) {
     try {
-      const lstBalance = await this.Strk.balance_of(this.LST.address);
-      console.log("Lst Balance is", lstBalance);
+      const lstBalance = await this.getSTRKBalance();
 
       assert(
-        BigInt(lstBalance.toString()) >= amount,
+        lstBalance.gte(amount),
         "Not enough balance to send to Withdrawqueue",
       );
-      this.LST.send_to_withdraw_queue(amount);
+      const tx = await this.LST.send_to_withdraw_queue(uint256.bnToUint256(amount.toWei()));
+      this.logger.log(`Send to WQ tx: `, tx);
+      await this.config.provider().waitForTransaction(tx.transaction_hash);
+      this.logger.log(`Send to WQ tx confirmed`);
     } catch (error) {
       console.error("Failed to send to withdraw queue:", error);
       throw error;
     }
+  }
+
+  async getSTRKBalance() {
+    const amount = await this.Strk.balanceOf(getAddresses(getNetwork()).LST);
+    return Web3Number.fromWei(amount.toString(), 18);
   }
 
   async stake(delegator: string, amount: bigint) {
@@ -59,7 +73,7 @@ export class LSTService implements ILSTService {
         const current_time = Math.floor(Date.now() / 1000);
         // At least 20 hours have passed
         assert(
-          lastStake.timestamp < current_time - 20 * 3600,
+          Number(lastStake.timestamp) < current_time - 20 * 3600,
           "20 hours not passed",
         );
       }
@@ -75,7 +89,7 @@ export class LSTService implements ILSTService {
   async runDailyJob() {
     const netFlow = await this.prismaService.getNetFlowLastDay();
     if (netFlow > BigInt(0)) {
-      this.stake(getAddresses().Delgator[0], netFlow);
+      this.stake(getAddresses(getNetwork()).Delgator[0], netFlow);
     } else {
       console.log("No net flow to stake");
     }

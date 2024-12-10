@@ -3,8 +3,8 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
-ADD prisma /app/prisma
-COPY .env package.json /app
+COPY .env package.json schema.prisma /app
+COPY apibara_install.sh /app
 COPY deployment/* /app
 
 # install deps
