@@ -7,7 +7,7 @@ import type {
 import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 import { hash } from "https://esm.sh/starknet@6.11.0";
 
-import { standariseAddress, toBigInt, toBoolean, toNumber } from "../../common/indexerUtils.ts";
+import { getNetwork, standariseAddress, toBigInt, toBoolean, toNumber } from "../../common/indexerUtils.ts";
 import { getAddresses } from "../../common/constants.ts";
 
 export const config: Config<Starknet, Postgres> = {
@@ -19,7 +19,7 @@ export const config: Config<Starknet, Postgres> = {
   filter: {
     header: { weak: false },
     events: [{
-      fromAddress: getAddresses().WithdrawQueue as FieldElement,
+      fromAddress: getAddresses(getNetwork()).WithdrawQueue as FieldElement,
       keys: [hash.getSelectorFromName("WithdrawQueue") as FieldElement],
     }],
   },

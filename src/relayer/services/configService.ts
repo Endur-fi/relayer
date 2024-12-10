@@ -1,6 +1,6 @@
 import { Network } from "../../common/constants";
 import { NetworkConfig } from "../../common/types";
-import { getAccount, getProvider, getTGToken } from "../../common/utils";
+import { getAccount, getNetwork, getProvider, getTGToken } from "../../common/utils";
 import { Injectable } from "@nestjs/common";
 
 @Injectable()
@@ -12,7 +12,7 @@ export class ConfigService {
     this.config = {
       provider: getProvider(),
       account: getAccount(),
-      network: Network.sepolia,
+      network: getNetwork(),
       tgToken: getTGToken(),
     };
   }
