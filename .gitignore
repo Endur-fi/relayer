@@ -4,3 +4,4 @@ node_modules
 .vscode
 prisma/generated/
 prisma2
+accounts.json

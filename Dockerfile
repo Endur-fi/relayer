@@ -3,9 +3,12 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
-COPY .env package.json schema.prisma /app
-COPY apibara_install.sh /app
+COPY .env package.json /app
+COPY prisma/schema.prisma /app
 COPY deployment/* /app
+
+RUN mkdir -p ~/.starknet-store
+COPY accounts.json ~/.starknet-store/accounts.json
 
 # install deps
 RUN apt-get -y update; apt-get -y install curl
