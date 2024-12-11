@@ -19,10 +19,10 @@ import { NotifService } from "./services/notifService";
   imports: [ScheduleModule.forRoot()],
   providers: [PrismaService, ConfigService, LSTService, WithdrawalQueueService, NotifService, CronService],
   controllers: [
-    StatusController,
-    PrismaController,
-    LstController,
-    WqController,
+    // StatusController,
+    // PrismaController,
+    // LstController,
+    // WqController,
   ],
 })
 class AppModule {}

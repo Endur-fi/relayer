@@ -27,7 +27,7 @@ export function getAccount(): Account {
   }
   // initialize provider
   const storeConfig = getDefaultStoreConfig(config.network);
-  storeConfig.ACCOUNTS_FILE_NAME = 'account_sepolia.json'
+  // storeConfig.ACCOUNTS_FILE_NAME = 'account_sepolia.json'
   const store = new Store(config, {
       ...storeConfig,
       PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
