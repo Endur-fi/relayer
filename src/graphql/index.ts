@@ -7,7 +7,10 @@ import { PrismaClient } from "@prisma/client";
 import { Arg, buildSchema, Query, Resolver } from "type-graphql";
 import { startStandaloneServer } from "@apollo/server/standalone";
 
-import { FindManyWithdraw_queueResolver, FindFirstWithdraw_queueResolver } from "@generated/type-graphql";
+import {
+  FindFirstWithdraw_queueResolver,
+  FindManyWithdraw_queueResolver,
+} from "@generated/type-graphql";
 
 const prisma = new PrismaClient();
 
@@ -15,7 +18,7 @@ async function main() {
   const schema = await buildSchema({
     resolvers: [
       FindManyWithdraw_queueResolver,
-      FindFirstWithdraw_queueResolver
+      FindFirstWithdraw_queueResolver,
     ],
     validate: false,
   });

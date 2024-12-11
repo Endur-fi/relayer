@@ -57,9 +57,11 @@ export default function transform({ header, events }: Block) {
     // The 0th key is the selector(name of the event)
     // The following are those that are indexed using #[key] macro
     const from = event?.keys?.[1];
-    const to = event?.keys?.[2];
 
-    return BigInt(from) != BigInt(0) && BigInt(to) != BigInt(0);
+    // Allowing to be zero address
+    // since we want to track the burn events
+    // and the zero address is used to burn tokens
+    return BigInt(from) != BigInt(0);
   }).map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
       throw new Error("tranfers:Expected event with data");

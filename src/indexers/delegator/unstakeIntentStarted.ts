@@ -102,14 +102,14 @@ export default function transform({ header, events }: Block) {
 
     const amount = toBigInt(event.data.at(0)).toString();
 
-    const depositData = {
+    const UnstakeIntentData = {
       block_number: blockNumber,
       tx_index: receipt.transactionIndex ?? 0,
       event_index: event.index ?? 0,
       amount,
     };
 
-    console.log("event data", depositData);
-    return depositData;
+    console.log("event data", UnstakeIntentData);
+    return UnstakeIntentData;
   });
 }
