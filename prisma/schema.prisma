@@ -1,7 +1,6 @@
 // Custom path for Deno
 generator client_deno {
   provider        = "prisma-client-js"
-  binaryTargets   = ["native", "darwin-arm64"]
   previewFeatures = ["deno"]
   output          = "./generated/client"
 }
@@ -148,6 +147,25 @@ model unstake_intent_started {
   event_index  Int     @default(0)
   amount       String
   cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+// ----------------------------------------------------------------------------
+// -------------------------- Reward Distribution -----------------------------
+// ----------------------------------------------------------------------------
+
+model reward_distribution {
+  block_number Int
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+  timestamp    Int
+
+  amount  String
+  referee String
+
+  cursor BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])

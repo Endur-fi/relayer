@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { WithdrawalQueueService } from "../services/withdrawalQueueService.ts";
+import { WithdrawalQueueService } from "../services/withdrawalQueueService";
 
 @Controller("wq")
 export class WqController {

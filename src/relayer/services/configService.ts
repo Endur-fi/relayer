@@ -1,5 +1,6 @@
-import { Network, NetworkConfig } from "../../common/types.ts";
-import { getAccount, getProvider } from "../../common/utils.ts";
+import { Network } from "../../common/constants";
+import { NetworkConfig } from "../../common/types";
+import { getAccount, getNetwork, getProvider, getTGToken } from "../../common/utils";
 import { Injectable } from "@nestjs/common";
 
 @Injectable()
@@ -11,7 +12,8 @@ export class ConfigService {
     this.config = {
       provider: getProvider(),
       account: getAccount(),
-      network: Network.sepolia,
+      network: getNetwork(),
+      tgToken: getTGToken(),
     };
   }
 
@@ -24,5 +26,13 @@ export class ConfigService {
 
   get<K extends keyof NetworkConfig>(key: K): NetworkConfig[K] {
     return this.config[key];
+  }
+
+  isSepolia(): boolean {
+    return this.config.network === Network.sepolia;
+  }
+
+  provider() {
+    return this.config.provider;
   }
 }

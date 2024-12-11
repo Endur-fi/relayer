@@ -3,7 +3,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3100;
 
 // Function to execute grpcurl command and get the status
 function getGrpcStatus(grpcPort) {
@@ -56,6 +56,15 @@ function logFileContents(filePath) {
     console.log(last20Lines.join("\n")); // Join them back into a string and log
   });
 }
+
+app.get('/status/relayer', async (req, res) => {
+  const resp = await fetch('http://localhost:3000/');
+  const resp2 = await resp.text();
+  if (resp2.includes('Operational'))
+    return res.status(200).json({ message: "Relayer is active" });
+
+  return res.status(500).json({ message: "Relayer is not running" });
+})
 
 // Express GET endpoint `/status`
 app.get("/status", async (req, res) => {

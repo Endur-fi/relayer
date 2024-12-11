@@ -1,5 +1,6 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { LSTService } from "../services/lstService.ts";
+import { LSTService } from "../services/lstService";
+import { Web3Number } from "@strkfarm/sdk";
 
 @Controller("lst")
 export class LstController {
@@ -8,7 +9,7 @@ export class LstController {
   // TODO : Should this be a Put/Post
   // These apis must be protected under vpn/using `.pem` files of ec2
   @Post("send-wq")
-  async sendToWithdrawQueue(@Body("amount") amount: bigint) {
+  async sendToWithdrawQueue(@Body("amount") amount: Web3Number) {
     try {
       console.log("Recieved a request");
       await this.lst.sendToWithdrawQueue(amount);

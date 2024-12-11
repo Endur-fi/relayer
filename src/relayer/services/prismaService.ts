@@ -1,5 +1,6 @@
-import { deposits, prisma, PrismaClient } from "../../../prisma/client.ts";
-import { Injectable } from "@nestjs/common";
+import { deposits, prisma, PrismaClient } from "../../../prisma/client";
+import { Injectable, Logger } from "@nestjs/common";
+import { Web3Number } from "@strkfarm/sdk";
 
 interface IPrismaService {
   getDepositsLastDay(): Promise<bigint>;
@@ -9,6 +10,7 @@ interface IPrismaService {
 
 @Injectable()
 export class PrismaService implements IPrismaService {
+  private readonly logger = new Logger(PrismaService.name);
   prisma: PrismaClient;
   constructor() {
     this.prisma = prisma;
@@ -71,7 +73,7 @@ export class PrismaService implements IPrismaService {
         index: number,
         depositsArray: typeof deposits,
       ) => {
-        depositsArray[index].cursor = depositsArray[index].cursor.toString();
+        depositsArray[index].cursor = BigInt(depositsArray[index].cursor?.toString() ?? 0);
       },
     );
     return deposits;
@@ -93,7 +95,7 @@ export class PrismaService implements IPrismaService {
         index: number,
         withdrawsArray: typeof withdraws,
       ) => {
-        withdrawsArray[index].cursor = withdrawsArray[index].cursor.toString();
+        withdrawsArray[index].cursor = BigInt(withdrawsArray[index].cursor?.toString() ?? 0);
       },
     );
     return withdraws;
@@ -110,20 +112,24 @@ export class PrismaService implements IPrismaService {
     return totalWithdrawals;
   }
 
-  async getPendingWithdraws(minAmount: bigint) {
+  async getPendingWithdraws(minAmount: Web3Number): Promise<[{
+    amount_strk: string;
+    request_id: bigint;
+  }[], bigint[]]> {
     const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
       orderBy: {
         request_id: "asc",
       },
       where: {
-        amount_strk: {
-          gte: minAmount,
-        },
         is_claimed: false,
         NOT: {
           request_id: {
             in: await prisma.withdraw_queue.findMany({
-              where: { is_claimed: true },
+              where: { OR: [{
+                is_claimed: true 
+              }, {
+                is_rejected: true
+              }] },
               select: { request_id: true },
             }).then((results) => results.map((r) => r.request_id)),
           },
@@ -135,7 +141,36 @@ export class PrismaService implements IPrismaService {
       },
     });
 
-    return pendingWithdraws;
+
+    // filter out withdrawals that are less than minAmount
+    // also isolate the rejected ones and mark them as rejected
+    let rejected_ids: bigint[] = [];
+    const filteredWithdraws = pendingWithdraws.filter(
+      (withdraw: any) => {
+        const amount = Web3Number.fromWei(withdraw.amount_strk, 18);
+        if (amount.lt(minAmount)) {
+          rejected_ids.push(withdraw.request_id);
+          return false;
+        }
+        return true;
+      },
+    );
+
+    if (rejected_ids.length > 0) {
+      this.logger.log(`Rejecting ${rejected_ids.length} withdrawals`);
+      await this.prisma.withdraw_queue.updateMany({
+        where: {
+          request_id: {
+            in: rejected_ids,
+          },
+        },
+        data: {
+          is_rejected: true,
+        },
+      });
+    }
+
+    return [filteredWithdraws, rejected_ids];
   }
 
   async getTotalDeposits(from: number, to: number) {
