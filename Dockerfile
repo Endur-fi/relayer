@@ -56,6 +56,7 @@ RUN npx prisma db push
 RUN chmod +x run.sh
 RUN cat ./run.sh
 
-RUN export $(cat .env | xargs)
+RUN echo "export $(cat /app/.env | xargs)" > ~/.bashrc 
+RUN source ~/.bashrc
 ENTRYPOINT ["./run.sh"]
 # CMD ["/usr/bin/supervisord", "-c", "/app/supervisord.conf"]
