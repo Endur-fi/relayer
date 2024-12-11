@@ -117,6 +117,20 @@ model dispatch_to_withdraw_queue {
   @@index([cursor])
 }
 
+model transfer {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  timestamp    String
+  from         String
+  to           String
+  value        String
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
 model unstake_action {
   block_number Int
   tx_index     Int     @default(0)
