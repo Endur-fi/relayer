@@ -1,4 +1,4 @@
-import { Contract, uint256 } from "starknet";
+import { Call, Contract, TransactionExecutionStatus, uint256 } from "starknet";
 import { ABI as LSTAbi } from "../../../abis/LST";
 import { ABI as StrkAbi } from "../../../abis/Strk";
 import { getAddresses } from "../../common/constants";
@@ -98,31 +98,45 @@ export class LSTService implements ILSTService {
       return;
     }
 
-    const totalAmount = Math.round(Number(balanceWeb3.toString()) - MIN_BALANCE);
+    let totalAmount = Math.round(Number(balanceWeb3.toString()) - MIN_BALANCE);
     this.logger.log("Total amount: ", totalAmount);
     
+    totalAmount = 500;
+    this.logger.log("Total amount: ", totalAmount);
+
     // ! TODO: add more items here to make it 25 size
     const distributions = [0.05, 0.05, 0.08, 0.20, 0.61, 1.48, 2.90, 5.24, 8.07, 11.05, 
         13.38, 14.16, 13.37, 11.04, 7.90, 4.98, 2.79, 1.49, 0.58, 0.25, 
-        0.08, 0.05, 0.05, 0.05, 0.05, 0.05]
+        0.08, 0.05, 0.05, 0.05, 0.05]
     if (toIndex !== distributions.length) {
         throw new Error('Delegator count and distribution count mismatch');
     }
     
-    const distributionAmounts = distributions.map(d => totalAmount * d / 100);
+    const distributionAmounts = distributions.map(d => Math.round(totalAmount * d / 100));
     const sumDistribution = distributionAmounts.reduce((a, b) => a + b, 0);
-    this.logger.debug('Sum of distribution amounts: ', sumDistribution);
     this.logger.debug('Distribution amounts: ', distributionAmounts);
+    this.logger.debug('Sum of distribution amounts: ', sumDistribution);
     const calls: Call[] = [];
     for (let i = fromIndex; i < toIndex; i++) {
-      calls.push(...await stake(i, distributionAmounts[i].toString(), true));
+      const delegator = getAddresses(getNetwork()).Delgator[i];
+      if (distributionAmounts[i] === 0) {
+        this.logger.log('Skipping 0 amount distribution');
+        continue;
+      }
+      const call = this.LST.populate('stake', {
+        delegator: delegator,
+        amount: uint256.bnToUint256(new Web3Number(distributionAmounts[i].toString(), 18).toWei())
+      })
+      calls.push(call);
     }
 
+    const acc = this.config.get("account");
     const GROUP = 3;
+    this.logger.log(`total calls: ${calls.length}`);
     for (let i = 0; i < calls.length; i += GROUP) {
         const tx = await acc.execute(calls.slice(i, i + GROUP));
         this.logger.log('Bulk stake tx: ', tx.transaction_hash);
-        await getRpcProvider().waitForTransaction(tx.transaction_hash, {
+        await this.config.provider().waitForTransaction(tx.transaction_hash, {
             successStates: [TransactionExecutionStatus.SUCCEEDED]
         })
         this.logger.log(`Bulk staking done: ${i} - ${i + GROUP}`);

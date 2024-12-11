@@ -48,6 +48,7 @@ export class CronService {
     console.log('Running task on application start...');
     await this.processWithdrawQueue();
     await this.sendStats();
+    await this.stakeFunds();
   }
 
   @Cron(getCronSettings('process-withdraw-queue'))
@@ -159,9 +160,9 @@ export class CronService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_6_HOURS)
-  // @TryCatchAsync()
-  // async stakeFunds() {
-  //   await this.lstService.bulkStake();
-  // }
+  @Cron("0 30 */6 * * *")
+  @TryCatchAsync()
+  async stakeFunds() {
+    await this.lstService.bulkStake();
+  }
 }
