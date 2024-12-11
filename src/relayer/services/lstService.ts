@@ -13,7 +13,7 @@ interface ILSTService {
   sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
   getSTRKBalance(): Promise<Web3Number>;
-  runDailyJob(): void;
+  bulkStake(): void;
 }
 
 @Injectable()
@@ -86,12 +86,47 @@ export class LSTService implements ILSTService {
     }
   }
 
-  async runDailyJob() {
-    const netFlow = await this.prismaService.getNetFlowLastDay();
-    if (netFlow > BigInt(0)) {
-      this.stake(getAddresses(getNetwork()).Delgator[0], netFlow);
-    } else {
-      console.log("No net flow to stake");
+  async bulkStake() {
+    const fromIndex = 0;
+    const toIndex = getAddresses(getNetwork()).Delgator.length;
+
+    const MIN_BALANCE = 30000;
+    const balanceWeb3 = await this.getSTRKBalance();
+    this.logger.log("Balance: ", balanceWeb3.toString());
+    if (balanceWeb3.lt(MIN_BALANCE)) {
+      this.logger.log("Not enough balance to stake");
+      return;
     }
+
+    const totalAmount = Math.round(Number(balanceWeb3.toString()) - MIN_BALANCE);
+    this.logger.log("Total amount: ", totalAmount);
+    
+    // ! TODO: add more items here to make it 25 size
+    const distributions = [0.05, 0.05, 0.08, 0.20, 0.61, 1.48, 2.90, 5.24, 8.07, 11.05, 
+        13.38, 14.16, 13.37, 11.04, 7.90, 4.98, 2.79, 1.49, 0.58, 0.25, 
+        0.08, 0.05, 0.05, 0.05, 0.05, 0.05]
+    if (toIndex !== distributions.length) {
+        throw new Error('Delegator count and distribution count mismatch');
+    }
+    
+    const distributionAmounts = distributions.map(d => totalAmount * d / 100);
+    const sumDistribution = distributionAmounts.reduce((a, b) => a + b, 0);
+    this.logger.debug('Sum of distribution amounts: ', sumDistribution);
+    this.logger.debug('Distribution amounts: ', distributionAmounts);
+    const calls: Call[] = [];
+    for (let i = fromIndex; i < toIndex; i++) {
+      calls.push(...await stake(i, distributionAmounts[i].toString(), true));
+    }
+
+    const GROUP = 3;
+    for (let i = 0; i < calls.length; i += GROUP) {
+        const tx = await acc.execute(calls.slice(i, i + GROUP));
+        this.logger.log('Bulk stake tx: ', tx.transaction_hash);
+        await getRpcProvider().waitForTransaction(tx.transaction_hash, {
+            successStates: [TransactionExecutionStatus.SUCCEEDED]
+        })
+        this.logger.log(`Bulk staking done: ${i} - ${i + GROUP}`);
+    }
+    this.logger.log('Bulk staking done');
   }
 }

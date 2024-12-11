@@ -157,6 +157,11 @@ export class CronService {
         this.logger.log('No required amount in WQ');
       }
     }
-}
+  }
 
+  // @Cron(CronExpression.EVERY_6_HOURS)
+  // @TryCatchAsync()
+  // async stakeFunds() {
+  //   await this.lstService.bulkStake();
+  // }
 }
