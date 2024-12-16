@@ -129,7 +129,7 @@ export class CronService {
     const [pending_withdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(new Web3Number("0.0", 18));
     const balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     const stats = await this.withdrawalQueueService.getWithdrawalQueueState();
-    this.notifService.sendMessage(`Pending Withdrawals: ${pending_withdrawals.length}, min ID: ${pending_withdrawals[0].request_id}`);
+    this.notifService.sendMessage(`Pending Withdrawals: ${pending_withdrawals.length}, min ID: ${pending_withdrawals[0]?.request_id || 'N/A'}`);
     this.notifService.sendMessage(`Rejected ${rejected_ids.length} withdrawals`);
     this.notifService.sendMessage(`Balance left: ${balanceLeft.toString()}`);
     this.notifService.sendMessage(`Withdrawal Queue State: \n
