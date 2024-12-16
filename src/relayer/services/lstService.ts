@@ -101,9 +101,6 @@ export class LSTService implements ILSTService {
     let totalAmount = Math.round(Number(balanceWeb3.toString()) - MIN_BALANCE);
     this.logger.log("Total amount: ", totalAmount);
     
-    // totalAmount = 500;
-    // this.logger.log("Total amount: ", totalAmount);
-
     // ! TODO: add more items here to make it 25 size
     const distributions = [0.05, 0.05, 0.08, 0.20, 0.61, 1.48, 2.90, 5.24, 8.07, 11.05, 
         13.38, 14.16, 13.37, 11.04, 7.90, 4.98, 2.79, 1.49, 0.58, 0.25, 
@@ -142,5 +139,7 @@ export class LSTService implements ILSTService {
         this.logger.log(`Bulk staking done: ${i} - ${i + GROUP}`);
     }
     this.logger.log('Bulk staking done');
+
+    return totalAmount;
   }
 }

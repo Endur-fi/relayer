@@ -90,6 +90,7 @@ export class CronService {
         } else {
           // We skip the rest of the withdrawals if we don't have enough balance now
           this.logger.warn(`Skipping withdrawal >= ID#${w.request_id} due to insufficient balance`);
+          this.logger.warn(`request amount: ${amount_strk.toString()}`);
           break;
         }
       }
@@ -126,10 +127,9 @@ export class CronService {
   @TryCatchAsync()
   async sendStats() {
     const [pending_withdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(new Web3Number("0.0", 18));
-    const balanceRes = await this.withdrawalQueueService.getSTRKBalance();
-    const balanceLeft = Web3Number.fromWei(balanceRes.toString(), 18);
+    const balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     const stats = await this.withdrawalQueueService.getWithdrawalQueueState();
-    this.notifService.sendMessage(`Pending Withdrawals: ${pending_withdrawals.length}`);
+    this.notifService.sendMessage(`Pending Withdrawals: ${pending_withdrawals.length}, min ID: ${pending_withdrawals[0].request_id}`);
     this.notifService.sendMessage(`Rejected ${rejected_ids.length} withdrawals`);
     this.notifService.sendMessage(`Balance left: ${balanceLeft.toString()}`);
     this.notifService.sendMessage(`Withdrawal Queue State: \n
@@ -163,6 +163,7 @@ export class CronService {
   @Cron("0 30 */6 * * *")
   @TryCatchAsync()
   async stakeFunds() {
-    await this.lstService.bulkStake();
+    let amount = await this.lstService.bulkStake();
+    this.notifService.sendMessage(`Staked ${amount} STRK`);
   }
 }
