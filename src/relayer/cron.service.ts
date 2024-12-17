@@ -4,10 +4,12 @@ import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { ConfigService } from "./services/configService";
 import { PrismaService } from "./services/prismaService";
 import { Web3Number } from "@strkfarm/sdk";
-import { Account, Call, RpcProvider } from 'starknet';
-import { TryCatchAsync } from "../common/utils";
+import { Account, Call, Contract, RpcProvider, TransactionExecutionStatus, uint256 } from 'starknet';
+import { getNetwork, TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
+import { fetchQuotes } from '@avnu/avnu-sdk';
+import { getAddresses } from '../common/constants';
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -27,6 +29,7 @@ export class CronService {
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
+  arbContract: Contract | null;
 
   constructor(
     config: ConfigService,
@@ -46,8 +49,16 @@ export class CronService {
   @TryCatchAsync()
   async onModuleInit() {
     console.log('Running task on application start...');
+    
+    // set up arb contract
+    const provider = this.config.get("provider");
+    const ARB_ADDR = getAddresses(getNetwork()).ARB_CONTRACT
+    const cls = await provider.getClassAt(ARB_ADDR);
+    this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
+
     await this.processWithdrawQueue();
     await this.sendStats();
+    await this.checkAndExecuteArbitrage();
     await this.stakeFunds();
   }
 
@@ -165,5 +176,79 @@ export class CronService {
   async stakeFunds() {
     let amount = await this.lstService.bulkStake();
     this.notifService.sendMessage(`Staked ${amount} STRK`);
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync()
+  async checkAndExecuteArbitrage() {
+    const strkBalanceLST = await this.lstService.getSTRKBalance();
+    const account: Account = this.config.get("account");
+    let queueStats = await this.withdrawalQueueService.getWithdrawalQueueState();
+    let pendingAmount = queueStats.unprocessed_withdraw_queue_amount;
+    this.logger.log(`Pending amount: ${pendingAmount.toString()} STRK`);
+
+    const availableAmount = strkBalanceLST.minus(pendingAmount.toString());
+    this.logger.log(`Available amount: ${availableAmount.toString()} STRK`);
+    const exchangeRate =  await this.lstService.exchangeRate();
+    this.logger.log(`Exchange rate: ${exchangeRate}`);
+
+    const ADDRESSES = getAddresses(getNetwork());
+    const availableAmountNum = Number(availableAmount.toString()) * 0.95; // max use 95% of amount
+    for (let i = 0; i < 10; i++) {
+      if (availableAmountNum > 1000) {
+        let amount = Math.floor( * (10 - i - 1) / 10);
+        this.logger.log(`Checking arb for ${amount.toString()} STRK`);
+        let amount_str = new Web3Number(amount, 18).toWei();
+        console.log(amount_str);
+        const params: any = {
+          sellTokenAddress: ADDRESSES.Strk,
+          buyTokenAddress: ADDRESSES.LST,
+          sellAmount: amount_str,
+          takerAddress: ADDRESSES.ARB_CONTRACT,
+        }
+        const quotes = await fetchQuotes(params);
+        if (quotes.length == 0) {
+          continue;
+        }
+        let amountOut = Web3Number.fromWei(quotes[0].buyAmount.toString(), 18);
+        let equivalentAmount = Number(amountOut.toString()) * exchangeRate;
+        this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
+        const potentialProfit = equivalentAmount - amount;
+        this.logger.log(`Potential profit: ${potentialProfit}`);
+        if (equivalentAmount > amount && potentialProfit > 5) { // min profit 5 STRK
+          this.logger.log(`Executing swap for ${amount.toString()} STRK`);
+          await this.executeArb(new Web3Number(amount, 18));
+          this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
+          return;
+        } else {
+          this.logger.log(`Equivalent amount is less than ${amount.toString()} STRK`);
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  async executeArb(amount: Web3Number) {
+    const call = this.arbContract.populate('buy_xstrk', {
+      params: {
+        amount: {
+          mag: amount.toWei(),
+          sign: 0,
+        },
+        is_token1: true,
+        sqrt_ratio_limit: uint256.bnToUint256('487383972438908925075196475773716407478'), // 2 price (bahur time he)
+        skip_ahead: false
+      },
+      receiver: '0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45' // treasury arb (VT holds)
+    })
+    const account = this.config.get('account');
+    const provider = this.config.get('provider');
+    const tx = await account.execute([call]);
+    this.logger.log('Performing arb: tx', tx.transaction_hash);
+    await provider.waitForTransaction(tx.transaction_hash, {
+      successStates: [TransactionExecutionStatus.SUCCEEDED]
+    })
+    this.logger.log('Arb tx confirmed');
+    this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
   }
 }

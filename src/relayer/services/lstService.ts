@@ -14,6 +14,7 @@ interface ILSTService {
   stake(delegator: string, amount: bigint): void;
   getSTRKBalance(): Promise<Web3Number>;
   bulkStake(): void;
+  exchangeRate(): Promise<number>;
 }
 
 @Injectable()
@@ -62,6 +63,14 @@ export class LSTService implements ILSTService {
   async getSTRKBalance() {
     const amount = await this.Strk.balanceOf(getAddresses(getNetwork()).LST);
     return Web3Number.fromWei(amount.toString(), 18);
+  }
+
+  async exchangeRate() {
+    let totalAssetsRes = await this.LST.call('total_assets', []);
+    let totalSupplyRes = await this.LST.call('total_supply', []);
+    const totalAssets = Web3Number.fromWei(totalAssetsRes.toString(), 18);
+    const totalSupply = Web3Number.fromWei(totalSupplyRes.toString(), 18);
+    return Number(totalAssets.toString()) / Number(totalSupply.toString());
   }
 
   async stake(delegator: string, amount: bigint) {

@@ -9,6 +9,7 @@ type NetworkAddresses = {
   WithdrawQueue: string;
   Strk: string;
   Delgator: string[];
+  ARB_CONTRACT: string;
 };
 
 const sepolia: NetworkAddresses = {
@@ -20,6 +21,7 @@ const sepolia: NetworkAddresses = {
     "0x7fc5c5b4c6f30e9914322954750a59a44cf46ae935e6e4bdc7e74f688546041",
     "0x246f8bf539817de93d5fac4eca0052ba40e684a5ddddd7b7027f1744e3d927f",
   ],
+  ARB_CONTRACT: ''
 };
 
 const mainnet: NetworkAddresses = {
@@ -55,6 +57,7 @@ const mainnet: NetworkAddresses = {
     '0x79c18260689a8d1adcee4e2258cdead1c375ade973b4f65b018b15e03c11d04', // 9
     '0x2c6433caaa6d98b888d16cfa3c3f00cab522d351b51abbcbb3f2973d2b040e9' // 6
   ],
+  ARB_CONTRACT: '0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f'
 };
 
 export function getAddresses(network: Network): NetworkAddresses {
