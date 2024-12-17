@@ -17,6 +17,7 @@
     "@strkfarm/sdk": "^1.0.7",
     "assert": "^2.1.0",
     "dotenv": "^16.4.5",
+    "ethers": "^6.13.4",
     "express": "^4.21.1",
     "graphql": "16.9.0",
     "graphql-fields": "2.0.3",
