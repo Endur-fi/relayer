@@ -196,7 +196,7 @@ export class CronService {
     const availableAmountNum = Number(availableAmount.toString()) * 0.95; // max use 95% of amount
     for (let i = 0; i < 10; i++) {
       if (availableAmountNum > 1000) {
-        let amount = Math.floor( * (10 - i - 1) / 10);
+        let amount = Math.floor(availableAmountNum * (10 - i - 1) / 10);
         this.logger.log(`Checking arb for ${amount.toString()} STRK`);
         let amount_str = new Web3Number(amount, 18).toWei();
         console.log(amount_str);
