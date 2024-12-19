@@ -226,11 +226,12 @@ export class CronService {
           await this.executeArb(new Web3Number(amount, 18));
           this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
           return;
-        } else if (shouldExecuteCond2) {
-          this.logger.log(`Potential profit is less than 5 STRK: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`);
-        } else {
+        } else if (shouldExecuteCond1) {
           this.logger.log(`Potential profit % is less than 0.2%: ${(potentialProfit / amount).toFixed(4)}, more info: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`);
         }
+        //  else {
+        //   this.logger.log(`Potential profit is less than 5 STRK: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`);
+        // }
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
