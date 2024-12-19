@@ -175,7 +175,10 @@ export class CronService {
   @TryCatchAsync()
   async stakeFunds() {
     let amount = await this.lstService.bulkStake();
-    this.notifService.sendMessage(`Staked ${amount} STRK`);
+    if (amount)
+      this.notifService.sendMessage(`Staked ${amount} STRK`);
+    else 
+      this.notifService.sendMessage(`No STRK to stake`);
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
@@ -215,13 +218,18 @@ export class CronService {
         this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
         const potentialProfit = equivalentAmount - amount;
         this.logger.log(`Potential profit: ${potentialProfit}`);
-        if (equivalentAmount > amount && potentialProfit > 5) { // min profit 5 STRK
+
+        const shouldExecuteCond1 = equivalentAmount > amount && potentialProfit > 5; // min profit 5 STRK
+        const shouldExecuteCond2 = (potentialProfit / amount) > 0.002; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
+        if (shouldExecuteCond1 && shouldExecuteCond2) { // min profit 5 STRK
           this.logger.log(`Executing swap for ${amount.toString()} STRK`);
           await this.executeArb(new Web3Number(amount, 18));
           this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
           return;
+        } else if (shouldExecuteCond2) {
+          this.logger.log(`Potential profit is less than 5 STRK: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`);
         } else {
-          this.logger.log(`Equivalent amount is less than ${amount.toString()} STRK`);
+          this.logger.log(`Potential profit % is less than 0.2%: ${(potentialProfit / amount).toFixed(4)}, more info: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`);
         }
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
