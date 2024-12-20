@@ -8,7 +8,7 @@ import { Account, Call, Contract, RpcProvider, TransactionExecutionStatus, uint2
 import { getNetwork, TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
-import { fetchQuotes } from '@avnu/avnu-sdk';
+import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { getAddresses } from '../common/constants';
 
 function getCronSettings(action: 'process-withdraw-queue') {
@@ -59,7 +59,7 @@ export class CronService {
     await this.processWithdrawQueue();
     await this.sendStats();
     await this.checkAndExecuteArbitrage();
-    await this.stakeFunds();
+    // await this.stakeFunds();
   }
 
   @Cron(getCronSettings('process-withdraw-queue'))
@@ -197,19 +197,19 @@ export class CronService {
 
     const ADDRESSES = getAddresses(getNetwork());
     const availableAmountNum = Number(availableAmount.toString()) * 0.95; // max use 95% of amount
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 9; i++) {
       if (availableAmountNum > 1000) {
         let amount = Math.floor(availableAmountNum * (10 - i - 1) / 10);
         this.logger.log(`Checking arb for ${amount.toString()} STRK`);
         let amount_str = new Web3Number(amount, 18).toWei();
-        console.log(amount_str);
-        const params: any = {
+        const params: QuoteRequest = {
           sellTokenAddress: ADDRESSES.Strk,
           buyTokenAddress: ADDRESSES.LST,
-          sellAmount: amount_str,
+          sellAmount: BigInt(amount_str),
           takerAddress: ADDRESSES.ARB_CONTRACT,
+          excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
         }
-        const quotes = await fetchQuotes(params);
+        const quotes = await this.fetchQuotesOnlyEkubo(params);
         if (quotes.length == 0) {
           continue;
         }
@@ -235,6 +235,20 @@ export class CronService {
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
+  }
+
+  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0) {
+    const MAX_RETRY = 3;
+    const quotes = await fetchQuotes(params);
+
+    const condition1 = quotes.length > 0;
+    // only ekubo, and it should be one route only
+    const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
+    if ((!condition1 || !condition2) && retry < MAX_RETRY) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return this.fetchQuotesOnlyEkubo(params, retry + 1);
+    }
+    return quotes;
   }
 
   async executeArb(amount: Web3Number) {
