@@ -264,9 +264,13 @@ export class CronService {
     const condition1 = quotes.length > 0;
     // only ekubo, and it should be one route only
     // const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
-    if ((!condition1) && retry < MAX_RETRY) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return this.fetchQuotesOnlyEkubo(params, retry + 1);
+    if (!condition1) {
+      if(retry < MAX_RETRY) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return this.fetchQuotesOnlyEkubo(params, retry + 1);
+      } else {
+        throw new Error('No quotes found');
+      }
     }
 
     console.log(`Expected xSTRK to receive: ${Web3Number.fromWei(params.sellAmount.toString(), 18).toString()} xSTRK`);
