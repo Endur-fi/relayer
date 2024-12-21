@@ -4,12 +4,13 @@ import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { ConfigService } from "./services/configService";
 import { PrismaService } from "./services/prismaService";
 import { Web3Number } from "@strkfarm/sdk";
-import { Account, Call, Contract, RpcProvider, TransactionExecutionStatus, uint256 } from 'starknet';
+import { Account, Call, Contract, RpcProvider, TransactionExecutionStatus, Uint256, uint256 } from 'starknet';
 import { getNetwork, TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
-import { fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
+import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { getAddresses } from '../common/constants';
+import assert = require('assert');
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -19,6 +20,26 @@ function getCronSettings(action: 'process-withdraw-queue') {
     default:
       throw new Error(`Unknown action: ${action}`);
   }
+}
+
+interface Route {
+  token_from: string,
+  token_to: string,
+  exchange_address: string,
+  percent: number,
+  additional_swap_params: string[]
+}
+
+interface SwapInfo {
+  token_from_address: string, 
+  token_from_amount: Uint256, 
+  token_to_address: string,   
+  token_to_amount: Uint256, 
+  token_to_min_amount: Uint256,  
+  beneficiary: string,  
+  integrator_fee_amount_bps: number,
+  integrator_fee_recipient: string,
+  routes: Route[]
 }
 
 @Injectable()
@@ -184,6 +205,8 @@ export class CronService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync()
   async checkAndExecuteArbitrage() {
+    // todo modify arb contract to take flash loan from vesu and 
+    // execute swap using avnu swap (so that more routes can be used)
     const strkBalanceLST = await this.lstService.getSTRKBalance();
     const account: Account = this.config.get("account");
     let queueStats = await this.withdrawalQueueService.getWithdrawalQueueState();
@@ -207,13 +230,10 @@ export class CronService {
           buyTokenAddress: ADDRESSES.LST,
           sellAmount: BigInt(amount_str),
           takerAddress: ADDRESSES.ARB_CONTRACT,
-          excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
+          // excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
         }
-        const quotes = await this.fetchQuotesOnlyEkubo(params);
-        if (quotes.length == 0) {
-          continue;
-        }
-        let amountOut = Web3Number.fromWei(quotes[0].buyAmount.toString(), 18);
+        const swapInfo = await this.fetchQuotesOnlyEkubo(params);
+        let amountOut = Web3Number.fromWei(uint256.uint256ToBN(swapInfo.token_from_amount).toString(), 18);
         let equivalentAmount = Number(amountOut.toString()) * exchangeRate;
         this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
         const potentialProfit = equivalentAmount - amount;
@@ -223,7 +243,7 @@ export class CronService {
         const shouldExecuteCond2 = (potentialProfit / amount) > 0.002; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
         if (shouldExecuteCond1 && shouldExecuteCond2) { // min profit 5 STRK
           this.logger.log(`Executing swap for ${amount.toString()} STRK`);
-          await this.executeArb(new Web3Number(amount, 18));
+          await this.executeArb(swapInfo);
           this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
           return;
         } else if (shouldExecuteCond1) {
@@ -237,31 +257,59 @@ export class CronService {
     }
   }
 
-  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0) {
+  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0): Promise<SwapInfo> {
     const MAX_RETRY = 3;
     const quotes = await fetchQuotes(params);
 
     const condition1 = quotes.length > 0;
     // only ekubo, and it should be one route only
-    const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
-    if ((!condition1 || !condition2) && retry < MAX_RETRY) {
+    // const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
+    if ((!condition1) && retry < MAX_RETRY) {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return this.fetchQuotesOnlyEkubo(params, retry + 1);
     }
-    return quotes;
+
+    console.log(`Expected xSTRK to receive: ${Web3Number.fromWei(params.sellAmount.toString(), 18).toString()} xSTRK`);
+
+    const calldata = await fetchBuildExecuteTransaction(quotes[0].quoteId);
+    const call: Call = calldata.calls[1];
+    const callData: string[] = call.calldata as string[];
+    const routesLen: number = Number(callData[11]);
+    console.log('routesLen', routesLen);
+    assert(routesLen > 0, 'No routes found');
+    const routes: Route[] = [];
+    
+    let startIndex = 12;
+    for(let i=0; i<routesLen; ++i) {
+        const swap_params_len = Number(callData[startIndex + 4]);
+        const route: Route = {
+            token_from: callData[startIndex],
+            token_to: callData[startIndex + 1],
+            exchange_address: callData[startIndex + 2],
+            percent: Number(callData[startIndex + 3]),
+            additional_swap_params: swap_params_len > 0 ? callData.slice(startIndex + 5, startIndex + 5 + swap_params_len): []
+        }
+        routes.push(route);
+        startIndex += 5 + swap_params_len;
+    }
+
+    const swapInfo: SwapInfo = {
+      token_from_address: getAddresses(getNetwork()).Strk, 
+      token_from_amount: uint256.bnToUint256(params.sellAmount.toString()),
+      token_to_address: getAddresses(getNetwork()).LST,
+      token_to_amount: uint256.bnToUint256("0"), 
+      token_to_min_amount: uint256.bnToUint256("1"), // bypass slippage check
+      beneficiary: getAddresses(getNetwork()).ARB_CONTRACT,
+      integrator_fee_amount_bps: 0,
+      integrator_fee_recipient: getAddresses(getNetwork()).ARB_CONTRACT,
+      routes
+    };
+    return swapInfo;
   }
 
-  async executeArb(amount: Web3Number) {
+  async executeArb(swapInfo: SwapInfo) {
     const call = this.arbContract.populate('buy_xstrk', {
-      params: {
-        amount: {
-          mag: amount.toWei(),
-          sign: 0,
-        },
-        is_token1: true,
-        sqrt_ratio_limit: uint256.bnToUint256('487383972438908925075196475773716407478'), // 2 price (bahur time he)
-        skip_ahead: false
-      },
+      swap_params: swapInfo,
       receiver: '0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45' // treasury arb (VT holds)
     })
     const account = this.config.get('account');
@@ -272,6 +320,7 @@ export class CronService {
       successStates: [TransactionExecutionStatus.SUCCEEDED]
     })
     this.logger.log('Arb tx confirmed');
+    let amount = Web3Number.fromWei(uint256.uint256ToBN(swapInfo.token_from_amount).toString(), 18);
     this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
   }
 }
