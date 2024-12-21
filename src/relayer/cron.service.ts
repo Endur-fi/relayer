@@ -233,7 +233,7 @@ export class CronService {
           // excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
         }
         const swapInfo = await this.fetchQuotesOnlyEkubo(params);
-        let amountOut = Web3Number.fromWei(uint256.uint256ToBN(swapInfo.token_from_amount).toString(), 18);
+        let amountOut = swapInfo.amountOut;
         let equivalentAmount = Number(amountOut.toString()) * exchangeRate;
         this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
         const potentialProfit = equivalentAmount - amount;
@@ -243,7 +243,7 @@ export class CronService {
         const shouldExecuteCond2 = (potentialProfit / amount) > 0.002; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
         if (shouldExecuteCond1 && shouldExecuteCond2) { // min profit 5 STRK
           this.logger.log(`Executing swap for ${amount.toString()} STRK`);
-          await this.executeArb(swapInfo);
+          await this.executeArb(swapInfo.swapInfo);
           this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
           return;
         } else if (shouldExecuteCond1) {
@@ -257,7 +257,10 @@ export class CronService {
     }
   }
 
-  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0): Promise<SwapInfo> {
+  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0): Promise<{
+    swapInfo: SwapInfo,
+    amountOut: Web3Number
+  }> {
     const MAX_RETRY = 3;
     const quotes = await fetchQuotes(params);
 
@@ -307,7 +310,10 @@ export class CronService {
       integrator_fee_recipient: getAddresses(getNetwork()).ARB_CONTRACT,
       routes
     };
-    return swapInfo;
+    return {
+      swapInfo,
+      amountOut: Web3Number.fromWei(params.buyAmount.toString(), 18)
+    };
   }
 
   async executeArb(swapInfo: SwapInfo) {
