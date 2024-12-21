@@ -273,13 +273,12 @@ export class CronService {
       }
     }
 
-    console.log(`Expected xSTRK to receive: ${Web3Number.fromWei(params.sellAmount.toString(), 18).toString()} xSTRK`);
+    this.logger.log(`Expected xSTRK to receive: ${Web3Number.fromWei(params.buyAmount.toString(), 18).toString()} xSTRK`);
 
     const calldata = await fetchBuildExecuteTransaction(quotes[0].quoteId);
     const call: Call = calldata.calls[1];
     const callData: string[] = call.calldata as string[];
     const routesLen: number = Number(callData[11]);
-    console.log('routesLen', routesLen);
     assert(routesLen > 0, 'No routes found');
     const routes: Route[] = [];
     
