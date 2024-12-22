@@ -261,7 +261,7 @@ export class CronService {
     swapInfo: SwapInfo,
     amountOut: Web3Number
   }> {
-    const MAX_RETRY = 3;
+    const MAX_RETRY = 10;
     const quotes = await fetchQuotes(params);
 
     const condition1 = quotes.length > 0;
@@ -269,14 +269,14 @@ export class CronService {
     // const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
     if (!condition1) {
       if(retry < MAX_RETRY) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 5000));
         return this.fetchQuotesOnlyEkubo(params, retry + 1);
       } else {
         throw new Error('No quotes found');
       }
     }
 
-    this.logger.log(`Expected xSTRK to receive: ${Web3Number.fromWei(params.buyAmount.toString(), 18).toString()} xSTRK`);
+    this.logger.log(`Expected xSTRK to receive: ${Web3Number.fromWei(quotes[0].buyAmount.toString(), 18).toString()} xSTRK`);
 
     const calldata = await fetchBuildExecuteTransaction(quotes[0].quoteId);
     const call: Call = calldata.calls[1];
@@ -312,7 +312,7 @@ export class CronService {
     };
     return {
       swapInfo,
-      amountOut: Web3Number.fromWei(params.buyAmount.toString(), 18)
+      amountOut: Web3Number.fromWei(quotes[0].buyAmount.toString(), 18)
     };
   }
 
