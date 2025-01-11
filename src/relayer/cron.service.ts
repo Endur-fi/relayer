@@ -9,7 +9,7 @@ import { getNetwork, TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
 import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
-import { getAddresses } from '../common/constants';
+import { getAddresses, Network } from '../common/constants';
 import assert = require('assert');
 
 function getCronSettings(action: 'process-withdraw-queue') {
@@ -72,10 +72,12 @@ export class CronService {
     console.log('Running task on application start...');
     
     // set up arb contract
-    const provider = this.config.get("provider");
-    const ARB_ADDR = getAddresses(getNetwork()).ARB_CONTRACT
-    const cls = await provider.getClassAt(ARB_ADDR);
-    this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
+    if (getNetwork() == Network.mainnet) {
+      const provider = this.config.get("provider");
+      const ARB_ADDR = getAddresses(getNetwork()).ARB_CONTRACT
+      const cls = await provider.getClassAt(ARB_ADDR);
+      this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
+    }
 
     await this.processWithdrawQueue();
     await this.sendStats();
@@ -103,6 +105,12 @@ export class CronService {
     let balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     this.logger.log(`Balance left: ${balanceLeft.toString()}`);
 
+    const withdrawQueueState = await this.withdrawalQueueService.getWithdrawalQueueState();
+    this.logger.log("cummulative amount: ", withdrawQueueState.cumulative_requested_amount.toString());
+    this.logger.log("unprocessed amount: ", withdrawQueueState.unprocessed_withdraw_queue_amount.toString());
+    const allowedLimit = withdrawQueueState.cumulative_requested_amount.minus(withdrawQueueState.unprocessed_withdraw_queue_amount.toString());
+    this.logger.log(`Allowed limit: ${allowedLimit.toString()}`);
+
     // claim withdrawals
     // send 10 at a time
     const MAX_WITHDRAWALS = 10;
@@ -114,21 +122,21 @@ export class CronService {
       const calls: Call[] = [];
       for (const w of batch) {
         const amount_strk = Web3Number.fromWei(w.amount_strk, 18);
-        if (amount_strk.lte(balanceLeft)) {
+        const requestCum = Web3Number.fromWei(w.cumulative_requested_amount_snapshot, 18);
+        if (amount_strk.lte(balanceLeft) && requestCum.lessThanOrEqualTo(allowedLimit)) {
           this.logger.debug(`Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`);
           const call = this.withdrawalQueueService.getClaimWithdrawalCall(w.request_id);
           calls.push(call);
           balanceLeft = balanceLeft.minus(amount_strk.toString());
         } else {
           // We skip the rest of the withdrawals if we don't have enough balance now
-          this.logger.warn(`Skipping withdrawal >= ID#${w.request_id} due to insufficient balance`);
+          this.logger.warn(`Skipping withdrawal ID#${w.request_id} due to insufficient balance or not ready`);
           this.logger.warn(`request amount: ${amount_strk.toString()}`);
-          break;
         }
       }
 
       // if no withdrawals to claim, break entire loop
-      if (calls.length === 0) {
+      if (calls.length === 0 && (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
         this.logger.warn(`No withdrawals to claim`);
         break;
       }
@@ -145,7 +153,7 @@ export class CronService {
       this.notifService.sendMessage(`Transaction ${res.transaction_hash} confirmed`);
 
       // if less than MAX_WITHDRAWALS, break entire loop as there are no more withdrawals to claim
-      if (calls.length < MAX_WITHDRAWALS) {
+      if (calls.length < MAX_WITHDRAWALS && (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
         this.logger.warn(`No more withdrawals to claim`);
         break;
       }
@@ -205,6 +213,8 @@ export class CronService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync()
   async checkAndExecuteArbitrage() {
+    if (getNetwork() != Network.mainnet) return;
+
     // todo modify arb contract to take flash loan from vesu and 
     // execute swap using avnu swap (so that more routes can be used)
     const strkBalanceLST = await this.lstService.getSTRKBalance();
@@ -232,7 +242,7 @@ export class CronService {
           takerAddress: ADDRESSES.ARB_CONTRACT,
           // excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
         }
-        const swapInfo = await this.fetchQuotesOnlyEkubo(params);
+        const swapInfo = await this._fetchQuotes(params);
         let amountOut = swapInfo.amountOut;
         let equivalentAmount = Number(amountOut.toString()) * exchangeRate;
         this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
@@ -257,7 +267,7 @@ export class CronService {
     }
   }
 
-  async fetchQuotesOnlyEkubo(params: QuoteRequest, retry = 0): Promise<{
+  async _fetchQuotes(params: QuoteRequest, retry = 0): Promise<{
     swapInfo: SwapInfo,
     amountOut: Web3Number
   }> {
@@ -270,7 +280,7 @@ export class CronService {
     if (!condition1) {
       if(retry < MAX_RETRY) {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        return this.fetchQuotesOnlyEkubo(params, retry + 1);
+        return this._fetchQuotes(params, retry + 1);
       } else {
         throw new Error('No quotes found');
       }

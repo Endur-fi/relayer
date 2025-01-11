@@ -90,6 +90,7 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
       max_request_id: Number(res.max_request_id),
       unprocessed_withdraw_queue_amount: Web3Number.fromWei(res.unprocessed_withdraw_queue_amount.toString(), 18),
       intransit_amount: Web3Number.fromWei(res.intransit_amount.toString(), 18),
+      cumulative_requested_amount: Web3Number.fromWei(res.cumulative_requested_amount.toString(), 18),
     }
   }
 }

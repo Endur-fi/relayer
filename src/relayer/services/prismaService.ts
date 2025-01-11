@@ -115,6 +115,7 @@ export class PrismaService implements IPrismaService {
   async getPendingWithdraws(minAmount: Web3Number): Promise<[{
     amount_strk: string;
     request_id: bigint;
+    cumulative_requested_amount_snapshot: string;
   }[], bigint[]]> {
     const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
       orderBy: {
@@ -138,6 +139,7 @@ export class PrismaService implements IPrismaService {
       select: {
         request_id: true,
         amount_strk: true,
+        cumulative_requested_amount_snapshot: true,
       },
     });
 
