@@ -250,7 +250,7 @@ export class CronService {
         this.logger.log(`Potential profit: ${potentialProfit}`);
 
         const shouldExecuteCond1 = equivalentAmount > amount && potentialProfit > 5; // min profit 5 STRK
-        const shouldExecuteCond2 = (potentialProfit / amount) > 0.002; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
+        const shouldExecuteCond2 = (potentialProfit / amount) > 0.007; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
         if (shouldExecuteCond1 && shouldExecuteCond2) { // min profit 5 STRK
           this.logger.log(`Executing swap for ${amount.toString()} STRK`);
           await this.executeArb(swapInfo.swapInfo);
