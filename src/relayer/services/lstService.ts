@@ -98,6 +98,11 @@ export class LSTService implements ILSTService {
   async bulkStake() {
     const fromIndex = 0;
     const toIndex = getAddresses(getNetwork()).Delgator.length;
+    this.logger.log(`Bulk staking from ${fromIndex} to ${toIndex}`);
+    // get total stake
+    const totalStakeRes = await this.LST.call('total_assets', []);
+    const totalStake = Web3Number.fromWei(totalStakeRes.toString(), 18);
+    console.log('Total stake: ', totalStake.toString());
 
     const MIN_BALANCE = 30000;
     const balanceWeb3 = await this.getSTRKBalance();
@@ -117,8 +122,66 @@ export class LSTService implements ILSTService {
     if (toIndex !== distributions.length) {
         throw new Error('Delegator count and distribution count mismatch');
     }
-    
-    const distributionAmounts = distributions.map(d => Math.round(totalAmount * d / 100));
+
+    // compute missing amounts
+    // When we unstake from a delegator, we should prioritize this delegator
+    // with higher stake amount to bring them back to ideal distribution
+    const delegatorCls = await this.config.provider().getClassAt(getAddresses(getNetwork()).Delgator[0]);
+    const delegatorStakes = await Promise.all(
+      getAddresses(getNetwork()).Delgator.map(async (delegator) => {
+        let contract = new Contract(delegatorCls.abi, delegator, this.config.provider());
+        const poolConfigRes: any = await contract.call('get_pool_member_info', []);
+        return Web3Number.fromWei(poolConfigRes.amount.toString(), 18);
+      })
+    );
+
+    // the ideal distribution is totalStake * respective distribution %
+    // leaving an error of about 5%, we should bring the stake back to this ideal distribution
+    const idealDistributions = distributions.map(d => Math.round(Number(totalStake.toString()) * d / 100));
+    console.log('Ideal distributions: ', idealDistributions);
+
+    // compute missing amounts
+    const missingAmounts = delegatorStakes.map((stake, i) => {
+      return idealDistributions[i] - Number(stake.toString());
+    });
+    console.log('Missing amounts: ', missingAmounts);
+
+    // compute the final distribution amounts for each delegator by using the 
+    // totalAmount to stake where missing, if nothing missing, use the remaining 
+    // amount to distribute as per the distribution percentages
+    // - Max available amount of now is totalAmount
+    // - If we have missing amounts > totalAmount, we should distribute the totalAmount
+    // - If totalAmount < missingAmounts, we should distribute remaing amount as per the distribution percentages
+
+    // using above logic, compute distributionAmount for each delegator
+    let remainingAmount = totalAmount;
+    let distributionAmounts = getAddresses(getNetwork()).Delgator.map((delegator, i) => {
+      let missingAmount = missingAmounts[i];
+      console.log('Missing amount: ', missingAmount, i, remainingAmount);
+      if (missingAmount <= 0) {
+        return 0;
+      }
+      if (missingAmount <= remainingAmount) {
+        const amt = Math.min(missingAmount, remainingAmount);
+        remainingAmount -= amt;
+        return amt;
+      } else {
+        const temp = remainingAmount;
+        remainingAmount = 0;
+        return temp; 
+      }
+    });
+    console.log('Distribution amounts [1]: ', distributionAmounts);
+    console.log('Remaining amount: ', remainingAmount);
+
+    // if we still have remaining amount, distribute it as per the distribution percentages
+    if (remainingAmount > 0) {
+      const _distributionAmounts = distributions.map(d => Math.round(remainingAmount * d / 100));
+      // add these distributions to the existing distribution amounts
+      distributionAmounts = distributionAmounts.map((amount, i) => {
+        return Math.max(amount + _distributionAmounts[i], 0);
+      });
+    }
     const sumDistribution = distributionAmounts.reduce((a, b) => a + b, 0);
     this.logger.debug('Distribution amounts: ', distributionAmounts);
     this.logger.debug('Sum of distribution amounts: ', sumDistribution);
