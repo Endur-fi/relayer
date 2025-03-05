@@ -14,10 +14,18 @@ import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { ScheduleModule } from '@nestjs/schedule';
 import { CronService } from "./cron.service";
 import { NotifService } from "./services/notifService";
+import { DelegatorService } from './services/delegatorService';
 
 @Module({
   imports: [ScheduleModule.forRoot()],
-  providers: [PrismaService, ConfigService, LSTService, WithdrawalQueueService, NotifService, CronService],
+  providers: [
+    PrismaService, 
+    ConfigService, LSTService, 
+    WithdrawalQueueService, 
+    DelegatorService,
+    NotifService, 
+    CronService
+  ],
   controllers: [
     StatusController,
     // PrismaController,

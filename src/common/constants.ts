@@ -4,6 +4,8 @@ export enum Network {
   devnet = "devnet",
 }
 
+export const getLSTDecimals = () => 18;
+
 type NetworkAddresses = {
   LST: string;
   WithdrawQueue: string;

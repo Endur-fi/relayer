@@ -13,6 +13,7 @@ interface ILSTService {
   sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
   getSTRKBalance(): Promise<Web3Number>;
+  claimRewards(): void;
   bulkStake(): void;
   exchangeRate(): Promise<number>;
 }
@@ -93,6 +94,16 @@ export class LSTService implements ILSTService {
       console.error("Staking failed:", error);
       throw error;
     }
+  }
+
+  async claimRewards() {
+    const acc = this.config.get("account");
+    const tx = await acc.execute([this.LST.populate('claim_rewards', [])]);
+    this.logger.log('Claim rewards tx: ', tx.transaction_hash);
+    await this.config.provider().waitForTransaction(tx.transaction_hash, {
+      successStates: [TransactionExecutionStatus.SUCCEEDED]
+    })
+    this.logger.log('Claim rewards done');
   }
 
   async bulkStake() {

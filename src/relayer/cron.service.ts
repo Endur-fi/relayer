@@ -11,6 +11,7 @@ import { LSTService } from './services/lstService';
 import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { getAddresses, Network } from '../common/constants';
 import assert = require('assert');
+import { DelegatorService } from './services/delegatorService';
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -47,6 +48,7 @@ export class CronService {
   private readonly logger = new Logger(CronService.name);
   readonly config: ConfigService;
   readonly withdrawalQueueService: WithdrawalQueueService;
+  readonly delegatorService: DelegatorService;
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
@@ -55,12 +57,14 @@ export class CronService {
   constructor(
     config: ConfigService,
     withdrawalQueueService: WithdrawalQueueService,
+    delegatorService: DelegatorService,
     prismaService: PrismaService,
     lstService: LSTService,
     notifService: NotifService,
   ) {
     this.config = config;
     this.withdrawalQueueService = withdrawalQueueService;
+    this.delegatorService = delegatorService;
     this.prismaService = prismaService;
     this.lstService = lstService;
     this.notifService = notifService;
@@ -79,10 +83,15 @@ export class CronService {
       this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
     }
 
+    // Run on init
     await this.processWithdrawQueue();
     await this.sendStats();
     await this.checkAndExecuteArbitrage();
+
+    // Just for testing
     // await this.stakeFunds();
+    // await this.claimRewards();
+    // await this.claimUnstakedFunds();
   }
 
   @Cron(getCronSettings('process-withdraw-queue'))
@@ -341,5 +350,53 @@ export class CronService {
     this.logger.log('Arb tx confirmed');
     let amount = Web3Number.fromWei(uint256.uint256ToBN(swapInfo.token_from_amount).toString(), 18);
     this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_1AM)
+  @TryCatchAsync()
+  async claimRewards() {
+    const unclaimedRewards = await this.delegatorService.getTotalUnclaimedRewards();
+    this.logger.log(`Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`);
+   if (unclaimedRewards < 100) {
+      this.notifService.sendMessage(`Too low rewards to claim: ${unclaimedRewards.toFixed(0)} STRK`);
+      return;
+    }
+
+    await this.lstService.claimRewards();
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @TryCatchAsync()
+  async claimUnstakedFunds() {
+    const delegators = await this.delegatorService.getUnstakeAmounts();
+    const now = new Date();
+    this.logger.log(`Checking unstaked funds for ${delegators.length} delegators`);
+
+    let totalUnstakeAmount = 0;
+    const calls = delegators.map((del) => {
+      if (del.unPoolTime && del.unPoolTime <= now) {
+        this.logger.log(`Unstake time reached for ${del.delegator}`);
+        const call = del.delegator.populate('unstake_action', []);
+        totalUnstakeAmount += Number(del.unPoolAmount.toString());
+        return call;
+      }
+      return null;
+    }).filter((call) => call !== null);
+
+    if (calls.length == 0) {
+      this.logger.log(`No unstake actions to perform`);
+      this.notifService.sendMessage(`No unstake actions to perform`);
+    }
+
+    this.notifService.sendMessage(`Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`);
+    const account = this.config.get('account');
+    const provider = this.config.get('provider');
+    const tx = await account.execute(calls);
+    this.logger.log('Unstake tx: ', tx.transaction_hash);
+    await provider.waitForTransaction(tx.transaction_hash, {
+      successStates: [TransactionExecutionStatus.SUCCEEDED]
+    })
+    this.logger.log('Unstake tx confirmed');
+    this.notifService.sendMessage(`Unstake tx confirmed: ${tx.transaction_hash}`);
   }
 }
