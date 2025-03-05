@@ -14,7 +14,7 @@ import assert = require('assert');
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
-  switch(action) {
+  switch (action) {
     case 'process-withdraw-queue':
       return config.isSepolia() ? CronExpression.EVERY_5_MINUTES : CronExpression.EVERY_HOUR;
     default:
@@ -31,12 +31,12 @@ interface Route {
 }
 
 interface SwapInfo {
-  token_from_address: string, 
-  token_from_amount: Uint256, 
-  token_to_address: string,   
-  token_to_amount: Uint256, 
-  token_to_min_amount: Uint256,  
-  beneficiary: string,  
+  token_from_address: string,
+  token_from_amount: Uint256,
+  token_to_address: string,
+  token_to_amount: Uint256,
+  token_to_min_amount: Uint256,
+  beneficiary: string,
   integrator_fee_amount_bps: number,
   integrator_fee_recipient: string,
   routes: Route[]
@@ -70,7 +70,7 @@ export class CronService {
   @TryCatchAsync()
   async onModuleInit() {
     console.log('Running task on application start...');
-    
+
     // set up arb contract
     if (getNetwork() == Network.mainnet) {
       const provider = this.config.get("provider");
@@ -90,6 +90,9 @@ export class CronService {
   async processWithdrawQueue() {
     this.logger.log('Running processWithdrawQueue task');
 
+    // Unstaking action automatically claims the rewards in the contracts
+    const infos = await this.lstService.UnstakeAction();
+
     await this.withdrawToWQ();
     // note update this to 0.01 STRK later
     const min_amount = new Web3Number("0.01", 18);
@@ -101,7 +104,7 @@ export class CronService {
     // load account
     const account: Account = this.config.get("account");
     const provider: RpcProvider = this.config.get("provider");
-    
+
     let balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     this.logger.log(`Balance left: ${balanceLeft.toString()}`);
 
@@ -116,7 +119,7 @@ export class CronService {
     const MAX_WITHDRAWALS = 10;
     for (let i = 0; i < pendingWithdrawals.length; i += MAX_WITHDRAWALS) {
       const batch = pendingWithdrawals.slice(i, i + MAX_WITHDRAWALS);
-      this.logger.log(`Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS-1}`);
+      this.logger.log(`Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS - 1}`);
 
       // loop and generate SN Call objects
       const calls: Call[] = [];
@@ -188,9 +191,9 @@ export class CronService {
     this.logger.log('WQ Required amount: ', requiredAmount.toString());
 
     if (balanceAmount.gt(0) && requiredAmount.gt(0)) {
-        const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
-        this.logger.log('transferAmount: ', transferAmount.toString())
-        await this.lstService.sendToWithdrawQueue(transferAmount);
+      const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
+      this.logger.log('transferAmount: ', transferAmount.toString())
+      await this.lstService.sendToWithdrawQueue(transferAmount);
     } else {
       if (balanceAmount.lte(0)) {
         this.logger.log('No balance to send to WQ');
@@ -206,7 +209,7 @@ export class CronService {
     let amount = await this.lstService.bulkStake();
     if (amount)
       this.notifService.sendMessage(`Staked ${amount} STRK`);
-    else 
+    else
       this.notifService.sendMessage(`No STRK to stake`);
   }
 
@@ -225,7 +228,7 @@ export class CronService {
 
     const availableAmount = strkBalanceLST.minus(pendingAmount.toString());
     this.logger.log(`Available amount: ${availableAmount.toString()} STRK`);
-    const exchangeRate =  await this.lstService.exchangeRate();
+    const exchangeRate = await this.lstService.exchangeRate();
     this.logger.log(`Exchange rate: ${exchangeRate}`);
 
     const ADDRESSES = getAddresses(getNetwork());
@@ -278,7 +281,7 @@ export class CronService {
     // only ekubo, and it should be one route only
     // const condition2 = condition1 && quotes[0].routes.length == 1 && quotes[0].routes[0].name === 'Ekubo';
     if (!condition1) {
-      if(retry < MAX_RETRY) {
+      if (retry < MAX_RETRY) {
         await new Promise(resolve => setTimeout(resolve, 5000));
         return this._fetchQuotes(params, retry + 1);
       } else {
@@ -294,26 +297,26 @@ export class CronService {
     const routesLen: number = Number(callData[11]);
     assert(routesLen > 0, 'No routes found');
     const routes: Route[] = [];
-    
+
     let startIndex = 12;
-    for(let i=0; i<routesLen; ++i) {
-        const swap_params_len = Number(callData[startIndex + 4]);
-        const route: Route = {
-            token_from: callData[startIndex],
-            token_to: callData[startIndex + 1],
-            exchange_address: callData[startIndex + 2],
-            percent: Number(callData[startIndex + 3]),
-            additional_swap_params: swap_params_len > 0 ? callData.slice(startIndex + 5, startIndex + 5 + swap_params_len): []
-        }
-        routes.push(route);
-        startIndex += 5 + swap_params_len;
+    for (let i = 0; i < routesLen; ++i) {
+      const swap_params_len = Number(callData[startIndex + 4]);
+      const route: Route = {
+        token_from: callData[startIndex],
+        token_to: callData[startIndex + 1],
+        exchange_address: callData[startIndex + 2],
+        percent: Number(callData[startIndex + 3]),
+        additional_swap_params: swap_params_len > 0 ? callData.slice(startIndex + 5, startIndex + 5 + swap_params_len) : []
+      }
+      routes.push(route);
+      startIndex += 5 + swap_params_len;
     }
 
     const swapInfo: SwapInfo = {
-      token_from_address: getAddresses(getNetwork()).Strk, 
+      token_from_address: getAddresses(getNetwork()).Strk,
       token_from_amount: uint256.bnToUint256(params.sellAmount.toString()),
       token_to_address: getAddresses(getNetwork()).LST,
-      token_to_amount: uint256.bnToUint256("0"), 
+      token_to_amount: uint256.bnToUint256("0"),
       token_to_min_amount: uint256.bnToUint256("1"), // bypass slippage check
       beneficiary: getAddresses(getNetwork()).ARB_CONTRACT,
       integrator_fee_amount_bps: 0,

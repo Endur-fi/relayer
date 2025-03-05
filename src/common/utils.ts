@@ -29,10 +29,10 @@ export function getAccount(): Account {
   const storeConfig = getDefaultStoreConfig(config.network);
   // storeConfig.ACCOUNTS_FILE_NAME = 'account_sepolia.json'
   const store = new Store(config, {
-      ...storeConfig,
-      PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
+    ...storeConfig,
+    PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
   });
-  
+
   return store.getAccount(process.env.ACCOUNT_KEY);
 }
 
@@ -61,9 +61,9 @@ export function getTGToken() {
  */
 export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorator {
   const logger = new Logger(TryCatchAsync.name);;
-  return function (target, propertyKey, descriptor: PropertyDescriptor) {
+  return function(target, propertyKey, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function(...args: any[]) {
       let retry = 0;
       while (retry < maxAttempts) {
         try {

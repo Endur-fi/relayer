@@ -1,6 +1,7 @@
 import { Call, Contract, TransactionExecutionStatus, uint256 } from "starknet";
 import { ABI as LSTAbi } from "../../../abis/LST";
 import { ABI as StrkAbi } from "../../../abis/Strk";
+import { ABI as DelgatorAbi } from "../../../abis/Delegator";
 import { getAddresses } from "../../common/constants";
 import { PrismaService } from "./prismaService";
 import { ConfigService } from "./configService";
@@ -114,13 +115,13 @@ export class LSTService implements ILSTService {
 
     let totalAmount = Math.round(Number(balanceWeb3.toString()) - MIN_BALANCE);
     this.logger.log("Total amount: ", totalAmount);
-    
+
     // ! TODO: add more items here to make it 25 size
-    const distributions = [0.05, 0.05, 0.08, 0.20, 0.61, 1.48, 2.90, 5.24, 8.07, 11.05, 
-        13.38, 14.16, 13.37, 11.04, 7.90, 4.98, 2.79, 1.49, 0.58, 0.25, 
-        0.08, 0.05, 0.05, 0.05, 0.05]
+    const distributions = [0.05, 0.05, 0.08, 0.20, 0.61, 1.48, 2.90, 5.24, 8.07, 11.05,
+      13.38, 14.16, 13.37, 11.04, 7.90, 4.98, 2.79, 1.49, 0.58, 0.25,
+      0.08, 0.05, 0.05, 0.05, 0.05]
     if (toIndex !== distributions.length) {
-        throw new Error('Delegator count and distribution count mismatch');
+      throw new Error('Delegator count and distribution count mismatch');
     }
 
     // compute missing amounts
@@ -168,7 +169,7 @@ export class LSTService implements ILSTService {
       } else {
         const temp = remainingAmount;
         remainingAmount = 0;
-        return temp; 
+        return temp;
       }
     });
     console.log('Distribution amounts [1]: ', distributionAmounts);
@@ -203,15 +204,90 @@ export class LSTService implements ILSTService {
     const GROUP = 3;
     this.logger.log(`total calls: ${calls.length}`);
     for (let i = 0; i < calls.length; i += GROUP) {
-        const tx = await acc.execute(calls.slice(i, i + GROUP));
-        this.logger.log('Bulk stake tx: ', tx.transaction_hash);
-        await this.config.provider().waitForTransaction(tx.transaction_hash, {
-            successStates: [TransactionExecutionStatus.SUCCEEDED]
-        })
-        this.logger.log(`Bulk staking done: ${i} - ${i + GROUP}`);
+      const tx = await acc.execute(calls.slice(i, i + GROUP));
+      this.logger.log('Bulk stake tx: ', tx.transaction_hash);
+      await this.config.provider().waitForTransaction(tx.transaction_hash, {
+        successStates: [TransactionExecutionStatus.SUCCEEDED]
+      })
+      this.logger.log(`Bulk staking done: ${i} - ${i + GROUP}`);
     }
     this.logger.log('Bulk staking done');
 
     return totalAmount;
+  }
+
+
+  async checkRequestStatus(delegator: string): Promise<any> {
+    const poolAddress = '0x07d695337550e96e1372dd03274965cca0284ded266efc1774d001d37fbca104';
+    const provider = this.config.provider();
+    const cls = await provider.getClassAt(poolAddress);
+    const poolContract = new Contract(cls.abi, poolAddress, this.config.get("account"));
+
+    const info: any = await poolContract.call('get_pool_member_info', [delegator]);
+
+    // Example
+    // CairoOption {
+    //   Some: {
+    //     reward_address: 299044039529986210136459315899199045490154491370667067552848781420345506232n,
+    //     amount: 20000000000000000n,
+    //     index: 433515238500389985786131346n,
+    //     unclaimed_rewards: 246620359786896n,
+    //     commission: 0n,
+    //     unpool_amount: 0n,
+    //     unpool_time: CairoOption { Some: undefined, None: true }
+    //   },
+    //   None: undefined
+    // }
+    //
+
+    return info;
+  }
+
+  async UnstakeAction(): Promise<{ address: string, isUnstaking: boolean, unstakingAmount: BigInt }[]> {
+    const fromIndex = 0;
+    const toIndex = getAddresses(getNetwork()).Delgator.length;
+    this.logger.log(`Bulk staking from ${fromIndex} to ${toIndex}`);
+
+    // we will not do bulk unstake action, we will do it one by one
+    // This is due to the fact that that if one call fails, 
+    // either due to no active request/not yet matured, the entire bulk call will fail
+
+    const delegatorInfos: any = [];
+
+    const acc = this.config.get("account");
+    for (let i = fromIndex; i < toIndex; i++) {
+      const delegatorAddress = getAddresses(getNetwork()).Delgator[i];
+      const delegator = new Contract(DelgatorAbi, delegatorAddress, acc);
+
+      try {
+        // Call `unstake_action`
+        const unstakeActionCall = delegator.populate('unstake_action', []);
+        const tx = await acc.execute([unstakeActionCall]);
+        await this.config.provider().waitForTransaction(tx.transaction_hash, {
+          successStates: [TransactionExecutionStatus.SUCCEEDED]
+        })
+        this.logger.log(`Unstake action done for delegator: ${delegatorAddress}`);
+      } catch (error) {
+        this.logger.error(`Failed to unstake for delegator: ${delegatorAddress}`, error);
+      }
+
+      const info = await this.checkRequestStatus(delegatorAddress);
+
+      let isUnstaking = true;
+      let unstakingAmount = 0n;
+      if (info.Some.unpool_time.Some == undefined) {
+        console.log('Request is completed');
+        isUnstaking = false;
+        unstakingAmount = info.Some.unpool_amount;
+      }
+
+
+      delegatorInfos.push({
+        address: delegatorAddress,
+        isUnstaking,
+        unstakingAmount: unstakingAmount
+      });
+    }
+    return delegatorInfos;
   }
 }
