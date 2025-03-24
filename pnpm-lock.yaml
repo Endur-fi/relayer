@@ -41,6 +41,9 @@ importers:
       assert:
         specifier: ^2.1.0
         version: 2.1.0
+      bignumber.js:
+        specifier: ^9.1.2
+        version: 9.1.2
       dotenv:
         specifier: ^16.4.5
         version: 16.4.5
@@ -772,6 +775,9 @@ packages:
 
   bignumber.js@4.0.4:
     resolution: {integrity: sha512-LDXpJKVzEx2/OqNbG9mXBNvHuiRL4PzHCGfnANHMJ+fv68Ads3exDVJeGDJws+AoNEuca93bU3q+S0woeUaCdg==}
+
+  bignumber.js@9.1.2:
+    resolution: {integrity: sha512-2/mKyZH9K85bzOEfhXDBFZTGd1CTs+5IHpeFQo9luiBG7hghdC851Pj2WAhb6E3R6b9tZj/XKhbg4fum+Kepug==}
 
   bl@1.2.3:
     resolution: {integrity: sha512-pvcNpa0UU69UT341rO6AYy4FVAIkUHuZXRIWbq+zHnsVcRzDDjIAhGuuYoi0d//cwIwtt4pkpKycWEfjdV+vww==}
@@ -3280,6 +3286,8 @@ snapshots:
       tweetnacl: 0.14.5
 
   bignumber.js@4.0.4: {}
+
+  bignumber.js@9.1.2: {}
 
   bl@1.2.3:
     dependencies:
