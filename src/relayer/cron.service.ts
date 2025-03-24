@@ -352,8 +352,8 @@ export class CronService {
     this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_1AM)
-  @TryCatchAsync()
+  @Cron(CronExpression.EVERY_DAY_AT_7AM)
+  @TryCatchAsync(3, 100000)
   async claimRewards() {
     const unclaimedRewards = await this.delegatorService.getTotalUnclaimedRewards();
     this.logger.log(`Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`);
@@ -365,8 +365,8 @@ export class CronService {
     await this.lstService.claimRewards();
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
-  @TryCatchAsync()
+  @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  @TryCatchAsync(3, 100000)
   async claimUnstakedFunds() {
     const delegators = await this.delegatorService.getUnstakeAmounts();
     const now = new Date();
@@ -375,10 +375,14 @@ export class CronService {
     let totalUnstakeAmount = 0;
     const calls = delegators.map((del) => {
       if (del.unPoolTime && del.unPoolTime <= now) {
-        this.logger.log(`Unstake time reached for ${del.delegator}`);
+        this.logger.log(`Unstake time reached for ${del.delegator.address}`);
+        this.notifService.sendMessage(`Unstake time reached for ${del.delegator.address}`);
         const call = del.delegator.populate('unstake_action', []);
         totalUnstakeAmount += Number(del.unPoolAmount.toString());
         return call;
+      } else {
+        this.logger.log(`Unstake time not reached for ${del.delegator.address}`);
+        this.logger.log(`Unstake time: ${del.unPoolTime}, Current time: ${now}`);
       }
       return null;
     }).filter((call) => call !== null);
@@ -386,6 +390,7 @@ export class CronService {
     if (calls.length == 0) {
       this.logger.log(`No unstake actions to perform`);
       this.notifService.sendMessage(`No unstake actions to perform`);
+      return;
     }
 
     this.notifService.sendMessage(`Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`);
