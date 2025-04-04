@@ -3,7 +3,7 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
-COPY .env package.json tsconfig.json /app
+COPY .env package.json tsconfig.json /app/
 RUN mkdir /app/prisma
 COPY prisma/* /app/prisma
 COPY deployment/* /app
