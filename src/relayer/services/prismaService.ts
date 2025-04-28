@@ -37,7 +37,7 @@ export class PrismaService implements IPrismaService {
 
   async getWithdrawalsLastDay(isRolling = false): Promise<bigint> {
     const timeNow = Date.now();
-    const timeInUnix = isRolling ? new Date(timeNow - (86400000)) : Math.floor(Math.floor(timeNow / 1000) / 86400) * 86400;
+    const timeInUnix = isRolling ? (new Date(timeNow - (86400000))).getTime() : Math.floor(Math.floor(timeNow / 1000) / 86400) * 86400;
 
     const withdrawals = await this.prisma.withdraw_queue.findMany({
       where: {
