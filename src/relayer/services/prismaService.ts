@@ -1,5 +1,6 @@
 import { deposits, prisma, PrismaClient } from "../../../prisma/client";
 import { Injectable, Logger } from "@nestjs/common";
+import { withdraw_queue } from "@prisma/client";
 import { Web3Number } from "@strkfarm/sdk";
 
 interface IPrismaService {
@@ -34,9 +35,9 @@ export class PrismaService implements IPrismaService {
     return totalDeposits;
   }
 
-  async getWithdrawalsLastDay(): Promise<bigint> {
+  async getWithdrawalsLastDay(isRolling = false): Promise<bigint> {
     const timeNow = Date.now();
-    const timeInUnix = Math.floor(Math.floor(timeNow / 1000) / 86400) * 86400;
+    const timeInUnix = isRolling ? new Date(timeNow - (86400000)) : Math.floor(Math.floor(timeNow / 1000) / 86400) * 86400;
 
     const withdrawals = await this.prisma.withdraw_queue.findMany({
       where: {
@@ -47,7 +48,7 @@ export class PrismaService implements IPrismaService {
     });
 
     const totalWithdrawals = withdrawals.reduce(
-      (sum: bigint, e: typeof withdrawals[0]) => {
+      (sum: bigint, e: withdraw_queue) => {
         return sum + BigInt(e.amount_strk);
       },
       BigInt(0),
@@ -116,6 +117,7 @@ export class PrismaService implements IPrismaService {
     amount_strk: string;
     request_id: bigint;
     cumulative_requested_amount_snapshot: string;
+    timestamp: number;
   }[], bigint[]]> {
     const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
       orderBy: {
@@ -140,6 +142,7 @@ export class PrismaService implements IPrismaService {
         request_id: true,
         amount_strk: true,
         cumulative_requested_amount_snapshot: true,
+        timestamp: true,
       },
     });
 

@@ -9,7 +9,7 @@ import { getNetwork, TryCatchAsync } from "../common/utils";
 import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
 import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
-import { getAddresses, Network } from '../common/constants';
+import { getAddresses, getLSTDecimals, Network } from '../common/constants';
 import assert = require('assert');
 import { DelegatorService } from './services/delegatorService';
 
@@ -123,6 +123,12 @@ export class CronService {
     const allowedLimit = withdrawQueueState.cumulative_requested_amount.minus(withdrawQueueState.unprocessed_withdraw_queue_amount.toString());
     this.logger.log(`Allowed limit: ${allowedLimit.toString()}`);
 
+    const MAX_WITHDRAWALS_PER_DAY = 2_000_000; // 2M STRK
+    let processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
+    let processedWithdrawalsInLast24HoursDecimalAdjusted = processedWithdrawalsInLast24Hours / (BigInt(10) ** BigInt(getLSTDecimals()));
+    this.logger.log(`Processed withdrawals in last 24 hours: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`);
+
+
     // claim withdrawals
     // send 10 at a time
     const MAX_WITHDRAWALS = 10;
@@ -137,13 +143,22 @@ export class CronService {
         const requestCum = Web3Number.fromWei(w.cumulative_requested_amount_snapshot, 18);
         if (amount_strk.lte(balanceLeft) && requestCum.lessThanOrEqualTo(allowedLimit)) {
           this.logger.debug(`Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`);
+
+          // limit max automated withdrawals per day
+          processedWithdrawalsInLast24HoursDecimalAdjusted += BigInt(amount_strk.toString()) / (BigInt(10) ** BigInt(getLSTDecimals()));
+          if (processedWithdrawalsInLast24HoursDecimalAdjusted > MAX_WITHDRAWALS_PER_DAY) {
+            this.notifService.sendMessage(`Processed withdrawals in last 24 hours exceeded limit: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`);
+            break;
+          }
+
+          // create call object
           const call = this.withdrawalQueueService.getClaimWithdrawalCall(w.request_id);
           calls.push(call);
           balanceLeft = balanceLeft.minus(amount_strk.toString());
         } else {
           // We skip the rest of the withdrawals if we don't have enough balance now
           this.logger.warn(`Skipping withdrawal ID#${w.request_id} due to insufficient balance or not ready`);
-          this.logger.warn(`request amount: ${amount_strk.toString()}`);
+          this.logger.warn(`request amount: ${amount_strk.toString()}, req time: ${new Date(w.timestamp * 1000).toLocaleString()}`);
         }
       }
 
