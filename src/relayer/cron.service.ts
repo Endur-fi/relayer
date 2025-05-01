@@ -125,7 +125,7 @@ export class CronService {
 
     const MAX_WITHDRAWALS_PER_DAY = 2_000_000; // 2M STRK
     let processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
-    let processedWithdrawalsInLast24HoursDecimalAdjusted = processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals());
+    let processedWithdrawalsInLast24HoursDecimalAdjusted = Number(processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals()));
     this.logger.log(`Processed withdrawals in last 24 hours: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`);
 
 
@@ -145,7 +145,7 @@ export class CronService {
           this.logger.debug(`Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`);
 
           // limit max automated withdrawals per day
-          processedWithdrawalsInLast24HoursDecimalAdjusted += BigInt(amount_strk.toString()) / BigInt(10 ** getLSTDecimals());
+          processedWithdrawalsInLast24HoursDecimalAdjusted += Number(amount_strk.toString());
           if (processedWithdrawalsInLast24HoursDecimalAdjusted > MAX_WITHDRAWALS_PER_DAY) {
             this.notifService.sendMessage(`Processed withdrawals in last 24 hours exceeded limit: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`);
             break;
