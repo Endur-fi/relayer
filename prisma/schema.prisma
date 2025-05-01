@@ -137,3 +137,52 @@ model unstake_intent_started {
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
 }
+
+model users {
+  block_number Int
+  tx_index     Int     @default(0)
+  event_index  Int     @default(0)
+  tx_hash      String
+  user_address String  @unique
+  timestamp    Int
+  cursor       BigInt? @map("_cursor")
+}
+
+// xSTRK balances
+model user_balances {
+  block_number          Int
+  user_address          String
+  vesuAmount           String
+  ekuboAmount          String
+  nostraLendingAmount String
+  nostraDexAmount     String
+  walletAmount         String
+  strkfarmAmount      String
+
+  total_amount          String
+  date                  String
+  timestamp             Int
+
+  @@unique([block_number, user_address])
+}
+
+enum UserPointsType {
+  Regular
+  Bonus
+}
+
+model user_points {
+  block_number       Int
+  user_address       String
+  points             Decimal
+  cummulative_points Decimal
+  type               UserPointsType
+
+  @@unique([block_number, user_address, type])
+}
+
+model blocks {
+  block_number Int @unique
+  timestamp   Int
+  cursor       BigInt? @map("_cursor")
+}
