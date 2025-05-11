@@ -11,7 +11,7 @@ const RETRY_DELAY = 5000; // 5 seconds delay between retries
 
 const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
 
-const POINTS_MULTIPLIER = 10; // TODO: change
+const POINTS_MULTIPLIER = 1;
 
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -20,7 +20,7 @@ async function sleep(ms: number): Promise<void> {
 // rough test calculation of points based on user balances
 function calculatePoints(totalAmount: string): BigInt {
   const amount = parseFloat(totalAmount);
-  const points = Math.floor(amount * POINTS_MULTIPLIER);
+  const points = Math.floor((amount / 1e18) * POINTS_MULTIPLIER);
   return BigInt(points);
 }
 
