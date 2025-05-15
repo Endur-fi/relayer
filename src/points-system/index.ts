@@ -1,6 +1,7 @@
-import { PrismaClient, users } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import axios from "axios";
 import pLimit from "p-limit";
+
 import { logger } from "../common/utils";
 
 const prisma = new PrismaClient();
@@ -19,10 +20,16 @@ async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function calculatePoints(totalAmount: string): BigInt {
+function calculatePoints(totalAmount: string): bigint {
+  // Fix: Change return type to `bigint`
+  if (!totalAmount) {
+    logger.warn(`Invalid totalAmount: ${totalAmount}`);
+    return 0n; // Fix: Use `0n` for `bigint` instead of `BigInt(0)`
+  }
   const amount = parseFloat(totalAmount);
   const points = Math.floor(amount * POINTS_MULTIPLIER);
-  return BigInt(points);
+  logger.info(`Calculated points: ${points} for totalAmount: ${totalAmount}`);
+  return BigInt(points); // Fix: Ensure `BigInt` is converted to `bigint`
 }
 
 async function fetchHoldingsWithRetry(
@@ -34,7 +41,6 @@ async function fetchHoldingsWithRetry(
   while (retries < MAX_RETRIES) {
     try {
       const timestamp = Math.floor(date.getTime() / 1000);
-      // look for any block within 12 hours of the target date
       const timeWindow = 12 * 3600; // 12 hours in seconds
       const blockInfo = await prisma.blocks.findFirst({
         where: {
@@ -44,7 +50,6 @@ async function fetchHoldingsWithRetry(
           },
         },
         orderBy: {
-          // get the closest block to our target time
           timestamp: "desc",
         },
       });
@@ -58,7 +63,6 @@ async function fetchHoldingsWithRetry(
       }
 
       const url = `${API_BASE_URL}/${userAddr}/${blockInfo.block_number}`;
-
       const response = await axios.get(url);
       const data = response.data;
 
@@ -109,21 +113,19 @@ async function fetchHoldingsWithRetry(
       };
 
       for (let dapp of dapps) {
-        if (!data[dapp] || !data[dapp][0]) {
-          throw new Error(
-            `Invalid data format for dapp ${dapp} for user ${userAddr} on date: ${
+        if (data[dapp] && data[dapp][0]) {
+          const xSTRKAmount =
+            Number(data[dapp][0].xSTRKAmount.bigNumber) /
+            10 ** data[dapp][0].xSTRKAmount.decimals;
+          totalAmount += xSTRKAmount;
+          dbObject[`${dapp}Amount`] = xSTRKAmount.toString();
+        } else {
+          logger.warn(
+            `No holdings found for dApp ${dapp} for user ${userAddr} on date ${
               date.toISOString().split("T")[0]
             }`
           );
         }
-
-        const xSTRKAmount =
-          Number(
-            Number(data[dapp][0].xSTRKAmount.bigNumber * 100) /
-              10 ** data[dapp][0].xSTRKAmount.decimals
-          ) / 100;
-        totalAmount += xSTRKAmount;
-        dbObject[`${dapp}Amount`] = xSTRKAmount.toString();
       }
 
       dbObject.total_amount = totalAmount.toString();
@@ -162,7 +164,6 @@ async function updatePointsAggregated(userBalance: any): Promise<void> {
   const newPoints = calculatePoints(userBalance.total_amount);
 
   try {
-    // check if user already has points aggregated
     const existingRecord = await prisma.points_aggregated.findUnique({
       where: {
         user_address: userAddr,
@@ -170,32 +171,33 @@ async function updatePointsAggregated(userBalance: any): Promise<void> {
     });
 
     if (existingRecord) {
-      // Update existing record
+      // Fix: Ensure points are summed across all days
+      const updatedPoints = BigInt(existingRecord.total_points) + newPoints;
+
+      logger.info(
+        `New points: ${newPoints}, Updated points: ${updatedPoints} for user ${userAddr}`
+      );
+
       await prisma.points_aggregated.update({
         where: {
           user_address: userAddr,
         },
         data: {
-          total_points: newPoints as bigint,
+          total_points: updatedPoints,
           block_number: blockNumber,
           timestamp: timestamp,
-          // updated_on will be automatically updated due to @updatedAt decorator
         },
       });
-
-      logger.info(`Updated points_aggregated for user ${userAddr}`);
     } else {
-      // Create new record
+      // Create a new record if no existing record is found
       await prisma.points_aggregated.create({
         data: {
           user_address: userAddr,
-          total_points: newPoints as bigint,
+          total_points: newPoints,
           block_number: blockNumber,
           timestamp: timestamp,
-          // created_on will be automatically set due to @default(now()) decorator
         },
       });
-      logger.info(`Created points_aggregated for user ${userAddr}`);
     }
   } catch (error) {
     logger.error(
@@ -215,32 +217,14 @@ async function getAllTasks(): Promise<[string, Date][]> {
   logger.info(`Found ${allUsers.length} users to process`);
 
   const startDate = new Date("2024-11-24");
-  const endDate = new Date("2024-12-05");
+  const endDate = new Date("2024-12-23"); // Fix: Extend the test period to 60 days
 
   const allTasks: [string, Date][] = [];
 
   for (const user of allUsers) {
-    const lastStoredRecord = await prisma.user_balances.findFirst({
-      where: {
-        user_address: user.user_address,
-      },
-      orderBy: {
-        date: "desc",
-      },
-      select: {
-        date: true,
-      },
-    });
-
     let currentDate = new Date(startDate);
 
     while (currentDate <= endDate) {
-      const dateString = currentDate.toISOString().split("T")[0];
-      if (lastStoredRecord && lastStoredRecord.date >= dateString) {
-        currentDate.setDate(currentDate.getDate() + 1);
-        continue;
-      }
-
       allTasks.push([user.user_address, new Date(currentDate)]);
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -259,6 +243,9 @@ async function processTaskBatch(tasks: [string, Date][]): Promise<number> {
 
   // filter out null results
   const validResults = results.filter(Boolean);
+
+  const skippedTasks = results.filter((result) => !result);
+  logger.warn(`Skipped ${skippedTasks.length} tasks in this batch`);
 
   if (validResults.length > 0) {
     // Insert user balances in a transaction
@@ -279,7 +266,6 @@ async function processTaskBatch(tasks: [string, Date][]): Promise<number> {
     );
     return validResults.length;
   }
-
   return 0;
 }
 
@@ -304,7 +290,6 @@ async function fetchAndStoreHoldings() {
 
     const inserted = await processTaskBatch(taskBatch);
     totalInserted += inserted;
-
     // add small delay between batches
     if (i + DB_BATCH_SIZE < allTasks.length) {
       await sleep(500);

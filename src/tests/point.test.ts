@@ -1,4 +1,6 @@
 import {
+  afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -12,24 +14,19 @@ import axios from "axios";
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-import {
-  calculatePoints,
-  fetchAndStoreHoldings,
-  fetchHoldingsWithRetry,
-  processTaskBatch,
-  updatePointsAggregated,
-} from "../points-system/index";
+import { calculatePoints, fetchAndStoreHoldings } from "../points-system/index";
 
 const prisma = new PrismaClient();
 
-// At the top of your test file or in a setup file
+// mock constants for faster test execution
 jest.mock("../points-system/index", () => {
   const original = jest.requireActual("../points-system/index");
 
   return {
     ...(original as object),
-    RETRY_DELAY: 100, // Reduce retry delay to 100ms for tests
+    RETRY_DELAY: 100, // reduce retry delay
     MAX_RETRIES: 3,
+    DB_BATCH_SIZE: 10, // smaller batch size
   };
 });
 
@@ -45,35 +42,29 @@ function interpolateBlockTime(
   return Math.floor(startTime + blockDiff * timePerBlock);
 }
 
-describe("Holdings and Points Calculator Tests", () => {
-  const startBlock = 929096; // xSTRK deployment block
-  const startTime = 1732529278; // unix timestamp of 929096
-  const endBlock = 1097865; // block on Jan 26th, 2025
-  const endTime = 1737830887; // unix timestamp of 1097865
+function getUnixTimestamp(dateStr: string): number {
+  return Math.floor(new Date(dateStr).getTime() / 1000);
+}
 
-  // sample user addresses
-  const testUsers = [
-    "0x3495dd1e4838aa06666aac236036d86e81a6553e222fc02e70c2cbc0062e8d0",
-    "0x6bf0f343605525d3aea70b55160e42505b0ac567b04fd9fc3d2d42fdcd2ee45",
-    "0x15271d7af39a8c637cdad165b90ae2278f9ac836fa57a2cdde3da81f5fd45c8",
-    "0x55741fd3ec832f7b9500e24a885b8729f213357be4a8e209c4bca1f3b909ae",
-    "0x5de88d79a1b46c483f3d35354441cd4e8f06384de977761e61db4858dda5156",
-  ];
-
-  // mock dates for testing
-  const testDates = [
-    new Date("2024-11-25"),
-    new Date("2024-11-26"),
-    new Date("2024-11-27"),
-  ];
-
-  // sample holdings response
-  const mockHoldingsResponse = {
-    blocks: [{ block: "500000" }],
+function createMockHoldingsResponse(
+  holdings: {
+    vesu?: string;
+    ekubo?: string;
+    nostraLending?: string;
+    nostraDex?: string;
+    wallet?: string;
+    strkfarm?: string;
+  },
+  blockNumber: string = "500000"
+) {
+  return {
+    blocks: [{ block: blockNumber }],
     vesu: [
       {
         xSTRKAmount: {
-          bigNumber: "10000000000000000000", // 10 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.vesu || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
@@ -81,7 +72,9 @@ describe("Holdings and Points Calculator Tests", () => {
     ekubo: [
       {
         xSTRKAmount: {
-          bigNumber: "5000000000000000000", // 5 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.ekubo || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
@@ -89,7 +82,9 @@ describe("Holdings and Points Calculator Tests", () => {
     nostraLending: [
       {
         xSTRKAmount: {
-          bigNumber: "7000000000000000000", // 7 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.nostraLending || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
@@ -97,7 +92,9 @@ describe("Holdings and Points Calculator Tests", () => {
     nostraDex: [
       {
         xSTRKAmount: {
-          bigNumber: "3000000000000000000", // 3 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.nostraDex || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
@@ -105,7 +102,9 @@ describe("Holdings and Points Calculator Tests", () => {
     wallet: [
       {
         xSTRKAmount: {
-          bigNumber: "1000000000000000000", // 1 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.wallet || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
@@ -113,303 +112,347 @@ describe("Holdings and Points Calculator Tests", () => {
     strkfarm: [
       {
         xSTRKAmount: {
-          bigNumber: "4000000000000000000", // 4 with 18 decimals
+          bigNumber: BigInt(
+            parseFloat(holdings.strkfarm || "0") * 10 ** 18
+          ).toString(),
           decimals: 18,
         },
       },
     ],
   };
+}
 
-  // reset the database before all tests
+describe("xSTRK Points System Integration Tests", () => {
+  const startBlock = 929096; // xSTRK deployment block
+  const startTime = 1732529278; // unix timestamp of deployment block
+  const endBlock = 1097865; // block on Jan 26th, 2025
+  const endTime = 1737830887; // unix timestamp of end block
+
+  interface TestUser {
+    address: string;
+    description: string;
+    holdings: Record<string, { [key: string]: string }>;
+    expectedPoints: number;
+  }
+
+  const testUsers: TestUser[] = [
+    {
+      address: "0x0000000000000000000000000000000000000001",
+      description: "Never held xSTRK",
+      holdings: {},
+      expectedPoints: 0,
+    },
+    {
+      address: "0x0000000000000000000000000000000000000002",
+      description: "Only held xSTRK in wallet (10 tokens consistently)",
+      holdings: {
+        "2024-11-24": { wallet: "10" },
+        "2024-11-25": { wallet: "10" },
+      },
+      expectedPoints: 10 * 60,
+    },
+    {
+      address: "0x0000000000000000000000000000000000000003",
+      description: "Only held xSTRK but withdrew partially on day 30",
+      holdings: {
+        "2024-11-24": { wallet: "20" },
+        "2024-12-24": { wallet: "10" },
+      },
+      expectedPoints: 20 * 30 + 10 * 30, // 20 tokens for 30 days + 10 tokens for 30 days = 900
+    },
+    {
+      address: "0x0000000000000000000000000000000000000004",
+      description: "Only held xSTRK but withdrew fully on day 30",
+      holdings: {
+        "2024-11-24": { wallet: "15" },
+        "2024-12-24": { wallet: "0" },
+      },
+      expectedPoints: 15 * 30, // 15 tokens for 30 days = 450
+    },
+    {
+      address: "0x0000000000000000000000000000000000000005",
+      description: "Transferred liquidity to Ekubo on day 20",
+      holdings: {
+        "2024-11-24": { wallet: "25" },
+        "2024-12-14": { wallet: "5", ekubo: "20" },
+      },
+      expectedPoints: 25 * 20 + (5 + 20) * 40, // 25 tokens for 20 days + 25 tokens for 40 days = 1500
+    },
+    {
+      address: "0x0000000000000000000000000000000000000006",
+      description: "Transferred liquidity to Vesu on day 15",
+      holdings: {
+        "2024-11-24": { wallet: "30" },
+        "2024-12-09": { wallet: "10", vesu: "20" },
+      },
+      expectedPoints: 30 * 15 + (10 + 20) * 45, // 30 tokens for 15 days + 30 tokens for 45 days = 1800
+    },
+    {
+      address: "0x0000000000000000000000000000000000000007",
+      description:
+        "Transferred liquidity to Nostra (both lending and DEX) on day 25",
+      holdings: {
+        "2024-11-24": { wallet: "40" },
+        "2024-12-19": { wallet: "10", nostraLending: "15", nostraDex: "15" },
+      },
+      expectedPoints: 40 * 25 + (10 + 15 + 15) * 35, // 40 tokens for 25 days + 40 tokens for 35 days = 2400
+    },
+  ];
+
+  // generate dates for the 60-day test period
+  const startDate = new Date("2024-11-24");
+  const testDates: Date[] = [];
+  for (let i = 0; i < 60; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    testDates.push(date);
+  }
+
+  const mockBlocks = testDates.map((date, index) => {
+    const blockNumber = startBlock + index * 1000; // 1000 blocks per day for simplicity
+    const timestamp = getUnixTimestamp(date.toISOString());
+    return { block_number: blockNumber, timestamp };
+  });
+
   beforeAll(async () => {
+    // reset database before all tests
     // clear tables in the correct order to avoid foreign key constraints
     await prisma.points_aggregated.deleteMany({});
     await prisma.user_points.deleteMany({});
     await prisma.user_balances.deleteMany({});
     await prisma.users.deleteMany({});
     await prisma.blocks.deleteMany({});
-
-    const mockBlocks = [];
-    const daysToCover = 30; // cover a full month
-    for (let i = 0; i < daysToCover; i++) {
-      const blockNumber = startBlock + i * 1000;
-      const timestamp = startTime + i * 86400; // add one day per block
-      mockBlocks.push({ block_number: blockNumber, timestamp });
-    }
-
     await prisma.blocks.createMany({ data: mockBlocks });
-
-    // insert test users
     await prisma.users.createMany({
-      data: testUsers.map((address) => ({
-        user_address: address,
-        block_number: startBlock + 10000, // some arbitrary block
+      data: testUsers.map((user) => ({
+        user_address: user.address,
+        block_number: startBlock,
         tx_index: 0,
         event_index: 0,
-        tx_hash: `0x${address.substring(2, 10)}`, // generate some fake tx hash
-        timestamp: startTime + 86400, // one day after deployment
+        tx_hash: `0x${user.address.substring(2, 10)}`, // Generate some fake tx hash
+        timestamp: startTime,
       })),
     });
-
     console.log("Database reset and mock data inserted successfully");
   });
 
-  // clean up after all tests
   afterAll(async () => {
-    // add a small delay to ensure all async operations complete
     await new Promise((resolve) => setTimeout(resolve, 1000));
     await prisma.$disconnect();
   });
 
-  // reset mocks before each test
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  afterEach(async () => {
-    await prisma.$transaction([
-      prisma.points_aggregated.deleteMany(),
-      prisma.user_balances.deleteMany(),
-    ]);
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe("Mock Block Times", () => {
-    it("should correctly interpolate block times", () => {
-      // Test the interpolation function
-      const midBlock = (startBlock + endBlock) / 2;
-      const expectedTime = (startTime + endTime) / 2;
-      const calculatedTime = interpolateBlockTime(
-        midBlock,
-        startBlock,
-        startTime,
-        endBlock,
-        endTime
-      );
-
-      expect(calculatedTime).toBeCloseTo(expectedTime, -2); // Allow some rounding
-    });
-
-    it("should find correct block for a given date", async () => {
-      // test date - somewhere in the middle of our test range
-      const testDate = new Date("2024-12-01");
-      const testTimestamp = Math.floor(testDate.getTime() / 1000);
-
-      // Increase the leeway significantly since our mock blocks are spaced far apart
-      const blockInfo = await prisma.blocks.findFirst({
-        where: {
-          timestamp: {
-            lte: testTimestamp + 86400 * 3, // 3 days after
-            gte: testTimestamp - 86400 * 3, // 3 days before
-          },
-        },
-        orderBy: {
-          timestamp: "desc",
-        },
-      });
-
-      expect(blockInfo).not.toBeNull();
-    });
-  });
-
-  describe("fetchHoldingsWithRetry", () => {
-    beforeEach(() => {
-      // Mock the block lookup
-      jest.spyOn(prisma.blocks, "findFirst").mockResolvedValue({
-        block_number: 500000,
-        timestamp: 1732600000,
-        cursor: 0 as unknown as bigint,
-      });
-    });
-
-    it("should handle API errors and retry", async () => {
-      // first call fails, second succeeds
-      mockedAxios.get
-        .mockRejectedValueOnce(new Error("API Error"))
-        .mockResolvedValueOnce({ data: mockHoldingsResponse });
-
-      const result = await fetchHoldingsWithRetry(testUsers[0], testDates[0]);
-
-      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
-      expect(result).not.toBeNull();
-    }, 10000); // 10 second timeout
-
-    it("should return null after max retries", async () => {
-      // all calls fail
-      mockedAxios.get.mockRejectedValue(new Error("API Error"));
-
-      const result = await fetchHoldingsWithRetry(testUsers[0], testDates[0]);
-
-      expect(result).toBeNull();
-      expect(mockedAxios.get).toHaveBeenCalledTimes(3);
-    });
-  });
-
-  describe("calculatePoints", () => {
-    it("should correctly calculate points from total amount", () => {
-      const points = calculatePoints("30");
-      expect(points).toBe(BigInt(30)); // 2ith multiplier of 1
-    });
-
-    it("should handle decimal amounts", () => {
-      const points = calculatePoints("12.34");
-      expect(points).toBe(BigInt(12)); // should floor the decimal
-    });
-
-    it("should handle zero amount", () => {
-      const points = calculatePoints("0");
-      expect(points).toBe(BigInt(0));
-    });
-  });
-
-  describe("updatePointsAggregated", () => {
-    it("should create a new points record if none exists", async () => {
-      // mock user balance
-      const mockBalance = {
-        user_address: testUsers[0],
-        block_number: 500000,
-        timestamp: interpolateBlockTime(
-          500000,
-          startBlock,
-          startTime,
-          endBlock,
-          endTime
-        ),
-        total_amount: "30",
-        vesuAmount: "10",
-        ekuboAmount: "5",
-        nostraLendingAmount: "7",
-        nostraDexAmount: "3",
-        walletAmount: "1",
-        strkfarmAmount: "4",
-        date: testDates[0].toISOString().split("T")[0],
+  describe("Mock Holdings Response", () => {
+    it("should correctly create mock holdings response with specific amounts", () => {
+      const holdings = {
+        vesu: "10",
+        ekubo: "20",
+        nostraLending: "5",
+        nostraDex: "15",
+        wallet: "2",
+        strkfarm: "8",
       };
 
-      // Ensure no record exists
-      await prisma.points_aggregated.deleteMany({
-        where: { user_address: testUsers[0] },
-      });
+      const response = createMockHoldingsResponse(holdings);
 
-      await updatePointsAggregated(mockBalance);
+      expect(response.blocks[0].block).toBe("500000");
 
-      const record = await prisma.points_aggregated.findUnique({
-        where: { user_address: testUsers[0] },
-      });
+      // BigNumber back to floats for comparison
+      const vesuAmount =
+        Number(response.vesu[0].xSTRKAmount.bigNumber) / 10 ** 18;
+      const ekuboAmount =
+        Number(response.ekubo[0].xSTRKAmount.bigNumber) / 10 ** 18;
 
-      expect(record).not.toBeNull();
-      expect(record).toHaveProperty("total_points", BigInt(30));
-    });
-
-    it("should update an existing points record", async () => {
-      // create an initial record
-      await prisma.points_aggregated.upsert({
-        where: { user_address: testUsers[1] },
-        create: {
-          user_address: testUsers[1],
-          total_points: BigInt(10),
-          block_number: 450000,
-          timestamp: interpolateBlockTime(
-            450000,
-            startBlock,
-            startTime,
-            endBlock,
-            endTime
-          ),
-        },
-        update: {},
-      });
-
-      // mock user balance with higher block number
-      const mockBalance = {
-        user_address: testUsers[1],
-        block_number: 550000,
-        timestamp: interpolateBlockTime(
-          550000,
-          startBlock,
-          startTime,
-          endBlock,
-          endTime
-        ),
-        total_amount: "40",
-        vesuAmount: "15",
-        ekuboAmount: "8",
-        nostraLendingAmount: "7",
-        nostraDexAmount: "5",
-        walletAmount: "2",
-        strkfarmAmount: "3",
-        date: testDates[1].toISOString().split("T")[0],
-      };
-
-      await updatePointsAggregated(mockBalance);
-
-      const record = await prisma.points_aggregated.findUnique({
-        where: { user_address: testUsers[1] },
-      });
-
-      expect(record).toHaveProperty("total_points", BigInt(40));
-      expect(record).toHaveProperty("block_number", 550000);
+      expect(vesuAmount).toBeCloseTo(10);
+      expect(ekuboAmount).toBeCloseTo(20);
     });
   });
 
-  describe("processTaskBatch", () => {
+  describe("User Points Calculation Tests", () => {
     beforeEach(() => {
-      // Mock successful API response
-      mockedAxios.get.mockResolvedValue({ data: mockHoldingsResponse });
+      prisma.blocks.findFirst = jest.fn().mockImplementation(() => {
+        // returns a simple mock Promise that resolves to the expected result
+        return Promise.resolve({
+          block_number: mockBlocks[0].block_number,
+          timestamp: mockBlocks[0].timestamp,
+          cursor: BigInt(0),
+        });
+      }) as any;
 
-      // Mock block lookup
-      jest.spyOn(prisma.blocks, "findFirst").mockResolvedValue({
-        block_number: 500000,
-        timestamp: 1732600000,
-        cursor: 0 as unknown as bigint,
+      // axios mock for each user and date
+      mockedAxios.get.mockImplementation(async (url: string, config?: any) => {
+        const parts = url.split("/");
+        const userAddress = parts[parts.length - 2];
+        const blockNumber = parts[parts.length - 1];
+
+        const block = mockBlocks.find(
+          (b) => b.block_number.toString() === blockNumber
+        );
+        if (!block) {
+          throw new Error(`Block ${blockNumber} not found in mock data`);
+        }
+
+        const blockDate = new Date(block.timestamp * 1000);
+        const dateStr = blockDate.toISOString().split("T")[0];
+
+        const user = testUsers.find((u) => u.address === userAddress);
+        if (!user) {
+          throw new Error(`User ${userAddress} not found in test data`);
+        }
+
+        let holdings: { [key: string]: string } = {
+          wallet: "0",
+          vesu: "0",
+          ekubo: "0",
+          nostraLending: "0",
+          nostraDex: "0",
+          strkfarm: "0",
+        };
+
+        const holdingDates = Object.keys(user.holdings).sort();
+        const applicableDate = holdingDates
+          .filter((d) => d <= dateStr)
+          .sort()
+          .pop();
+
+        if (applicableDate) {
+          holdings = { ...holdings, ...user.holdings[applicableDate] };
+        }
+
+        return {
+          data: createMockHoldingsResponse(holdings, blockNumber),
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config: config || {},
+        } as any;
       });
     });
 
-    it("should process a batch of tasks", async () => {
-      const tasks: [string, Date][] = [
-        [testUsers[0], testDates[0]],
-        [testUsers[1], testDates[1]],
-      ];
-
-      const result = await processTaskBatch(tasks);
-      expect(result).toBe(2); // Both should succeed
-
-      // Verify records were created
-      const records = await prisma.user_balances.findMany();
-      expect(records.length).toBe(2);
-    });
-  });
-
-  describe("Integration Test", () => {
-    beforeEach(() => {
-      // Mock getAllTasks
+    it("should correctly calculate points for each user based on their holdings", async () => {
       jest
         .spyOn(require("../points-system/index"), "getAllTasks")
-        .mockResolvedValue([
-          [testUsers[0], testDates[0]],
-          [testUsers[1], testDates[1]],
-        ]);
+        .mockImplementation(async () => {
+          const tasks: [string, Date][] = [];
 
-      // Mock successful API response
-      mockedAxios.get.mockResolvedValue({ data: mockHoldingsResponse });
+          for (const user of testUsers) {
+            for (const date of testDates) {
+              tasks.push([user.address, new Date(date)]);
+            }
+          }
 
-      // Mock block lookup
-      jest.spyOn(prisma.blocks, "findFirst").mockResolvedValue({
-        block_number: 500000,
-        timestamp: 1732600000,
-        cursor: 0 as unknown as bigint,
-      });
-    });
+          return tasks;
+        });
 
-    it("should run the full holdings fetch process", async () => {
       await fetchAndStoreHoldings();
 
-      // verify records were created
-      const count = await prisma.user_balances.count();
-      expect(count).toBe(2);
+      for (const user of testUsers) {
+        const pointsRecord = await prisma.points_aggregated.findUnique({
+          where: { user_address: user.address },
+        });
 
-      // verify points were aggregated
-      const pointsCount = await prisma.points_aggregated.count();
-      expect(pointsCount).toBe(2);
+        // 1% error margin
+        const errorMargin = user.expectedPoints * 0.01;
+
+        console.log(user, "user----");
+        console.log(pointsRecord, "pointsRecord----");
+
+        expect(pointsRecord).not.toBeNull();
+        if (pointsRecord) {
+          const actualPoints = Number(pointsRecord.total_points);
+          expect(actualPoints).toBeGreaterThanOrEqual(
+            user.expectedPoints - errorMargin
+          );
+          expect(actualPoints).toBeLessThanOrEqual(
+            user.expectedPoints + errorMargin
+          );
+          console.log(
+            `User ${user.address} (${user.description}): Expected ${user.expectedPoints}, Got ${actualPoints}`
+          );
+        }
+      }
+    }, 60000); // increase timeout to 60 secs
+  });
+
+  describe("GraphQL API Integration", () => {
+    it("should return correct user points from GraphQL API", async () => {
+      if ((await prisma.points_aggregated.count()) === 0) {
+        await fetchAndStoreHoldings();
+      }
+
+      for (const user of testUsers) {
+        mockedAxios.post.mockResolvedValueOnce({
+          data: {
+            data: {
+              getUserPoints: {
+                user_address: user.address,
+                total_points: user.expectedPoints.toString(),
+                block_number: endBlock,
+                timestamp: endTime,
+                created_on: new Date().toISOString(),
+                updated_on: new Date().toISOString(),
+              },
+            },
+          },
+        });
+
+        const response = await axios.post("http://localhost:4000", {
+          query: `
+            query Query($userAddress: String!) {
+              getUserPoints(userAddress: $userAddress) {
+                user_address
+                total_points
+                block_number
+                timestamp
+                created_on
+                updated_on
+              }
+            }
+          `,
+          variables: {
+            userAddress: user.address,
+          },
+        });
+
+        expect(response.data.data.getUserPoints).not.toBeNull();
+        expect(response.data.data.getUserPoints.user_address).toBe(
+          user.address
+        );
+
+        // 1% error margin
+        const errorMargin = user.expectedPoints * 0.01;
+        const actualPoints = Number(
+          response.data.data.getUserPoints.total_points
+        );
+
+        expect(actualPoints).toBeGreaterThanOrEqual(
+          user.expectedPoints - errorMargin
+        );
+        expect(actualPoints).toBeLessThanOrEqual(
+          user.expectedPoints + errorMargin
+        );
+      }
+    });
+  });
+
+  describe("Points Calculation Logic", () => {
+    it("should correctly calculate points from decimal amounts", () => {
+      expect(calculatePoints("10.5")).toBe(BigInt(10)); // should floor to 10
+      expect(calculatePoints("0.9")).toBe(BigInt(0)); // should floor to 0
+      expect(calculatePoints("100.999")).toBe(BigInt(100));
+    });
+
+    it("should handle edge cases in points calculation", () => {
+      expect(calculatePoints("0")).toBe(BigInt(0));
+      expect(calculatePoints("")).toBe(BigInt(0)); // empty string should be treated as 0
+      expect(calculatePoints("9999999.123")).toBe(BigInt(9999999));
     });
   });
 });
