@@ -1,15 +1,7 @@
-// Custom path for Deno
-generator client_deno {
-  provider        = "prisma-client-js"
-  previewFeatures = ["deno"]
-  output          = "./generated/client"
-}
-
 // standard path for graphql (Node)
 generator client {
-  provider        = "prisma-client-js"
-  binaryTargets   = ["native", "darwin-arm64"]
-  previewFeatures = ["deno"]
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/my-client"
 }
 
 // standard path for graphql (Node)

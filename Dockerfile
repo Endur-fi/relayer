@@ -9,9 +9,6 @@ COPY prisma/* /app/prisma
 COPY deployment/* /app
 COPY abis /app/abis
 
-# RUN mkdir -p /root/.starknet-store
-# COPY accounts.json /root/.starknet-store
-
 # install deps
 RUN apt-get -y update; apt-get -y install curl
 RUN apt-get -y install jq

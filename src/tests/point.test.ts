@@ -1,3 +1,5 @@
+import dotenv from "dotenv";
+dotenv.config();
 import {
   afterAll,
   afterEach,
@@ -8,19 +10,26 @@ import {
   it,
   jest,
 } from "@jest/globals";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/my-client";
 import axios from "axios";
+import { PointsSystemService } from "../points-system/points-system.service";
+import { Test, TestingModule } from '@nestjs/testing';
+import { calculatePoints } from "../points-system/utils";
+import { createTestUsers, resetDb } from "./test-utils";
 
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-import { calculatePoints, fetchAndStoreHoldings } from "../points-system/index";
+// assert db is test db
+if (!process.env.DATABASE_URL?.includes("test")) {
+  throw new Error("Test database not set up correctly");
+}
 
 const prisma = new PrismaClient();
 
 // mock constants for faster test execution
-jest.mock("../points-system/index", () => {
-  const original = jest.requireActual("../points-system/index");
+jest.mock("../points-system/points-system.service", () => {
+  const original = jest.requireActual("../points-system/points-system.service");
 
   return {
     ...(original as object),
@@ -217,22 +226,9 @@ describe("xSTRK Points System Integration Tests", () => {
   beforeAll(async () => {
     // reset database before all tests
     // clear tables in the correct order to avoid foreign key constraints
-    await prisma.points_aggregated.deleteMany({});
-    await prisma.user_points.deleteMany({});
-    await prisma.user_balances.deleteMany({});
-    await prisma.users.deleteMany({});
-    await prisma.blocks.deleteMany({});
-    await prisma.blocks.createMany({ data: mockBlocks });
-    await prisma.users.createMany({
-      data: testUsers.map((user) => ({
-        user_address: user.address,
-        block_number: startBlock,
-        tx_index: 0,
-        event_index: 0,
-        tx_hash: `0x${user.address.substring(2, 10)}`, // Generate some fake tx hash
-        timestamp: startTime,
-      })),
-    });
+    
+    await resetDb(mockBlocks);
+    await createTestUsers(testUsers, startBlock, startTime);
     console.log("Database reset and mock data inserted successfully");
   });
 
@@ -276,7 +272,19 @@ describe("xSTRK Points System Integration Tests", () => {
   });
 
   describe("User Points Calculation Tests", () => {
-    beforeEach(() => {
+    let pointsService: PointsSystemService;
+  
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [PointsSystemService],
+      }).compile();
+  
+      pointsService = module.get<PointsSystemService>(PointsSystemService);
+  
+      // Set the start and end dates for the test
+      pointsService.setConfig({...pointsService.config, endDate: testDates[testDates.length - 1]});
+
+      
       prisma.blocks.findFirst = jest.fn().mockImplementation(() => {
         // returns a simple mock Promise that resolves to the expected result
         return Promise.resolve({
@@ -317,13 +325,12 @@ describe("xSTRK Points System Integration Tests", () => {
         };
 
         const holdingDates = Object.keys(user.holdings).sort();
-        const applicableDate = holdingDates
-          .filter((d) => d <= dateStr)
-          .sort()
-          .pop();
+        const applicableDate = holdingDates.reverse()
+          .find((d) => d <= dateStr)
 
+        const customHoldings = applicableDate ? user.holdings[applicableDate] || {} : {};
         if (applicableDate) {
-          holdings = { ...holdings, ...user.holdings[applicableDate] };
+          holdings = { ...holdings, ...customHoldings };
         }
 
         return {
@@ -337,21 +344,7 @@ describe("xSTRK Points System Integration Tests", () => {
     });
 
     it("should correctly calculate points for each user based on their holdings", async () => {
-      jest
-        .spyOn(require("../points-system/index"), "getAllTasks")
-        .mockImplementation(async () => {
-          const tasks: [string, Date][] = [];
-
-          for (const user of testUsers) {
-            for (const date of testDates) {
-              tasks.push([user.address, new Date(date)]);
-            }
-          }
-
-          return tasks;
-        });
-
-      await fetchAndStoreHoldings();
+      await pointsService.fetchAndStoreHoldings();
 
       for (const user of testUsers) {
         const pointsRecord = await prisma.points_aggregated.findUnique({
@@ -383,8 +376,14 @@ describe("xSTRK Points System Integration Tests", () => {
 
   describe("GraphQL API Integration", () => {
     it("should return correct user points from GraphQL API", async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [PointsSystemService],
+      }).compile();
+
+      const pointsService = module.get<PointsSystemService>(PointsSystemService);
+
       if ((await prisma.points_aggregated.count()) === 0) {
-        await fetchAndStoreHoldings();
+        await pointsService.fetchAndStoreHoldings();
       }
 
       for (const user of testUsers) {
@@ -444,15 +443,15 @@ describe("xSTRK Points System Integration Tests", () => {
 
   describe("Points Calculation Logic", () => {
     it("should correctly calculate points from decimal amounts", () => {
-      expect(calculatePoints("10.5")).toBe(BigInt(10)); // should floor to 10
-      expect(calculatePoints("0.9")).toBe(BigInt(0)); // should floor to 0
-      expect(calculatePoints("100.999")).toBe(BigInt(100));
+      expect(calculatePoints("10.5", 1)).toBe(BigInt(10)); // should floor to 10
+      expect(calculatePoints("0.9", 1)).toBe(BigInt(0)); // should floor to 0
+      expect(calculatePoints("100.999", 1)).toBe(BigInt(100));
     });
 
     it("should handle edge cases in points calculation", () => {
-      expect(calculatePoints("0")).toBe(BigInt(0));
-      expect(calculatePoints("")).toBe(BigInt(0)); // empty string should be treated as 0
-      expect(calculatePoints("9999999.123")).toBe(BigInt(9999999));
+      expect(calculatePoints("0", 1)).toBe(BigInt(0));
+      expect(calculatePoints("", 1)).toBe(BigInt(0)); // empty string should be treated as 0
+      expect(calculatePoints("9999999.123", 1)).toBe(BigInt(9999999));
     });
   });
 });
