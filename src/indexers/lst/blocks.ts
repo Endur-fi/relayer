@@ -1,15 +1,20 @@
+import { hash } from "https://esm.sh/starknet@6.16.0";
 import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 import type {
   Block,
   FieldElement,
   Starknet,
 } from "npm:@apibara/indexer@0.4.1/starknet";
-import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
-import { hash } from "https://esm.sh/starknet@6.16.0";
 
-import { getNetwork, standariseAddress, toBigInt, toBoolean, toNumber } from "../../common/indexerUtils.ts";
 import { getAddresses } from "../../common/constants.ts";
-
+import {
+  getNetwork,
+  standariseAddress,
+  toBigInt,
+  toBoolean,
+  toNumber,
+} from "../../common/indexerUtils.ts";
 
 export const config: Config<Starknet, Postgres> = {
   streamUrl: Deno.env.get("STREAM_URL"),
@@ -19,9 +24,11 @@ export const config: Config<Starknet, Postgres> = {
   network: "starknet",
   filter: {
     header: { weak: true },
-    events: [{
-      keys: [hash.getSelectorFromName("TransactionExecuted") as FieldElement],
-    }],
+    events: [
+      {
+        keys: [hash.getSelectorFromName("TransactionExecuted") as FieldElement],
+      },
+    ],
   },
   sinkType: "postgres",
   sinkOptions: {
@@ -36,23 +43,24 @@ export default function transform({ header, events }: Block) {
   const { blockNumber, timestamp } = header;
   // Convert timestamp to unix timestamp
   const timestamp_unix = Math.floor(
-    new Date(timestamp as string).getTime() / 1000,
+    new Date(timestamp as string).getTime() / 1000
   );
 
-  return events.map(({ event, transaction }) => {
-    if (!event) {
-      console.log("event keys and data length", event);
-      throw new Error("deposits:Expected event with data");
-    }
+  return events
+    .map(({ event, transaction }) => {
+      if (!event) {
+        console.log("event keys and data length", event);
+        throw new Error("deposits:Expected event with data");
+      }
 
-    const userData = {
-      block_number: blockNumber,
-      timestamp: timestamp_unix,
-    };
-    return userData;
-  }).filter((x) => x != null);
+      const userData = {
+        block_number: blockNumber,
+        timestamp: timestamp_unix,
+      };
+      return userData;
+    })
+    .filter((x) => x != null);
 }
-
 
 // -- This script ensures duplicates are not inserted into the blocks table
 // CREATE OR REPLACE FUNCTION soft_blocks_reject_on_conflict()

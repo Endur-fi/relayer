@@ -150,18 +150,18 @@ model users {
 
 // xSTRK balances
 model user_balances {
-  block_number          Int
-  user_address          String
-  vesuAmount           String
-  ekuboAmount          String
+  block_number        Int
+  user_address        String
+  vesuAmount          String
+  ekuboAmount         String
   nostraLendingAmount String
   nostraDexAmount     String
-  walletAmount         String
+  walletAmount        String
   strkfarmAmount      String
 
-  total_amount          String
-  date                  String
-  timestamp             Int
+  total_amount String
+  date         String
+  timestamp    Int
 
   @@unique([block_number, user_address])
 }
@@ -181,8 +181,19 @@ model user_points {
   @@unique([block_number, user_address, type])
 }
 
+model points_aggregated {
+  user_address String   @unique
+  total_points BigInt
+  block_number Int
+  timestamp    Int
+  created_on   DateTime @default(now())
+  updated_on   DateTime @updatedAt
+
+  @@index([user_address])
+}
+
 model blocks {
-  block_number Int @unique
-  timestamp   Int
+  block_number Int     @unique
+  timestamp    Int
   cursor       BigInt? @map("_cursor")
 }
