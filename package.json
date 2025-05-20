@@ -1,6 +1,26 @@
 {
+  "scripts": {
+    "test": "jest",
+    "format": "prettier --write .",
+    "bonus-early:summary": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --summary-only",
+    "bonus-early:dry": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --dry-run",
+    "bonus-six:summary": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --summary-only",
+    "bonus-six:dry": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --dry-run"
+  },
   "devDependencies": {
+    "@babel/core": "^7.27.1",
+    "@babel/preset-env": "^7.27.2",
+    "@babel/preset-typescript": "^7.27.1",
+    "@jest/globals": "^29.7.0",
+    "@jest/types": "^29.6.3",
+    "@nestjs/testing": "^11.1.1",
+    "@types/jest": "^29.5.14",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "npm": "^11.3.0",
+    "prettier": "^3.5.3",
     "prisma": "^5.22.0",
+    "ts-jest": "^29.3.2",
     "typescript": "5.4.5",
     "typescript-eslint": "7.6.0"
   },
@@ -14,8 +34,9 @@
     "@nestjs/platform-express": "10.4.1",
     "@nestjs/schedule": "4.1.1",
     "@prisma/client": "5.22.0",
-    "@strkfarm/sdk": "^1.0.7",
+    "@strkfarm/sdk": "1.0.7",
     "assert": "^2.1.0",
+    "axios": "^1.9.0",
     "dotenv": "^16.4.5",
     "ethers": "^6.13.4",
     "express": "^4.21.1",
@@ -24,8 +45,10 @@
     "graphql-scalars": "1.23.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "p-limit": "^3.1.0",
     "reflect-metadata": "^0.2.2",
     "starknet": "^6.11.0",
+    "ts-node": "^10.9.2",
     "tslib": "2.8.1",
     "type-graphql": "2.0.0-rc.2",
     "typegraphql-prisma": "0.28.0"
@@ -34,9 +57,6 @@
   "version": "1.0.0",
   "description": "### Run withdraw queue indexer `apibara run src/indexers/withdraw_queue/withdrawQueue.ts --allow-env=.env --sink-id 10`",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "author": "akiraonstarknet",
   "license": "ISC"
 }
