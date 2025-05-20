@@ -32,7 +32,7 @@ async function bootstrap() {
 
     // pointsSystemService.setConfig({
     //   startDate: new Date('2024-11-24'),
-    //   endDate: new Date(new Date().setHours(0, 0, 0, 0)), // Set the end date to today
+    //   endDate: new Date(),
     // });
     // await pointsSystemService.fetchAndStoreHoldings();
 
