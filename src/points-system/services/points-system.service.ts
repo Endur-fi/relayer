@@ -1,15 +1,16 @@
+import { Injectable } from '@nestjs/common';
 import { Prisma, PrismaClient, user_balances } from '@prisma/my-client';
+import { DefaultArgs } from '@prisma/my-client/runtime/library';
 import pLimit from 'p-limit';
-import { logger, TryCatchAsync } from '../common/utils';
+
+import { logger, TryCatchAsync } from '../../common/utils';
 import {
   calculatePoints,
   fetchHoldingsFromApi,
   findClosestBlockInfo,
   prisma,
   sleep,
-} from './utils';
-import { DefaultArgs } from '@prisma/my-client/runtime/library';
-import { Injectable } from '@nestjs/common';
+} from '../utils';
 
 const DB_BATCH_SIZE = 100; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 5; // total concurrent API calls allowed
@@ -28,7 +29,7 @@ export class PointsSystemService {
   config = {
     startDate: new Date('2024-11-24'),
     endDate: new Date(new Date().setHours(0, 0, 0, 0)),
-  }
+  };
 
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
   async fetchHoldingsWithRetry(userAddr: string, date: Date): Promise<user_balances> {
