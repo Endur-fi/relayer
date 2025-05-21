@@ -31,7 +31,7 @@ export async function findClosestBlockInfo(date: Date) {
   return prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: timestamp + timeWindow,
+        lte: timestamp,
         gte: timestamp - timeWindow,
       },
     },
