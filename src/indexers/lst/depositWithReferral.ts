@@ -5,12 +5,13 @@ import type {
   Starknet,
 } from "npm:@apibara/indexer@0.4.1/starknet";
 import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
+
 // import { ABI as LSTAbi } from "../../../abis/LST.ts"
 // import { getProvider } from "../../common/utils.ts";
-import { hash, num } from "https://esm.sh/starknet@6.11.0";
+import { hash, num } from "https://esm.sh/starknet@6.16.0";
 
-import { toBigInt } from "../../common/utils.ts";
 import { getAddresses } from "../../common/constants.ts";
+import { getNetwork, toBigInt } from "../../common/indexerUtils.ts";
 
 export const config: Config<Starknet, Postgres> = {
   streamUrl: Deno.env.get("STREAM_URL"),
@@ -21,7 +22,7 @@ export const config: Config<Starknet, Postgres> = {
   filter: {
     header: { weak: true },
     events: [{
-      fromAddress: getAddresses().LST as FieldElement,
+      fromAddress: getAddresses(getNetwork()).LST as FieldElement,
       includeTransaction: true,
       keys: [hash.getSelectorFromName("Referral") as FieldElement],
     }],
@@ -30,6 +31,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "deposits_with_referral",
+    noTls: true, // true for private urls, false for public urls
   },
 };
 

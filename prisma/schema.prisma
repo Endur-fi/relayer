@@ -46,6 +46,22 @@ model deposits_with_referral {
   @@index([cursor])
 }
 
+model transfer {
+  block_number Int
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  timestamp    Int
+  txHash       String
+
+  from   String
+  to     String
+  value  Decimal @db.Decimal(30, 0)
+  cursor BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
 model withdraw_queue {
   block_number Int
   tx_index     Int    @default(0)
