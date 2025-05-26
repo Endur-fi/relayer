@@ -177,6 +177,7 @@ model user_balances {
 enum UserPointsType {
   Regular
   Bonus
+  Referrer
 }
 
 model user_points {
