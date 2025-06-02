@@ -32,12 +32,14 @@ export class PointsSystemService {
   };
 
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
-  async fetchHoldingsWithRetry(userAddr: string, date: Date): Promise<user_balances> {
+  async fetchHoldingsWithRetry(userAddr: string, date: Date): Promise<user_balances | null> {
     const blockInfo = await findClosestBlockInfo(date);
     if (!blockInfo || !blockInfo.block_number) {
-      throw new Error(
-        `No block found for user ${userAddr} on date: ${date.toISOString().split('T')[0]}`,
+      // Instead of throwing, log and skip this user/date
+      logger.warn(
+        `No block found for user ${userAddr} on date: ${date.toISOString().split('T')[0]}, skipping.`,
       );
+      return null;
     }
     const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
     return dbObject;
@@ -165,21 +167,23 @@ export class PointsSystemService {
       ),
     );
 
-    // Insert user balances in a transaction
+    // Filter out null results (skipped users/dates)
+    const validResults = results.filter(Boolean) as user_balances[];
+
     await prisma.$transaction(async (prismaTransaction) => {
       // Step 1: Create user balances
       await prismaTransaction.user_balances.createMany({
-        data: results,
+        data: validResults,
       });
 
       // Step 2: Update points for each user
-      for (const userBalance of results) {
+      for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
     });
 
-    logger.info(`Inserted ${results.length} records in batch and updated points_aggregated`);
-    return results.length;
+    logger.info(`Inserted ${validResults.length} records in batch and updated points_aggregated`);
+    return validResults.length;
   }
 
   async fetchAndStoreHoldings() {
