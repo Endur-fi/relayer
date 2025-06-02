@@ -28,13 +28,13 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
 
     // get the service instance
-    // const pointsSystemService = app.get(PointsSystemService);
+    const pointsSystemService = app.get(PointsSystemService);
 
-    // pointsSystemService.setConfig({
-    //   startDate: new Date('2024-11-24'),
-    //   endDate: new Date(),
-    // });
-    // await pointsSystemService.fetchAndStoreHoldings();
+    pointsSystemService.setConfig({
+      startDate: new Date('2024-11-24'),
+      endDate: new Date('2025-05-25'),
+    });
+    await pointsSystemService.fetchAndStoreHoldings();
 
     await app.listen(process.env.RELAYER_PORT ?? 3000);
     console.log(`Application is running on: ${await app.getUrl()}`);

@@ -5,7 +5,10 @@
     "bonus-early:summary": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --summary-only",
     "bonus-early:dry": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --dry-run",
     "bonus-six:summary": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --summary-only",
-    "bonus-six:dry": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --dry-run"
+    "amount:allocate": "tsx src/points-system/standalone-scripts/allocate-amount.ts",
+    "bonus-six:dry": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --dry-run",
+    "bonus-referral:dry": "tsx src/points-system/standalone-scripts/refrees-script.ts --dry-run",
+    "bonus-referral:summary": "tsx src/points-system/standalone-scripts/refrees-script.ts --dry-summary"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
