@@ -125,13 +125,6 @@ export class UsersController {
     try {
       const pointsBreakdown = await this.usersService.getUserPointsBreakdown(address);
 
-      if (!pointsBreakdown) {
-        return {
-          success: false,
-          message: 'User not found or no points data available',
-        };
-      }
-
       return {
         success: true,
         data: {

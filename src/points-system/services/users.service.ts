@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserPointsType } from '@prisma/my-client';
 
+import { safeToBigInt } from '../../common/utils';
 import { calculatePoints, prisma } from '../utils';
 
 const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z');
@@ -78,6 +79,9 @@ interface UserCompleteDetails {
       bonus_awarded?: bigint;
     };
   };
+  tags: {
+    early_adopter: boolean;
+  };
 }
 
 @Injectable()
@@ -150,27 +154,27 @@ export class UsersService {
 
       const regular_points = userPoints
         .filter((p) => p.type === UserPointsType.Regular)
-        .reduce((sum, p) => sum + BigInt(p._sum.points?.toString() || '0'), BigInt(0));
+        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
       const bonus_points = userPoints
         .filter((p) => p.type === UserPointsType.Bonus)
-        .reduce((sum, p) => sum + BigInt(p._sum.points?.toString() || '0'), BigInt(0));
+        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
       const referrer_points = userPoints
         .filter((p) => p.type === UserPointsType.Referrer)
-        .reduce((sum, p) => sum + BigInt(p._sum.points?.toString() || '0'), BigInt(0));
+        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
       const activityDate = activityDates.find((a) => a.user_address === user.user_address);
 
       return {
         user_address: user.user_address,
-        total_points: BigInt(user.total_points?.toString() || '0'), // Fix: ensure bigint
+        total_points: safeToBigInt(user.total_points),
         regular_points,
         bonus_points,
         referrer_points,
         allocation: user.user_allocation?.allocation,
         first_activity_date: activityDate ? new Date(activityDate.timestamp * 1000) : undefined,
-        last_activity_date: user.updated_on ? new Date(user.updated_on) : undefined, // Fix: handle undefined
+        last_activity_date: user.updated_on ? new Date(user.updated_on) : undefined,
       };
     });
 
@@ -191,7 +195,7 @@ export class UsersService {
       },
       summary: {
         total_users: totalUsers,
-        total_points_all_users: BigInt(total_points_all_users._sum.total_points?.toString() || '0'), // Fix: ensure bigint
+        total_points_all_users: safeToBigInt(total_points_all_users._sum.total_points),
       },
     };
   }
@@ -220,6 +224,8 @@ export class UsersService {
     // get eligibility details
     const eligibilityDetails = await this.getUserEligibilityDetails(userAddress);
 
+    const tagsDetails = await this.getUserTags(userAddress);
+
     return {
       user_address: userAddress,
       points: pointsBreakdown?.summary || {
@@ -231,6 +237,7 @@ export class UsersService {
       allocation: aggregatedPoints.user_allocation?.allocation,
       activity: activityDetails,
       eligibility: eligibilityDetails,
+      tags: tagsDetails,
     };
   }
 
@@ -248,7 +255,7 @@ export class UsersService {
       cummulative_points: bigint;
       type: UserPointsType;
     }>;
-  } | null> {
+  }> {
     const allPoints = await this.prisma.user_points.findMany({
       where: {
         user_address: userAddress,
@@ -259,21 +266,30 @@ export class UsersService {
     });
 
     if (allPoints.length === 0) {
-      return null;
+      return {
+        user_address: userAddress,
+        summary: {
+          total_points: BigInt(0),
+          regular_points: BigInt(0),
+          bonus_points: BigInt(0),
+          referrer_points: BigInt(0),
+        },
+        history: [],
+      };
     }
 
     // calculate summary
     const regular_points = allPoints
       .filter((p) => p.type === UserPointsType.Regular)
-      .reduce((sum, p) => sum + BigInt(p.points.toString()), BigInt(0));
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     const bonus_points = allPoints
       .filter((p) => p.type === UserPointsType.Bonus)
-      .reduce((sum, p) => sum + BigInt(p.points.toString()), BigInt(0));
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     const referrer_points = allPoints
       .filter((p) => p.type === UserPointsType.Referrer)
-      .reduce((sum, p) => sum + BigInt(p.points.toString()), BigInt(0));
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     const total_points = regular_points + bonus_points + referrer_points;
 
@@ -287,8 +303,8 @@ export class UsersService {
       },
       history: allPoints.map((p) => ({
         block_number: p.block_number,
-        points: BigInt(p.points.toString()),
-        cummulative_points: BigInt(p.cummulative_points.toString()),
+        points: safeToBigInt(p.points),
+        cummulative_points: safeToBigInt(p.cummulative_points),
         type: p.type,
       })),
     };
@@ -430,7 +446,7 @@ export class UsersService {
     return {
       eligible: !!balanceBeforeCutoff && (points_before_cutoff || BigInt(0)) > 0,
       points_before_cutoff: points_before_cutoff || BigInt(0),
-      bonus_awarded: bonusAwarded ? BigInt(bonusAwarded.points.toString()) : BigInt(0),
+      bonus_awarded: bonusAwarded ? safeToBigInt(bonusAwarded.points) : BigInt(0),
       cutoff_date: EARLY_USER_CUTOFF_DATE,
     };
   }
@@ -460,9 +476,9 @@ export class UsersService {
     let minimum_amount: bigint | undefined;
     if (userBalances.length > 0) {
       minimum_amount = userBalances.reduce((min, balance) => {
-        const current = BigInt(balance.total_amount);
+        const current = safeToBigInt(balance.total_amount);
         return current < min ? current : min;
-      }, BigInt(userBalances[0].total_amount));
+      }, safeToBigInt(userBalances[0].total_amount));
     }
 
     // check if six month bonus was awarded
@@ -487,7 +503,7 @@ export class UsersService {
       eligible: !!minimum_amount && minimum_amount > 0,
       minimum_amount: minimum_amount || BigInt(0),
       bonus_awarded:
-        bonusAwarded && BigInt(bonusAwarded.points.toString()) === expectedBonus
+        bonusAwarded && safeToBigInt(bonusAwarded.points) === expectedBonus
           ? expectedBonus
           : BigInt(0),
       period: {
@@ -517,7 +533,7 @@ export class UsersService {
       eligible: !!referralRecord,
       is_referred_user: !!referralRecord,
       referrer_address: referralRecord?.referrer,
-      bonus_awarded: bonusAwarded ? BigInt(bonusAwarded.points.toString()) : BigInt(0),
+      bonus_awarded: bonusAwarded ? safeToBigInt(bonusAwarded.points) : BigInt(0),
     };
   }
 
@@ -610,7 +626,7 @@ export class UsersService {
     const bonus = pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points || 0;
     const referrer = pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum.points || 0;
 
-    const totalPointsDistributed = BigInt(totalPointsResult._sum.total_points?.toString() || '0');
+    const totalPointsDistributed = safeToBigInt(totalPointsResult._sum.total_points);
     const averagePointsPerUser =
       usersWithPoints > 0 ? Number(totalPointsDistributed) / usersWithPoints : 0;
 
@@ -620,11 +636,30 @@ export class UsersService {
       users_with_allocation: usersWithAllocation,
       total_points_distributed: totalPointsDistributed,
       points_by_type: {
-        regular: BigInt(regular?.toString() || '0'),
-        bonus: BigInt(bonus?.toString() || '0'),
-        referrer: BigInt(referrer?.toString() || '0'),
+        regular: safeToBigInt(regular),
+        bonus: safeToBigInt(bonus),
+        referrer: safeToBigInt(referrer),
       },
       average_points_per_user: Math.round(averagePointsPerUser),
+    };
+  }
+
+  async getUserTags(userAddress: string): Promise<{
+    early_adopter: boolean;
+  }> {
+    const earlyAdopterPoints = await this.prisma.user_points.findFirst({
+      where: {
+        user_address: userAddress,
+        // TODO: change to Early type (UserPointsType.Early) later when the akira ser code is merged
+        type: UserPointsType.Regular,
+        points: {
+          gt: 0,
+        },
+      },
+    });
+
+    return {
+      early_adopter: !!earlyAdopterPoints,
     };
   }
 }
