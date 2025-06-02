@@ -35,6 +35,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "users",
+    noTls: true, // true for private urls, false for public urls
   },
 };
 

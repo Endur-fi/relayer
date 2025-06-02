@@ -46,6 +46,8 @@
     "graphql": "16.9.0",
     "graphql-fields": "2.0.3",
     "graphql-scalars": "1.23.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "p-limit": "^3.1.0",
     "reflect-metadata": "^0.2.2",
     "starknet": "^6.11.0",

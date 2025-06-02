@@ -215,3 +215,10 @@ model blocks {
   timestamp    Int
   cursor       BigInt? @map("_cursor")
 }
+
+model user_allocation {
+  user_address String   @unique
+  allocation   String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+}

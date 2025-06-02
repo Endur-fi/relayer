@@ -75,6 +75,7 @@ export function getAddresses(network: Network): NetworkAddresses {
   }
 }
 
+// todo verify this list
 export const REFERRERS_WITH_CODE = [
   'F6X92',
   'FHEVD',
