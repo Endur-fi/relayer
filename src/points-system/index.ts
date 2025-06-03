@@ -59,7 +59,7 @@ async function bootstrap() {
     console.log('- GET /six-month/validate - Validate bonus calculation');
     console.log('- GET /six-month/user/:address - Get user breakdown');
 
-    // await pointsSystemService.fetchAndStoreHoldings();
+    await pointsSystemService.fetchAndStoreHoldings();
   } catch (error) {
     console.error('Error starting the application:', error);
     process.exit(1);

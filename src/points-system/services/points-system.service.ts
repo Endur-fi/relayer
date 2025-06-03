@@ -12,8 +12,8 @@ import {
   sleep,
 } from '../utils';
 
-const DB_BATCH_SIZE = 2000; // no of records to insert at once
-const GLOBAL_CONCURRENCY_LIMIT = 40; // total concurrent API calls allowed
+const DB_BATCH_SIZE = 1000; // no of records to insert at once
+const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
 const MAX_RETRIES = 5; // max number of retry attempts
 const RETRY_DELAY = 30000; // 30 seconds delay between retries
 
@@ -42,7 +42,14 @@ export class PointsSystemService {
         );
       }
       const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
-      return dbObject;
+      // const dbObject = await getAllHoldings(userAddr, blockInfo.block_number);
+      return {
+        ...dbObject,
+        user_address: userAddr,
+        block_number: blockInfo.block_number,
+        timestamp: Math.floor(date.getTime() / 1000), // convert date to timestamp
+        date: date.toISOString().split('T')[0], // format date as YYYY-MM-DD
+      };
     } catch (error) {
       logger.error(
         `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`,
@@ -166,18 +173,33 @@ export class PointsSystemService {
     // sort by date
     allTasks.sort((a, b) => a[1].getTime() - b[1].getTime());
 
+    // log tasks in first 10 days as sample
+    // const uniqueDates = new Set<string>();
+    // allTasks.map((task) => {
+    //   const dateStr = task[1].toISOString().split('T')[0];
+    //   uniqueDates.add(dateStr);
+    // });
+    // // sort by dates
+    // const sortedTasks = Array.from(uniqueDates).sort();
+    // for (let i = 0; i < Math.min(10, sortedTasks.length); i++) {
+    //   const count = allTasks.filter(task => task[1].toISOString().split('T')[0] === sortedTasks[i]).length;
+    //   logger.info(`Tasks by Date: ${sortedTasks[i]}, Tasks: ${count}`);
+    // }
+
     logger.info(`Total tasks to process: ${allTasks.length}`);
     return allTasks;
   }
 
   async processTaskBatch(tasks: [string, Date][]): Promise<number> {
-    console.log(`Processing batch of ${tasks.length} tasks: Now: ${new Date().toISOString()}`);
+    const now = new Date();
+    console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`);
     const minDate = tasks.reduce((min, task) => {
       return task[1] < min ? task[1] : min;
     }, new Date());
     const maxDate = tasks.reduce((max, task) => {
       return task[1] > max ? task[1] : max;
     }, new Date(0));
+
     console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
 
     const results = await Promise.all(
@@ -186,7 +208,8 @@ export class PointsSystemService {
       ),
     );
 
-    console.log(`Fetched ${results.length} records from API: Now: ${new Date().toISOString()}`);
+    const now2 = new Date();
+    console.log(`Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`);
 
     // Insert user balances in a transaction
     // Filter out null results (skipped users/dates)
@@ -204,11 +227,99 @@ export class PointsSystemService {
       }
     });
 
-    logger.info(`Inserted ${validResults.length} records in batch and updated points_aggregated: Now: ${new Date().toISOString()}`);
+    const now3 = new Date();
+    console.log(`Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`);
     return validResults.length;
   }
 
+  // fetches all ekubo values and caches them in memory 
+  // happens on API side 
+  // only one time run
+  async doOneCallPerUser() {
+    // preload ekubo info
+    console.log('Preloading ekubo info for all users...');
+    const allUsers = await prisma.users.findMany({
+      select: {
+        user_address: true,
+        timestamp: true, // first registered timestamp
+      },
+    });
+    const tasks = allUsers.map((user) => [user.user_address, new Date(user.timestamp * 1000 + 86400000)] as [string, Date]);
+    for (let i = 0; i < tasks.length; i = i + 5) {
+      console.log(`Preloading holdings for user: ${i}/${tasks.length}`);
+      const _tasks = tasks.slice(i, i + 5);
+      const proms  = _tasks.map((task) => globalLimit(() => this.fetchHoldingsWithRetry(task[0], new Date("2024-12-01"))));
+      await Promise.all(proms);
+    }
+  }
+
+  async loadBlocks() {
+    const fs = require('fs');
+    const blocks = fs.readFileSync(`blocks.json`, 'utf-8');
+    const parsedBlocks = JSON.parse(blocks);
+    if (!Array.isArray(parsedBlocks)) {
+      throw new Error('Invalid blocks data format. Expected an array.');
+    }
+    console.log(`Loading ${parsedBlocks.length} blocks from file...`);
+    for (let i = 0; i < parsedBlocks.length; i++) {
+      console.log(`Loading block ${i + 1}/${parsedBlocks.length}`);
+      const block = parsedBlocks[i];
+      console.log(`Block: ${block.block_number}, Date: ${block.date}`);
+      const res = await this.prisma.blocks.upsert({
+        where: { block_number: block.block_number },
+        update: {
+          // timestamp: Math.round(new Date(block.date).getTime() / 1000), // convert date to timestamp
+        },
+        create: {
+          block_number: block.block_number,
+          timestamp: Math.round(new Date(block.date).getTime() / 1000), // convert date to timestamp
+        },
+      });
+      console.log(`Block ${res.block_number.toString()}, ${res.timestamp.toString()} loaded successfully.`);
+    }
+    console.log('Blocks loaded successfully.');
+  }
+
+  async sanityBlocks() {
+    // from start date to end date
+    // check if there are blocks for each day
+    const startDate = this.config.startDate;
+    const endDate = this.config.endDate;
+    const currentDate = new Date(startDate);
+    const missingBlocks: string[] = [];
+    const store: any[] = [];
+    while (currentDate <= endDate) {
+      console.log(`Checking block for date: ${currentDate.toISOString().split('T')[0]}`);
+      const blockInfo = await findClosestBlockInfo(currentDate);
+      if (!blockInfo) {
+        missingBlocks.push(currentDate.toISOString().split('T')[0]);
+      } else {
+        store.push({
+          date: currentDate.toISOString().split('T')[0],
+          block_number: blockInfo ? blockInfo.block_number : null,
+        });
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // store the blocks in json
+    console.log(`Storing blocks for dates`);
+    const fs = require('fs');
+    fs.writeFileSync(`blocks.json`, JSON.stringify(store, null, 2));
+    if (missingBlocks.length > 0) {
+      logger.warn(`Missing blocks for dates: ${missingBlocks.join(', ')}`);
+      throw new Error(`Missing blocks exist`);
+    }
+    
+    logger.info('All blocks are present for the date range.');
+  }
+
   async fetchAndStoreHoldings() {
+    // sanity check for blocks
+    // await this.loadBlocks();
+    // await this.sanityBlocks();
+    // return;
+
     const allTasks = await this.getAllTasks();
 
     if (allTasks.length === 0) {

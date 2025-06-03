@@ -2,11 +2,25 @@ import { Logger } from '@nestjs/common';
 import { getDefaultStoreConfig, IConfig, Store } from '@strkfarm/sdk';
 import assert from 'assert';
 import * as dotenv from 'dotenv';
-import { Account, num, RpcProvider } from 'starknet';
+import { Account, BlockIdentifier, num, RpcProvider } from 'starknet';
 import { ConfigService } from '../relayer/services/configService';
 import { NotifService } from '../relayer/services/notifService';
 import { Network } from './constants';
 dotenv.config();
+
+export const STRK_DECIMALS = 18;
+export const STRK_TOKEN =
+  "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d" as const;
+export const xSTRK_TOKEN_MAINNET = "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
+export const ETH_TOKEN =
+  "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
+export const USDC_TOKEN =
+  "0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8";
+export const USDT_TOKEN =
+  "0x068f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8";
+export const WBTC_TOKEN =
+  "0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac";
+
 
 export function getProvider(): RpcProvider {
   const env: any = dotenv.config().parsed;
@@ -80,6 +94,7 @@ export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorat
             throw new Error(`[${String(propertyKey)}] Max retries reached`);
           }
           logger.warn(`[${String(propertyKey)}] failed. Retrying... ${retry + 1} / ${maxAttempts}`);
+          logger.error(error);
           await new Promise((resolve) => setTimeout(resolve, waitTimeMs));
         }
       }
@@ -140,4 +155,23 @@ export function safeToBigInt(value: any): bigint {
   }
 
   return BigInt(0);
+}
+
+export function isContractNotDeployed(
+  blockIdentifier: BlockIdentifier = "pending",
+  deploymentBlock: number,
+  maxBlock?: number,
+) {
+  const lowerCondition =
+    Number.isInteger(blockIdentifier) &&
+    (blockIdentifier as number) < deploymentBlock;
+
+  const upperCondition =
+    maxBlock &&
+    ((blockIdentifier as number) > maxBlock ||
+      blockIdentifier == "latest" ||
+      blockIdentifier == "pending" ||
+      !blockIdentifier);
+
+  return lowerCondition || upperCondition;
 }
