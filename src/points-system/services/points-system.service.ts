@@ -189,20 +189,23 @@ export class PointsSystemService {
     console.log(`Fetched ${results.length} records from API: Now: ${new Date().toISOString()}`);
 
     // Insert user balances in a transaction
+    // Filter out null results (skipped users/dates)
+    const validResults = results.filter(Boolean) as user_balances[];
+
     await prisma.$transaction(async (prismaTransaction) => {
       // Step 1: Create user balances
       await prismaTransaction.user_balances.createMany({
-        data: results,
+        data: validResults,
       });
 
       // Step 2: Update points for each user
-      for (const userBalance of results) {
+      for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
     });
 
-    logger.info(`Inserted ${results.length} records in batch and updated points_aggregated: Now: ${new Date().toISOString()}`);
-    return results.length;
+    logger.info(`Inserted ${validResults.length} records in batch and updated points_aggregated: Now: ${new Date().toISOString()}`);
+    return validResults.length;
   }
 
   async fetchAndStoreHoldings() {

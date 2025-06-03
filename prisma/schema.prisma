@@ -200,13 +200,7 @@ model points_aggregated {
   created_on   DateTime @default(now())
   updated_on   DateTime @updatedAt
 
-  @@index([user_address])
-}
-
-model blocks {
-  block_number Int     @unique
-  timestamp    Int
-  cursor       BigInt? @map("_cursor")
+  user_allocation user_allocation? @relation(fields: [user_address], references: [user_address])
 }
 
 model user_allocation {
@@ -214,4 +208,12 @@ model user_allocation {
   allocation   String
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
+
+  points_aggregated points_aggregated?
+}
+
+model blocks {
+  block_number Int     @unique
+  timestamp    Int
+  cursor       BigInt? @map("_cursor")
 }
