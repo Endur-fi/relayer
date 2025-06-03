@@ -12,7 +12,7 @@ import {
   sleep,
 } from '../utils';
 
-const DB_BATCH_SIZE = 1000; // no of records to insert at once
+const DB_BATCH_SIZE = 500; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
 const MAX_RETRIES = 5; // max number of retry attempts
 const RETRY_DELAY = 30000; // 30 seconds delay between retries
@@ -77,6 +77,16 @@ export class PointsSystemService {
 
     const newPoints = calculatePoints(userBalance.total_amount, POINTS_MULTIPLIER);
 
+    // Ensure user_allocation row exists
+    await prismaTransaction.user_allocation.upsert({
+      where: { user_address: userAddr },
+      update: {},
+      create: { 
+        user_address: userAddr,
+        allocation: '0', // Default allocation, can be updated later
+      }, // Add other required fields if needed
+    });
+    
     await prismaTransaction.points_aggregated.upsert({
       where: {
         user_address: userAddr,
@@ -225,7 +235,7 @@ export class PointsSystemService {
       for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
-    });
+    }, { timeout: 30000 }); // 30 seconds timeout for the transaction
 
     const now3 = new Date();
     console.log(`Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`);
