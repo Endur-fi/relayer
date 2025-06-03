@@ -12,10 +12,10 @@ import {
   sleep,
 } from '../utils';
 
-const DB_BATCH_SIZE = 100; // no of records to insert at once
-const GLOBAL_CONCURRENCY_LIMIT = 5; // total concurrent API calls allowed
+const DB_BATCH_SIZE = 2000; // no of records to insert at once
+const GLOBAL_CONCURRENCY_LIMIT = 40; // total concurrent API calls allowed
 const MAX_RETRIES = 5; // max number of retry attempts
-const RETRY_DELAY = 5000; // 5 seconds delay between retries
+const RETRY_DELAY = 30000; // 30 seconds delay between retries
 
 const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
 
@@ -27,20 +27,28 @@ export class PointsSystemService {
   private readonly userRecords: Record<string, Date | null> = {};
 
   config = {
-    startDate: new Date('2024-11-24'),
+    startDate: new Date('2024-11-25'),
     endDate: new Date(new Date().setHours(0, 0, 0, 0)),
   };
 
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
   async fetchHoldingsWithRetry(userAddr: string, date: Date): Promise<user_balances> {
-    const blockInfo = await findClosestBlockInfo(date);
-    if (!blockInfo || !blockInfo.block_number) {
-      throw new Error(
-        `No block found for user ${userAddr} on date: ${date.toISOString().split('T')[0]}`,
+    let blockInfo: { block_number: number } | null = null;
+    try {
+      blockInfo = await findClosestBlockInfo(date);
+      if (!blockInfo || !blockInfo.block_number) {
+        throw new Error(
+          `No block found for user ${userAddr} on date: ${date.toISOString().split('T')[0]}`,
+        );
+      }
+      const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
+      return dbObject;
+    } catch (error) {
+      logger.error(
+        `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`,
       );
+      throw error; // rethrow to trigger retry
     }
-    const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
-    return dbObject;
   }
 
   setConfig(config: { startDate: Date; endDate: Date }) {
@@ -82,7 +90,7 @@ export class PointsSystemService {
     });
   }
 
-  async loadAllUserRecords(allUsers: string[]) {
+  async loadAllUserRecords(allUsers: { user_address: string, timestamp: number }[]) {
     // load all user records into memory
     // selects the latest record for each user
     const latestUserRecordsByDate = await prisma.user_balances.groupBy({
@@ -92,11 +100,11 @@ export class PointsSystemService {
 
     // update the in-memory cache
     allUsers.forEach((addr) => {
-      const userRecord = latestUserRecordsByDate.find((r) => r.user_address === addr);
+      const userRecord = latestUserRecordsByDate.find((r) => r.user_address === addr.user_address);
       if (userRecord && userRecord._max && userRecord._max.date) {
-        this.userRecords[addr] = new Date(userRecord._max.date);
+        this.userRecords[addr.user_address] = new Date(userRecord._max.date);
       } else {
-        this.userRecords[addr] = null;
+        this.userRecords[addr.user_address] = new Date(addr.timestamp * 1000); // convert timestamp to Date
       }
     });
   }
@@ -123,6 +131,7 @@ export class PointsSystemService {
     const allUsers = await prisma.users.findMany({
       select: {
         user_address: true,
+        timestamp: true, // first registered timestamp
       },
     });
 
@@ -132,7 +141,7 @@ export class PointsSystemService {
 
     // load all user records into memory
     // eventual get user records from DB will be faster
-    await this.loadAllUserRecords(allUsers.map((user) => user.user_address));
+    await this.loadAllUserRecords(allUsers);
 
     for (const user of allUsers) {
       const lastStoredRecord = await this.getUserRecord(user.user_address);
@@ -154,16 +163,30 @@ export class PointsSystemService {
       }
     }
 
+    // sort by date
+    allTasks.sort((a, b) => a[1].getTime() - b[1].getTime());
+
     logger.info(`Total tasks to process: ${allTasks.length}`);
     return allTasks;
   }
 
   async processTaskBatch(tasks: [string, Date][]): Promise<number> {
+    console.log(`Processing batch of ${tasks.length} tasks: Now: ${new Date().toISOString()}`);
+    const minDate = tasks.reduce((min, task) => {
+      return task[1] < min ? task[1] : min;
+    }, new Date());
+    const maxDate = tasks.reduce((max, task) => {
+      return task[1] > max ? task[1] : max;
+    }, new Date(0));
+    console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
+
     const results = await Promise.all(
       tasks.map(([userAddr, date]) =>
         globalLimit(() => this.fetchHoldingsWithRetry(userAddr, date)),
       ),
     );
+
+    console.log(`Fetched ${results.length} records from API: Now: ${new Date().toISOString()}`);
 
     // Insert user balances in a transaction
     await prisma.$transaction(async (prismaTransaction) => {
@@ -178,7 +201,7 @@ export class PointsSystemService {
       }
     });
 
-    logger.info(`Inserted ${results.length} records in batch and updated points_aggregated`);
+    logger.info(`Inserted ${results.length} records in batch and updated points_aggregated: Now: ${new Date().toISOString()}`);
     return results.length;
   }
 

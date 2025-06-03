@@ -3,21 +3,23 @@ dotenv.config();
 
 import { REFERRERS_WITH_CODE } from '../../common/constants';
 import { logger } from '../../common/utils';
-import { ReferralBonusService } from '../services/referral-bonus.service';
+import { PriorityBonusService } from '../services/priority-bonus.service';
+import { prisma } from '../utils';
 
 /**
- * Standalone script to execute Referral Bonus calculation
- * Usage: node referral-bonus-script.ts [--dry-run] [--summary-only]
+ * Standalone script to execute Priority Bonus calculation
+ * Usage: node priority-bonus-script.ts [--dry-run] [--summary-only]
  */
 
-const ReferrersToIgnore = REFERRERS_WITH_CODE;
+const cutOffTime = new Date('2025-05-25T00:00:00Z'); // 5th may 2025, 00:00 UTC
+const ReferrsToConsider = REFERRERS_WITH_CODE;
 
 async function main() {
   const args = process.argv.slice(2);
   const isDryRun = args.includes('--dry-run');
   const summaryOnly = args.includes('--summary-only');
 
-  const referralBonusService = new ReferralBonusService();
+  const priorityBonusService = new PriorityBonusService();
 
   try {
     logger.info('='.repeat(80));
@@ -28,11 +30,28 @@ async function main() {
       logger.info('🔍 DRY RUN MODE - No changes will be made to the database');
     }
 
-    logger.info(`📋 Ignoring referrers: ${ReferrersToIgnore.join(', ')}`);
+    logger.info(`📋 Using Referrers: ${ReferrsToConsider.join(', ')}`);
+
+    // get cutOff block number
+    const cutOffBlock = await prisma.blocks.findFirst({
+      where: {
+        timestamp: {
+          gte: cutOffTime.getTime() / 1000 - (12 * 3600), // 12 hours window
+          lte: cutOffTime.getTime() / 1000,
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    })
+
+    if (!cutOffBlock) {
+      throw new Error(`No block found for cutoff time: ${cutOffTime.toISOString()}`);
+    }
 
     // always show summary first
-    logger.info('📊 Getting Referral Bonus Summary...');
-    const summary = await referralBonusService.getReferralBonusSummary(ReferrersToIgnore);
+    logger.info('📊 Getting Priority Bonus Summary...');
+    const summary = await priorityBonusService.getPriorityBonusSummary(ReferrsToConsider);
 
     logger.info('📈 REFERRAL BONUS SUMMARY');
     logger.info('-'.repeat(50));
@@ -68,24 +87,24 @@ async function main() {
       // wait 10 seconds for manual intervention
       await new Promise((resolve) => setTimeout(resolve, 10000));
 
-      logger.info('🚀 Proceeding with Referral Bonus calculation...');
+      logger.info('🚀 Proceeding with Priority Bonus calculation...');
 
       // execute the bonus calculation
-      const result = await referralBonusService.calculateAndAwardReferralBonus(ReferrersToIgnore);
+      const result = await priorityBonusService.calculateAndAwardPriorityBonus(summary, cutOffBlock.block_number);
 
-      logger.info('✅ Referral Bonus calculation completed!');
+      logger.info('✅ Priority Bonus calculation completed!');
       logger.info(`📊 Results:`);
       logger.info(`  - Users processed: ${result.usersProcessed}`);
       logger.info(`  - Total bonus points awarded: ${result.totalBonusAwarded}`);
       logger.info(`  - Users skipped (already had priority bonus): ${result.usersSkipped}`);
 
       // validate the results
-      logger.info('🔍 Validating referral bonus calculation...');
+      logger.info('🔍 Validating priority bonus calculation...');
       const validation =
-        await referralBonusService.validateReferralBonusCalculation(ReferrersToIgnore);
+        await priorityBonusService.validatePriorityBonusCalculation(summary);
 
       if (validation.isValid) {
-        logger.info('✅ Validation successful! All referral bonus calculations are correct.');
+        logger.info('✅ Validation successful! All priority bonus calculations are correct.');
       } else {
         logger.error(
           `❌ Validation failed! Found ${validation.discrepancies.length} discrepancies:`,
@@ -100,7 +119,7 @@ async function main() {
         }
       }
     } else {
-      logger.info('🔍 DRY RUN: Would execute Referral Bonus calculation');
+      logger.info('🔍 DRY RUN: Would execute Priority Bonus calculation');
       logger.info(`🔍 DRY RUN: Would process ${summary.totalEligibleReferees} users`);
       logger.info(`🔍 DRY RUN: Would award ${summary.totalBonusToBeAwarded} total bonus points`);
       logger.info('🔍 DRY RUN: Would validate results');

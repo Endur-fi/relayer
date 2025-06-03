@@ -31,7 +31,7 @@ async function bootstrap() {
     const pointsSystemService = app.get(PointsSystemService);
 
     pointsSystemService.setConfig({
-      startDate: new Date('2024-11-24'),
+      startDate: new Date('2024-11-25'),
       endDate: new Date('2025-05-25'),
     });
     await pointsSystemService.fetchAndStoreHoldings();

@@ -28,10 +28,10 @@ type dAppAmountProperty =
 export async function findClosestBlockInfo(date: Date) {
   const timestamp = Math.floor(date.getTime() / 1000);
   const timeWindow = 12 * 3600; // 12 hours in seconds
-  return prisma.blocks.findFirst({
+  const res = await prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: timestamp,
+        lte: timestamp + timeWindow,
         gte: timestamp - timeWindow,
       },
     },
@@ -39,6 +39,7 @@ export async function findClosestBlockInfo(date: Date) {
       timestamp: 'desc',
     },
   });
+  return res ? { block_number: Number(res.block_number) } : null;
 }
 
 export async function fetchHoldingsFromApi(
@@ -92,13 +93,13 @@ export async function fetchHoldingsFromApi(
 }
 
 export function calculatePoints(totalAmount: string, multipler: number): BigInt {
-  if (!totalAmount) {
-    logger.warn(`Invalid totalAmount: ${totalAmount}`);
+  if (!totalAmount || totalAmount == '0') {
+    // logger.warn(`Invalid totalAmount: ${totalAmount}`);
     return 0n; // Fix: Use `0n` for `bigint` instead of `BigInt(0)`
   }
   const amount = parseFloat(totalAmount);
   const points = Math.floor(amount * multipler);
-  logger.info(`Calculated points: ${points} for totalAmount: ${totalAmount}`);
+  // logger.info(`Calculated points: ${points} for totalAmount: ${totalAmount}`);
   return BigInt(points);
 }
 

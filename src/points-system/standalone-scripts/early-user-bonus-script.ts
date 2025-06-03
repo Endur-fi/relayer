@@ -2,11 +2,16 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import { logger } from '../../common/utils';
-import { BonusService } from '../services/user-bonus.service';
+import { BonusService, EARLY_USER_BONUS_PERCENTAGE } from '../services/user-bonus.service';
 
 /**
  * Standalone script to execute Early User Bonus calculation
  * Usage: node early-user-bonus-script.js [--dry-run] [--summary-only]
+ * --dry-run: Run in dry mode, no changes will be made to the database
+ * --summary-only: Only show the summary and exit, no calculations will be performed
+ * 
+ * @dev This script calculates the Early User Bonus based on the points system.
+ * Its is a one time incentive designed to reward early adopters
  */
 
 async function main() {
@@ -58,7 +63,8 @@ async function main() {
 
       // validate the results
       logger.info('🔍 Validating bonus calculation...');
-      const validation = await bonusService.validateEarlyUserBonusCalculation();
+      // ! Ensure correct value is set for EARLY_USER_BONUS_PERCENTAGE
+      const validation = await bonusService.validateEarlyUserBonusCalculation(EARLY_USER_BONUS_PERCENTAGE / 100);
 
       if (validation.isValid) {
         logger.info('✅ Validation successful! All bonus calculations are correct.');

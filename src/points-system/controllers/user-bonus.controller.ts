@@ -52,32 +52,32 @@ export class BonusController {
   }
 
   // validate that the early user bonus calculation is correct
-  @Get('early-user/validate')
-  async validateEarlyUserBonusCalculation() {
-    try {
-      const validation = await this.bonusService.validateEarlyUserBonusCalculation();
-      return {
-        success: true,
-        data: {
-          isValid: validation.isValid,
-          totalDiscrepancies: validation.discrepancies.length,
-          discrepancies: validation.discrepancies.map((d) => ({
-            ...d,
-            expected: d.expected.toString(),
-            actual: d.actual.toString(),
-            difference: d.difference.toString(),
-          })),
-        },
-      };
-    } catch (error) {
-      logger.error('Error validating early user bonus calculation:', error);
-      return {
-        success: false,
-        message: 'Error validating early user bonus calculation',
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
+  // @Get('early-user/validate')
+  // async validateEarlyUserBonusCalculation() {
+  //   try {
+  //     const validation = await this.bonusService.validateEarlyUserBonusCalculation();
+  //     return {
+  //       success: true,
+  //       data: {
+  //         isValid: validation.isValid,
+  //         totalDiscrepancies: validation.discrepancies.length,
+  //         discrepancies: validation.discrepancies.map((d) => ({
+  //           ...d,
+  //           expected: d.expected.toString(),
+  //           actual: d.actual.toString(),
+  //           difference: d.difference.toString(),
+  //         })),
+  //       },
+  //     };
+  //   } catch (error) {
+  //     logger.error('Error validating early user bonus calculation:', error);
+  //     return {
+  //       success: false,
+  //       message: 'Error validating early user bonus calculation',
+  //       error: error instanceof Error ? error.message : String(error),
+  //     };
+  //   }
+  // }
 
   @Get('six-month/summary')
   async getSixMonthBonusSummary() {

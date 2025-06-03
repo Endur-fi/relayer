@@ -12,7 +12,7 @@ interface EligibleUser {
   bonus_points: bigint;
 }
 
-interface ReferralBonusSummary {
+interface PriorityBonusSummary {
   totalEligibleReferees: number;
   totalCurrentPoints: bigint;
   totalBonusToBeAwarded: bigint;
@@ -20,7 +20,7 @@ interface ReferralBonusSummary {
   eligibleUsers: EligibleUser[];
 }
 
-interface ReferralBonusResult {
+interface PriorityBonusResult {
   usersProcessed: number;
   totalBonusAwarded: bigint;
   usersSkipped: number;
@@ -37,15 +37,15 @@ interface ValidationResult {
 }
 
 @Injectable()
-export class ReferralBonusService {
+export class PriorityBonusService {
   private prisma = prisma;
 
-  async getReferralBonusSummary(referrersToIgnore: string[]): Promise<ReferralBonusSummary> {
+  async getPriorityBonusSummary(ReferrsToConsider: string[]): Promise<PriorityBonusSummary> {
     // get all eligible referees (users who were referred by valid referrers)
     const eligibleReferees = await this.prisma.deposits_with_referral.findMany({
       where: {
         referrer: {
-          notIn: referrersToIgnore,
+          in: ReferrsToConsider,
         },
       },
       select: {
@@ -81,7 +81,7 @@ export class ReferralBonusService {
         user_address: {
           in: refereeAddresses,
         },
-        type: UserPointsType.Referrer,
+        type: UserPointsType.Priority,
       },
       select: {
         user_address: true,
@@ -118,13 +118,12 @@ export class ReferralBonusService {
     };
   }
 
-  //  calculate and award referral bonus points
-  async calculateAndAwardReferralBonus(referrersToIgnore: string[]): Promise<ReferralBonusResult> {
-    logger.info('Starting referral bonus calculation...');
-    const summary = await this.getReferralBonusSummary(referrersToIgnore);
+  //  calculate and award priority bonus points
+  async calculateAndAwardPriorityBonus(summary: PriorityBonusSummary, cutOffBlock: number): Promise<PriorityBonusResult> {
+    logger.info('Starting priority bonus calculation...');
 
     if (summary.eligibleUsers.length === 0) {
-      logger.info('No eligible users found for referral bonus.');
+      logger.info('No eligible users found for priority bonus.');
       return {
         usersProcessed: 0,
         totalBonusAwarded: BigInt(0),
@@ -155,25 +154,13 @@ export class ReferralBonusService {
               continue;
             }
 
-            // get the latest block number for this user
-            const latestUserPoints = await tx.user_points.findFirst({
-              where: {
-                user_address: user.user_address,
-              },
-              orderBy: {
-                block_number: 'desc',
-              },
-            });
-
-            const blockNumber = latestUserPoints?.block_number || 0;
-
             await tx.user_points.create({
               data: {
-                block_number: blockNumber,
+                block_number: cutOffBlock,
                 user_address: user.user_address,
                 points: bigIntToDecimal(user.bonus_points),
                 cummulative_points: bigIntToDecimal(user.bonus_points),
-                type: UserPointsType.Referrer,
+                type: UserPointsType.Priority,
               },
             });
 
@@ -191,7 +178,7 @@ export class ReferralBonusService {
       });
     }
 
-    logger.info(`Successfully processed ${usersProcessed} users for referral bonus`);
+    logger.info(`Successfully processed ${usersProcessed} users for priority bonus`);
 
     return {
       usersProcessed,
@@ -200,10 +187,9 @@ export class ReferralBonusService {
     };
   }
 
-  // validate that referral bonus calculation is correct
-  async validateReferralBonusCalculation(referrersToIgnore: string[]): Promise<ValidationResult> {
-    logger.info('Validating referral bonus calculation...');
-    const summary = await this.getReferralBonusSummary(referrersToIgnore);
+  // validate that priority bonus calculation is correct
+  async validatePriorityBonusCalculation(summary: PriorityBonusSummary): Promise<ValidationResult> {
+    logger.info('Validating priority bonus calculation...');
 
     // get actual Priority bonus points from database
     const actualPriorityPoints = await this.prisma.user_points.findMany({
@@ -239,8 +225,8 @@ export class ReferralBonusService {
 
     logger.info(
       discrepancies.length === 0
-        ? 'Referral bonus validation passed.'
-        : `Referral bonus validation found ${discrepancies.length} discrepancies.`,
+        ? 'Priority bonus validation passed.'
+        : `Priority bonus validation found ${discrepancies.length} discrepancies.`,
     );
 
     return {
