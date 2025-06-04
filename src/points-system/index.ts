@@ -37,7 +37,7 @@ async function bootstrap() {
     now.setDate(now.getDate() - 1); // run until previous datw
     pointsSystemService.setConfig({
       startDate: new Date('2024-11-25'),
-      endDate: now,
+      endDate: new Date('2025-05-25')
     });
 
     await pointsSystemService.fetchAndStoreHoldings();
