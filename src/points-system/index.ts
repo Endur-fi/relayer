@@ -30,6 +30,9 @@ async function bootstrap() {
 
     const pointsSystemService = app.get(PointsSystemService);
 
+    // configure cron at 12am
+    const now = new Date();
+    now.setDate(now.getDate() - 1); // run until previous datw
     pointsSystemService.setConfig({
       startDate: new Date('2024-11-25'),
       endDate: new Date('2025-05-25'),

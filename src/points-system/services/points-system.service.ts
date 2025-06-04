@@ -146,6 +146,11 @@ export class PointsSystemService {
 
   async getAllTasks(): Promise<[string, Date][]> {
     const allUsers = await prisma.users.findMany({
+      where: {
+        user_address: {
+          notIn: EXCLUSION_LIST, // exclude users/smart contracts in the exclusion list
+        }
+      },
       select: {
         user_address: true,
         timestamp: true, // first registered timestamp
@@ -209,7 +214,6 @@ export class PointsSystemService {
     const maxDate = tasks.reduce((max, task) => {
       return task[1] > max ? task[1] : max;
     }, new Date(0));
-
     console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
 
     const results = await Promise.all(
@@ -235,7 +239,7 @@ export class PointsSystemService {
       for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
-    }, { timeout: 30000 }); // 30 seconds timeout for the transaction
+    }, { timeout: 300000 }); // 30 seconds timeout for the transaction
 
     const now3 = new Date();
     console.log(`Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`);
@@ -297,24 +301,32 @@ export class PointsSystemService {
     const endDate = this.config.endDate;
     const currentDate = new Date(startDate);
     const missingBlocks: string[] = [];
-    const store: any[] = [];
+    let store: any[] = [];
+    const fs = require('fs');
+    if (fs.existsSync(`blocks.json`)) {
+      console.log(`Blocks file already exists, skipping sanity check.`);
+      store = JSON.parse(fs.readFileSync(`blocks.json`, 'utf-8'));
+    }
     while (currentDate <= endDate) {
       console.log(`Checking block for date: ${currentDate.toISOString().split('T')[0]}`);
       const blockInfo = await findClosestBlockInfo(currentDate);
       if (!blockInfo) {
         missingBlocks.push(currentDate.toISOString().split('T')[0]);
       } else {
-        store.push({
-          date: currentDate.toISOString().split('T')[0],
-          block_number: blockInfo ? blockInfo.block_number : null,
-        });
+        const exists = store.find((b: any) => b.date === currentDate.toISOString().split('T')[0]);
+        if (!exists) {
+          store.push({
+            date: currentDate.toISOString().split('T')[0],
+            block_number: blockInfo ? blockInfo.block_number : null,
+          });
+        }
       }
       currentDate.setDate(currentDate.getDate() + 1);
     }
 
     // store the blocks in json
     console.log(`Storing blocks for dates`);
-    const fs = require('fs');
+    store = store.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     fs.writeFileSync(`blocks.json`, JSON.stringify(store, null, 2));
     if (missingBlocks.length > 0) {
       logger.warn(`Missing blocks for dates: ${missingBlocks.join(', ')}`);
@@ -328,7 +340,6 @@ export class PointsSystemService {
     // sanity check for blocks
     // await this.loadBlocks();
     // await this.sanityBlocks();
-    // return;
 
     const allTasks = await this.getAllTasks();
 
@@ -360,3 +371,20 @@ export class PointsSystemService {
     logger.info(`Data fetching and storage complete. Total records inserted: ${totalInserted}`);
   }
 }
+
+export const xSTRK_DAPPS = [
+  '0x2545b2e5d519fc230e9cd781046d3a64e092114f07e44771e0d719d148725ef', // Singleton
+  '0xd8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160', // Singleton V2
+  '0x1b8d8e31f9dd1bde7dc878dd871225504837c78c40ff01cbf03a255e2154bf0', // nxSTRK-c
+  '0x6878fd475d5cea090934d690ecbe4ad78503124e4f80380a2e45eb417aafb9c', // nxSTRK
+  '0x59a943ca214c10234b9a3b61c558ac20c005127d183b86a99a8f3c60a08b4ff', // nostra interest rate model
+  '0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b', // Ekubo Core
+  '0x205fd8586f6be6c16f4aa65cc1034ecff96d96481878e55f629cd0cb83e05f', // Nostra xSTRK/STRK DEX pool
+  '0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b', // STRKFarm xSTRK Sensei
+  ''
+]
+// contracts excluded from points system
+export const EXCLUSION_LIST = [
+  ...xSTRK_DAPPS,
+  '0x301c5ba2c76af76c28e9f4d55680d8507267b9d324129a71d6cdc54a3318298', // admin wallet
+]
