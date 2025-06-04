@@ -4,7 +4,8 @@ import { UserPointsType } from '@prisma/my-client';
 import { logger } from '../../common/utils';
 import { bigIntToDecimal, calculatePoints, prisma } from '../utils';
 
-const EARLY_USER_BONUS_PERCENTAGE = 20; // 20% bonus
+// ! Update these constants as needed
+export const EARLY_USER_BONUS_PERCENTAGE = 20; // 20% bonus
 const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z'); // May 25th, 2025 eod
 
 const SIX_MONTHS_DAYS = 180; // 6 months
@@ -58,7 +59,7 @@ export class BonusService {
 
       for (let i = 0; i < usersWithPoints.length; i += BATCH_SIZE) {
         const batch = usersWithPoints.slice(i, i + BATCH_SIZE);
-        const batchResult = await this.processEarlyUserBatch(batch);
+        const batchResult = await this.processEarlyUserBatch(batch, EARLY_USER_BONUS_PERCENTAGE / 100);
 
         totalProcessed += batchResult.processed;
         totalBonusAwarded += batchResult.bonusAwarded;
@@ -139,11 +140,12 @@ export class BonusService {
       latestBlockBeforeCutoff: number;
     }>
   > {
+
     // get the latest block number before the cutoff date
     const cutoffBlock = await this.prisma.blocks.findFirst({
       where: {
         timestamp: {
-          lte: Math.floor(EARLY_USER_CUTOFF_DATE.getTime() / 1000),
+          lte: Math.floor(EARLY_USER_CUTOFF_DATE.getTime() / 1000) + 86400, // add 24 hours buffer
         },
       },
       orderBy: {
@@ -151,25 +153,35 @@ export class BonusService {
       },
     });
 
-    if (!cutoffBlock) {
-      logger.warn('No blocks found before cutoff date');
+    const lowerCutoff = await this.prisma.blocks.findFirst({
+      where: {
+        timestamp: {
+          gte: Math.floor(EARLY_USER_CUTOFF_DATE.getTime() / 1000) - 86400, // add 24 hours buffer
+        },
+      },
+      orderBy: {
+        timestamp: 'desc',
+      },
+    });
+
+    if (!cutoffBlock || !lowerCutoff) {
+      logger.warn('No blocks found for cutoff date');
       return [];
     }
 
     logger.info(
-      `Using block ${cutoffBlock.block_number} as cutoff (timestamp: ${cutoffBlock.timestamp})`,
+      `Using block ${cutoffBlock.block_number} as cutoff (timestamp: ${new Date(cutoffBlock.timestamp * 1000).toISOString()})`,
     );
-
+    logger.info(
+      `Lower cutoff block ${lowerCutoff?.block_number} (timestamp: ${new Date(lowerCutoff?.timestamp * 1000).toISOString()})`,
+    );
+    
     // query user_balances to find all users who had balances before the cutoff
     // and calculate their total points earned up to that date
-    const usersWithBalances = await this.prisma.user_balances.groupBy({
-      by: ['user_address'],
-      where: {
-        block_number: {
-          lte: cutoffBlock.block_number,
-        },
-      },
-      _max: {
+    const usersWithBalances = await this.prisma.points_aggregated.findMany({
+      select: {
+        user_address: true,
+        total_points: true,
         block_number: true,
       },
     });
@@ -182,28 +194,21 @@ export class BonusService {
 
     // for each user, get their latest balance before cutoff and calculate points
     for (const userGroup of usersWithBalances) {
-      if (!userGroup._max.block_number) continue;
+      if (!userGroup.block_number) continue;
 
-      const latestBalance = await this.prisma.user_balances.findUnique({
-        where: {
-          block_number_user_address: {
-            block_number: userGroup._max.block_number,
-            user_address: userGroup.user_address,
-          },
-        },
-      });
+      // it needs to be within the cutoff block range bcz that ensures latest points have been aggregated
+      if (userGroup.block_number > cutoffBlock.block_number || userGroup.block_number < lowerCutoff.block_number) {
+        throw new Error(`Points aggregation moved ahead, computing now will give incorrect results`);
+      }
+      // calculate points for this user's balance
+      // const points = calculatePoints(userGroup.total_points.toString(), pointsMultiplier) as bigint;
 
-      if (latestBalance) {
-        // calculate points for this user's balance
-        const points = calculatePoints(latestBalance.total_amount, POINTS_MULTIPLIER) as bigint;
-
-        if (points > 0) {
-          result.push({
-            user_address: userGroup.user_address,
-            pointsBeforeCutoff: points,
-            latestBlockBeforeCutoff: userGroup._max.block_number,
-          });
-        }
+      if (userGroup.total_points > 0) {
+        result.push({
+          user_address: userGroup.user_address,
+          pointsBeforeCutoff: BigInt(userGroup.total_points),
+          latestBlockBeforeCutoff: cutoffBlock.block_number,
+        });
       }
     }
 
@@ -294,6 +299,7 @@ export class BonusService {
       pointsBeforeCutoff: bigint;
       latestBlockBeforeCutoff: number;
     }>,
+    pointsMultiplier: number,
   ): Promise<{ processed: number; bonusAwarded: bigint }> {
     return await this.prisma.$transaction(async (tx) => {
       let batchBonusAwarded = BigInt(0);
@@ -301,7 +307,7 @@ export class BonusService {
       for (const user of users) {
         // calculate bonus points (20% of points earned before cutoff)
         const bonusPoints =
-          (user.pointsBeforeCutoff * BigInt(EARLY_USER_BONUS_PERCENTAGE)) / BigInt(100);
+          (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000) / BigInt(10000));
 
         if (bonusPoints > 0) {
           // check if bonus already exists for this user
@@ -310,47 +316,41 @@ export class BonusService {
               block_number_user_address_type: {
                 block_number: user.latestBlockBeforeCutoff,
                 user_address: user.user_address,
-                type: UserPointsType.Bonus,
+                type: UserPointsType.Early,
               },
             },
           });
 
-          if (!existingBonus) {
-            // create bonus points record
-            await tx.user_points.create({
-              data: {
-                block_number: user.latestBlockBeforeCutoff,
-                user_address: user.user_address,
-                points: bigIntToDecimal(bonusPoints),
-                cummulative_points: bigIntToDecimal(bonusPoints),
-                type: UserPointsType.Bonus,
-              },
-            });
-
-            // update the aggregated points
-            await tx.points_aggregated.upsert({
-              where: {
-                user_address: user.user_address,
-              },
-              update: {
-                total_points: {
-                  increment: bonusPoints,
-                },
-              },
-              create: {
-                user_address: user.user_address,
-                total_points: bonusPoints,
-                block_number: user.latestBlockBeforeCutoff,
-                timestamp: Math.floor(Date.now() / 1000),
-              },
-            });
-
-            batchBonusAwarded += bonusPoints;
-          } else {
-            logger.warn(
-              `Bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`,
+          if (existingBonus) {
+            throw new Error(
+              `Early Bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`,
             );
           }
+
+          // create bonus points record
+          await tx.user_points.create({
+            data: {
+              block_number: user.latestBlockBeforeCutoff,
+              user_address: user.user_address,
+              points: bigIntToDecimal(bonusPoints),
+              cummulative_points: bigIntToDecimal(bonusPoints),
+              type: UserPointsType.Early,
+            },
+          });
+
+          // update the aggregated points
+          await tx.points_aggregated.update({
+            where: {
+              user_address: user.user_address,
+            },
+            data: {
+              total_points: {
+                increment: bonusPoints,
+              },
+            },
+          });
+
+          batchBonusAwarded += bonusPoints;
         }
       }
 
@@ -520,7 +520,7 @@ export class BonusService {
   }
 
   // validate that early user bonus calculation is accurate and hasn't been tampered with
-  async validateEarlyUserBonusCalculation(): Promise<{
+  async validateEarlyUserBonusCalculation(pointsMultiplier: number): Promise<{
     isValid: boolean;
     discrepancies: Array<{
       user_address: string;
@@ -539,7 +539,7 @@ export class BonusService {
 
     for (const user of eligibleUsers) {
       const expectedBonus =
-        (user.pointsBeforeCutoff * BigInt(EARLY_USER_BONUS_PERCENTAGE)) / BigInt(100);
+        (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) / BigInt(10000);
 
       const actualBonus = await this.prisma.user_points.findUnique({
         where: {

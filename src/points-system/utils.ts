@@ -17,7 +17,7 @@ export async function connectPrisma() {
   }
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/block-holdings';
+const API_BASE_URL = `${process.env.API_ENDPOINT}/api/block-holdings`;
 
 // list of supported dApps to account points for
 export const DAPPs = [
@@ -37,13 +37,18 @@ type dAppAmountProperty =
   | 'walletAmount'
   | 'strkfarmAmount';
 
+const blockCache: Record<string, { block_number: number }> = {};
 export async function findClosestBlockInfo(date: Date) {
   const timestamp = Math.floor(date.getTime() / 1000);
   const timeWindow = 12 * 3600; // 12 hours in seconds
-  return prisma.blocks.findFirst({
+  const cacheKey = timestamp.toString();
+  if (blockCache[cacheKey]) {
+    return blockCache[cacheKey];
+  }
+  const res = await prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: timestamp,
+        lte: timestamp + timeWindow,
         gte: timestamp - timeWindow,
       },
     },
@@ -51,6 +56,10 @@ export async function findClosestBlockInfo(date: Date) {
       timestamp: 'desc',
     },
   });
+  if (res) {
+    blockCache[cacheKey] = { block_number: Number(res.block_number) };
+  }
+  return res ? { block_number: Number(res.block_number) } : null;
 }
 
 export async function fetchHoldingsFromApi(
@@ -58,7 +67,8 @@ export async function fetchHoldingsFromApi(
   blockNumber: number,
   date: Date,
 ): Promise<user_balances> {
-  const url = `${API_BASE_URL}/${userAddr}/${blockNumber}`;
+  const endpoint = Math.random() < 0.5 ? API_BASE_URL : API_BASE_URL;
+  const url = `${endpoint}/${userAddr}/${blockNumber}`;
   const response = await axios.get(url);
   const data = response.data;
 
@@ -104,13 +114,13 @@ export async function fetchHoldingsFromApi(
 }
 
 export function calculatePoints(totalAmount: string, multipler: number): BigInt {
-  if (!totalAmount) {
-    logger.warn(`Invalid totalAmount: ${totalAmount}`);
+  if (!totalAmount || totalAmount == '0') {
+    // logger.warn(`Invalid totalAmount: ${totalAmount}`);
     return 0n; // Fix: Use `0n` for `bigint` instead of `BigInt(0)`
   }
   const amount = parseFloat(totalAmount);
   const points = Math.floor(amount * multipler);
-  logger.info(`Calculated points: ${points} for totalAmount: ${totalAmount}`);
+  // logger.info(`Calculated points: ${points} for totalAmount: ${totalAmount}`);
   return BigInt(points);
 }
 

@@ -33,8 +33,8 @@ async function bootstrap() {
     const pointsSystemService = app.get(PointsSystemService);
 
     pointsSystemService.setConfig({
-      startDate: new Date('2024-11-24'),
-      endDate: new Date(),
+      startDate: new Date('2024-11-25'),
+      endDate: new Date('2025-05-25'),
     });
 
     await app.listen(process.env.RELAYER_PORT ?? 4000);
@@ -59,7 +59,7 @@ async function bootstrap() {
     console.log('- GET /six-month/validate - Validate bonus calculation');
     console.log('- GET /six-month/user/:address - Get user breakdown');
 
-    // await pointsSystemService.fetchAndStoreHoldings();
+    await pointsSystemService.fetchAndStoreHoldings();
   } catch (error) {
     console.error('Error starting the application:', error);
     process.exit(1);

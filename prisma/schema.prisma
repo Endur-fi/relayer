@@ -176,6 +176,8 @@ model user_balances {
 
 enum UserPointsType {
   Regular
+  Early
+  Priority
   Bonus
   Referrer
 }
@@ -184,7 +186,7 @@ model user_points {
   block_number       Int
   user_address       String
   points             Decimal
-  cummulative_points Decimal
+  cummulative_points Decimal // within a given type
   type               UserPointsType
 
   @@unique([block_number, user_address, type])

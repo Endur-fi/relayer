@@ -1,7 +1,12 @@
 import { PrismaClient } from '@prisma/my-client';
 
+/**
+ * This script allocates a fixed amount of STRK to users based on their points.
+ * ! Uses latest points aggregated data.
+ */
+
 const prisma = new PrismaClient();
-const LUMPSUM_POOL = 250_000; // 250K STRK
+const LUMPSUM_POOL = BigInt(250_000 * 1e18); // 250K STRK
 
 async function main() {
   const users = await prisma.points_aggregated.findMany({
@@ -15,21 +20,23 @@ async function main() {
   });
 
   if (users.length === 0) {
-    console.log('No eligible users found.');
+    console.warn('No eligible users found.');
     return;
   }
 
   const totalPoints = users.reduce((sum, u) => sum + BigInt(u.total_points), 0n);
 
   if (totalPoints === 0n) {
-    console.log('Total points is zero.');
+    console.warn('Total points is zero.');
     return;
   }
 
+  let netAllocation = 0n;
   for (const user of users) {
     const userPoints = BigInt(user.total_points);
-    const share = Number(userPoints) / Number(totalPoints);
-    const allocation = share * LUMPSUM_POOL;
+    const allocation = LUMPSUM_POOL * userPoints / totalPoints - 1n; // Subtract 1wei to avoid rounding issues
+
+    netAllocation += BigInt(allocation);
 
     await prisma.user_allocation.upsert({
       where: { user_address: user.user_address },
@@ -40,6 +47,11 @@ async function main() {
       },
     });
     console.log(`Allocated ${allocation} STRK to ${user.user_address}`);
+  }
+
+  // Check if net allocation matches the pool
+  if (netAllocation > LUMPSUM_POOL || netAllocation < (LUMPSUM_POOL - BigInt(1e18))) {
+    throw new Error(`Net allocation mismatch: expected near ${LUMPSUM_POOL}, got ${netAllocation}`);
   }
 
   console.log('Allocation complete.');
