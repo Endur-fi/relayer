@@ -49,7 +49,7 @@ interface UserCompleteDetails {
     bonus_points: bigint;
     referrer_points: bigint;
   };
-  allocation?: string;
+  allocation: string;
   activity: {
     first_activity_date?: Date;
     last_activity_date?: Date;
@@ -228,7 +228,7 @@ export class UsersService {
 
     return {
       user_address: userAddress,
-      points: pointsBreakdown?.summary || {
+      points: (pointsBreakdown?.summary && pointsBreakdown.summary) || {
         total_points: BigInt(0),
         regular_points: BigInt(0),
         bonus_points: BigInt(0),
@@ -265,11 +265,25 @@ export class UsersService {
       },
     });
 
+    const result = await this.prisma.points_aggregated.findFirst({
+      where: {
+        user_address: userAddress,
+      },
+      orderBy: {
+        block_number: 'desc',
+      },
+      select: {
+        total_points: true,
+      },
+    });
+
+    let total_points = safeToBigInt(result?.total_points || BigInt(0));
+
     if (allPoints.length === 0) {
       return {
         user_address: userAddress,
         summary: {
-          total_points: BigInt(0),
+          total_points: total_points,
           regular_points: BigInt(0),
           bonus_points: BigInt(0),
           referrer_points: BigInt(0),
@@ -291,7 +305,7 @@ export class UsersService {
       .filter((p) => p.type === UserPointsType.Referrer)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
-    const total_points = regular_points + bonus_points + referrer_points;
+    total_points = bonus_points + referrer_points + regular_points;
 
     return {
       user_address: userAddress,
@@ -347,8 +361,8 @@ export class UsersService {
     return {
       first_activity_date: firstActivity ? new Date(firstActivity.timestamp * 1000) : undefined,
       last_activity_date: lastActivity ? new Date(lastActivity.updated_on) : undefined,
-      total_deposits: depositsCount,
-      total_withdrawals: withdrawalsCount,
+      total_deposits: depositsCount || 0,
+      total_withdrawals: withdrawalsCount || 0,
     };
   }
 
