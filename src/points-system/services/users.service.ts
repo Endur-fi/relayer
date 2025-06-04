@@ -234,7 +234,7 @@ export class UsersService {
         bonus_points: BigInt(0),
         referrer_points: BigInt(0),
       },
-      allocation: aggregatedPoints.user_allocation?.allocation,
+      allocation: aggregatedPoints.user_allocation?.allocation || '0',
       activity: activityDetails,
       eligibility: eligibilityDetails,
       tags: tagsDetails,
