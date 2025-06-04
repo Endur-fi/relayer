@@ -214,7 +214,6 @@ export class PointsSystemService {
     const maxDate = tasks.reduce((max, task) => {
       return task[1] > max ? task[1] : max;
     }, new Date(0));
-
     console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
 
     const results = await Promise.all(

@@ -94,7 +94,6 @@ export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorat
             throw new Error(`[${String(propertyKey)}] Max retries reached`);
           }
           logger.warn(`[${String(propertyKey)}] failed. Retrying... ${retry + 1} / ${maxAttempts}`);
-          logger.error(error);
           await new Promise((resolve) => setTimeout(resolve, waitTimeMs));
         }
       }
@@ -155,23 +154,4 @@ export function safeToBigInt(value: any): bigint {
   }
 
   return BigInt(0);
-}
-
-export function isContractNotDeployed(
-  blockIdentifier: BlockIdentifier = "pending",
-  deploymentBlock: number,
-  maxBlock?: number,
-) {
-  const lowerCondition =
-    Number.isInteger(blockIdentifier) &&
-    (blockIdentifier as number) < deploymentBlock;
-
-  const upperCondition =
-    maxBlock &&
-    ((blockIdentifier as number) > maxBlock ||
-      blockIdentifier == "latest" ||
-      blockIdentifier == "pending" ||
-      !blockIdentifier);
-
-  return lowerCondition || upperCondition;
 }
