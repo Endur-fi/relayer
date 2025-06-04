@@ -52,8 +52,10 @@ export async function findClosestBlockInfo(date: Date) {
   const res = await prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: randomTimestampOfTheDay + timeWindow,
-        gte: randomTimestampOfTheDay,
+        // lte: Math.min(randomTimestampOfTheDay + timeWindow, timestamp + 86400), // within next day
+        // gte: randomTimestampOfTheDay,
+        gte: timestamp,
+        lte: timestamp + timeWindow,
       },
     },
     orderBy: {
@@ -120,7 +122,7 @@ export async function fetchHoldingsFromApi(
       10 ** data["strkfarmEkubo"][0].xSTRKAmount.decimals,
   ) / 100;
   dbObject.strkfarmAmount = (Number(dbObject.strkfarmAmount) + strkfarmEkuboAmount).toString();
-  
+
   dbObject.total_amount = totalAmount.toString();
   return dbObject;
 }
