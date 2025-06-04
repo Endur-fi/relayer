@@ -17,7 +17,7 @@ export async function connectPrisma() {
   }
 }
 
-const API_BASE_URL = 'http://localhost:3000/api/block-holdings';
+const API_BASE_URL = `${process.env.API_ENDPOINT}/api/block-holdings`;
 
 // list of supported dApps to account points for
 export const DAPPs = [
@@ -37,20 +37,32 @@ type dAppAmountProperty =
   | 'walletAmount'
   | 'strkfarmAmount';
 
+const blockCache: Record<string, { block_number: number }> = {};
 export async function findClosestBlockInfo(date: Date) {
   const timestamp = Math.floor(date.getTime() / 1000);
-  const timeWindow = 12 * 3600; // 12 hours in seconds
+  const timeWindow = 0.5 * 3600 * 48; // 30min
+  const cacheKey = timestamp.toString();
+  if (blockCache[cacheKey]) {
+    return blockCache[cacheKey];
+  }
+  // generate a random timestamp within the day
+  const randomTimestampOfTheDay = Math.floor(
+    (Math.random() * (86400)) +  (timestamp),
+  );
   const res = await prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: timestamp + timeWindow,
-        gte: timestamp - timeWindow,
+        lte: randomTimestampOfTheDay + timeWindow,
+        gte: randomTimestampOfTheDay,
       },
     },
     orderBy: {
       timestamp: 'desc',
     },
   });
+  if (res) {
+    blockCache[cacheKey] = { block_number: Number(res.block_number) };
+  }
   return res ? { block_number: Number(res.block_number) } : null;
 }
 
@@ -59,7 +71,8 @@ export async function fetchHoldingsFromApi(
   blockNumber: number,
   date: Date,
 ): Promise<user_balances> {
-  const url = `${API_BASE_URL}/${userAddr}/${blockNumber}`;
+  const endpoint = Math.random() < 0.5 ? API_BASE_URL : API_BASE_URL;
+  const url = `${endpoint}/${userAddr}/${blockNumber}`;
   const response = await axios.get(url);
   const data = response.data;
 
@@ -100,6 +113,14 @@ export async function fetchHoldingsFromApi(
     const key = `${dapp}Amount` as dAppAmountProperty;
     dbObject[key] = xSTRKAmount.toString();
   }
+
+  // handle exceptions
+  const strkfarmEkuboAmount = Number(
+    Number(data["strkfarmEkubo"][0].xSTRKAmount.bigNumber * 100) /
+      10 ** data["strkfarmEkubo"][0].xSTRKAmount.decimals,
+  ) / 100;
+  dbObject.strkfarmAmount = (Number(dbObject.strkfarmAmount) + strkfarmEkuboAmount).toString();
+  
   dbObject.total_amount = totalAmount.toString();
   return dbObject;
 }
