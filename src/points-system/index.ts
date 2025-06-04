@@ -32,32 +32,13 @@ async function bootstrap() {
 
     const pointsSystemService = app.get(PointsSystemService);
 
+    // configure cron at 12am
+    const now = new Date();
+    now.setDate(now.getDate() - 1); // run until previous datw
     pointsSystemService.setConfig({
       startDate: new Date('2024-11-25'),
-      endDate: new Date('2025-05-25'),
+      endDate: now,
     });
-
-    await app.listen(process.env.RELAYER_PORT ?? 4000);
-    console.log(`Application is running on: ${await app.getUrl()}`);
-
-    console.log('Available users endpoints:');
-    console.log('- GET /users - Get all users with details');
-    console.log('- GET /users/:address - Get user details by address');
-    console.log('- GET /users/:address/points - Get user points by address');
-    console.log('- GET /users/:address/eligibility - Check user eligibility for bonuses');
-    console.log('- GET /users/:address/balances - Get user balances by address');
-    console.log('- GET /users/stats/overview - Get user stats overview');
-
-    console.log('Early User Bonus endpoints available:');
-    console.log('- GET /early-user/summary - Get eligibility summary');
-    console.log('- POST /early-user/execute - Execute bonus calculation');
-    console.log('- GET /early-user/validate - Validate bonus calculation');
-
-    console.log('\nSix Month Bonus endpoints available:');
-    console.log('- GET /six-month/summary - Get eligibility summary');
-    console.log('- POST /six-month/execute - Execute bonus calculation');
-    console.log('- GET /six-month/validate - Validate bonus calculation');
-    console.log('- GET /six-month/user/:address - Get user breakdown');
 
     await pointsSystemService.fetchAndStoreHoldings();
   } catch (error) {

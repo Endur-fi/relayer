@@ -40,16 +40,20 @@ type dAppAmountProperty =
 const blockCache: Record<string, { block_number: number }> = {};
 export async function findClosestBlockInfo(date: Date) {
   const timestamp = Math.floor(date.getTime() / 1000);
-  const timeWindow = 12 * 3600; // 12 hours in seconds
+  const timeWindow = 0.5 * 3600 * 48; // 30min
   const cacheKey = timestamp.toString();
   if (blockCache[cacheKey]) {
     return blockCache[cacheKey];
   }
+  // generate a random timestamp within the day
+  const randomTimestampOfTheDay = Math.floor(
+    (Math.random() * (86400)) +  (timestamp),
+  );
   const res = await prisma.blocks.findFirst({
     where: {
       timestamp: {
-        lte: timestamp + timeWindow,
-        gte: timestamp - timeWindow,
+        lte: randomTimestampOfTheDay + timeWindow,
+        gte: randomTimestampOfTheDay,
       },
     },
     orderBy: {
