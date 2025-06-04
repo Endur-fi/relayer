@@ -4,18 +4,16 @@ import '@nestjs/platform-express';
 import * as dotenv from 'dotenv';
 
 import { BonusController } from './controllers/user-bonus.controller';
-import { UsersController } from './controllers/users.controller';
 import { PointsSystemService } from './services/points-system.service';
 import { BonusService } from './services/user-bonus.service';
-import { UsersService } from './services/users.service';
 import { connectPrisma } from './utils';
 
 dotenv.config();
 
 @Module({
   imports: [],
-  providers: [PointsSystemService, BonusService, UsersService],
-  controllers: [BonusController, UsersController],
+  providers: [PointsSystemService, BonusService],
+  controllers: [BonusController],
 })
 class AppModule {}
 
@@ -37,7 +35,7 @@ async function bootstrap() {
     now.setDate(now.getDate() - 1); // run until previous datw
     pointsSystemService.setConfig({
       startDate: new Date('2024-11-25'),
-      endDate: now,
+      endDate: new Date('2025-05-25'),
     });
 
     await pointsSystemService.fetchAndStoreHoldings();

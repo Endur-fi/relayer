@@ -1,25 +1,21 @@
-import "reflect-metadata"; // Reflect metadata polyfill
+import 'reflect-metadata'; // Reflect metadata polyfill
 
-import { ApolloServer } from "@apollo/server";
-import { startStandaloneServer } from "@apollo/server/standalone";
+import { ApolloServer } from '@apollo/server';
+import { startStandaloneServer } from '@apollo/server/standalone';
 import {
   FindFirstWithdraw_queueResolver,
   FindManyWithdraw_queueResolver,
-} from "@generated/type-graphql";
-import { PrismaClient } from "@prisma/client";
-import { buildSchema } from "type-graphql";
+} from '@generated/type-graphql';
+import { PrismaClient } from '@prisma/my-client';
+import { buildSchema } from 'type-graphql';
 
-import { UserPointsResolver } from "../resolvers/user-points";
+import { UsersResolver } from '../resolvers/users';
 
 const prisma = new PrismaClient();
 
 async function main() {
   const schema = await buildSchema({
-    resolvers: [
-      FindManyWithdraw_queueResolver,
-      FindFirstWithdraw_queueResolver,
-      UserPointsResolver,
-    ],
+    resolvers: [FindFirstWithdraw_queueResolver, FindManyWithdraw_queueResolver, UsersResolver],
     validate: false,
   });
 
@@ -29,7 +25,7 @@ async function main() {
 
   const { url } = await startStandaloneServer(server, {
     context: async () => ({ prisma }),
-    listen: { port: parseInt(process.env.PORT || "4000") },
+    listen: { port: parseInt(process.env.PORT || '4000') },
   });
 
   console.log(`Server is running, GraphQL Playground available at ${url}`);
