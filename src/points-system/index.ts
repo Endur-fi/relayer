@@ -38,6 +38,8 @@ async function bootstrap() {
       endDate: new Date('2025-05-25'),
     });
 
+    await app.listen(process.env.PORT ?? 4000);
+
     await pointsSystemService.fetchAndStoreHoldings();
   } catch (error) {
     console.error('Error starting the application:', error);
