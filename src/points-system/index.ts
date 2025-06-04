@@ -38,21 +38,7 @@ async function bootstrap() {
       endDate: new Date('2025-05-25'),
     });
 
-    await app.listen(process.env.RELAYER_PORT ?? 4000);
-    console.log(`Application is running on: ${await app.getUrl()}`);
-
-    console.log('Early User Bonus endpoints available:');
-    console.log('- GET /early-user/summary - Get eligibility summary');
-    console.log('- POST /early-user/execute - Execute bonus calculation');
-    console.log('- GET /early-user/validate - Validate bonus calculation');
-
-    console.log('\nSix Month Bonus endpoints available:');
-    console.log('- GET /six-month/summary - Get eligibility summary');
-    console.log('- POST /six-month/execute - Execute bonus calculation');
-    console.log('- GET /six-month/validate - Validate bonus calculation');
-    console.log('- GET /six-month/user/:address - Get user breakdown');
-
-    // await pointsSystemService.fetchAndStoreHoldings();
+    await pointsSystemService.fetchAndStoreHoldings();
   } catch (error) {
     console.error('Error starting the application:', error);
     process.exit(1);
