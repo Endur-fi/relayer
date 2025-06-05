@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserPointsType } from '@prisma/my-client';
 
-import { safeToBigInt } from '../../common/utils';
+import { safeToBigInt, standariseAddress } from '../../common/utils';
 import { calculatePoints, prisma } from '../utils';
 
 const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z');
@@ -12,12 +12,12 @@ const POINTS_MULTIPLIER = 1;
 interface UserSummary {
   user_address: string;
   total_points: bigint;
-  regular_points: bigint;
-  bonus_points: bigint;
-  referrer_points: bigint;
-  allocation?: string;
-  first_activity_date?: Date;
-  last_activity_date?: Date;
+  // regular_points: bigint;
+  // bonus_points: bigint;
+  // referrer_points: bigint;
+  // allocation?: string;
+  // first_activity_date?: Date;
+  // last_activity_date?: Date;
 }
 
 interface PaginationOptions {
@@ -47,38 +47,38 @@ interface UserCompleteDetails {
     total_points: bigint;
     regular_points: bigint;
     bonus_points: bigint;
-    referrer_points: bigint;
+    priority_points: bigint;
   };
   allocation: string;
-  activity: {
-    first_activity_date?: Date;
-    last_activity_date?: Date;
-    total_deposits: number;
-    total_withdrawals: number;
-  };
-  eligibility: {
-    early_user_bonus: {
-      eligible: boolean;
-      points_before_cutoff?: bigint;
-      bonus_awarded?: bigint;
-      cutoff_date: Date;
-    };
-    six_month_bonus: {
-      eligible: boolean;
-      minimum_amount?: bigint;
-      bonus_awarded?: bigint;
-      period: {
-        start_date: Date;
-        end_date: Date;
-      };
-    };
-    referral_bonus: {
-      eligible: boolean;
-      is_referred_user: boolean;
-      referrer_address?: string;
-      bonus_awarded?: bigint;
-    };
-  };
+  // activity: {
+  //   first_activity_date?: Date;
+  //   last_activity_date?: Date;
+  //   total_deposits: number;
+  //   total_withdrawals: number;
+  // };
+  // eligibility: {
+  //   early_user_bonus: {
+  //     eligible: boolean;
+  //     points_before_cutoff?: bigint;
+  //     bonus_awarded?: bigint;
+  //     cutoff_date: Date;
+  //   };
+  //   six_month_bonus: {
+  //     eligible: boolean;
+  //     minimum_amount?: bigint;
+  //     bonus_awarded?: bigint;
+  //     period: {
+  //       start_date: Date;
+  //       end_date: Date;
+  //     };
+  //   };
+  //   referral_bonus: {
+  //     eligible: boolean;
+  //     is_referred_user: boolean;
+  //     referrer_address?: string;
+  //     bonus_awarded?: bigint;
+  //   };
+  // };
   tags: {
     early_adopter: boolean;
   };
@@ -115,75 +115,75 @@ export class UsersService {
       skip: offset,
       take: options.limit,
       orderBy,
-      include: {
-        user_allocation: true,
-      },
-    });
-
-    const userAddresses = aggregatedPoints.map((u) => u.user_address);
-
-    // get points breakdown for all users
-    const allUserPoints = await this.prisma.user_points.groupBy({
-      by: ['user_address', 'type'],
-      where: {
-        user_address: {
-          in: userAddresses,
-        },
-      },
-      _sum: {
-        points: true,
-      },
-    });
-
-    // get activity dates
-    const activityDates = await this.prisma.users.findMany({
-      where: {
-        user_address: {
-          in: userAddresses,
-        },
-      },
       select: {
         user_address: true,
-        timestamp: true,
-      },
+        total_points: true,
+      }
     });
+
+    // const userAddresses = aggregatedPoints.map((u) => u.user_address);
+
+    // get points breakdown for all users
+    // const allUserPoints = await this.prisma.user_points.groupBy({
+    //   by: ['user_address', 'type'],
+    //   where: {
+    //     user_address: {
+    //       in: userAddresses,
+    //     },
+    //   },
+    //   _sum: {
+    //     points: true,
+    //   },
+    // });
+
+    // get activity dates
+    // const activityDates = await this.prisma.users.findMany({
+    //   where: {
+    //     user_address: {
+    //       in: userAddresses,
+    //     },
+    //   },
+    //   select: {
+    //     user_address: true,
+    //     timestamp: true,
+    //   },
+    // });
 
     // organize data
     const users: UserSummary[] = aggregatedPoints.map((user) => {
-      const userPoints = allUserPoints.filter((p) => p.user_address === user.user_address);
+      // const userPoints = allUserPoints.filter((p) => p.user_address === user.user_address);
 
-      const regular_points = userPoints
-        .filter((p) => p.type === UserPointsType.Regular)
-        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
+      // const regular_points = userPoints
+      //   .filter((p) => p.type === UserPointsType.Regular)
+      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
-      const bonus_points = userPoints
-        .filter((p) => p.type === UserPointsType.Bonus)
-        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
+      // const bonus_points = userPoints
+      //   .filter((p) => p.type === UserPointsType.Bonus)
+      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
-      const referrer_points = userPoints
-        .filter((p) => p.type === UserPointsType.Referrer)
-        .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
+      // const referrer_points = userPoints
+      //   .filter((p) => p.type === UserPointsType.Referrer)
+      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
 
-      const activityDate = activityDates.find((a) => a.user_address === user.user_address);
+      // const activityDate = activityDates.find((a) => a.user_address === user.user_address);
 
       return {
         user_address: user.user_address,
         total_points: safeToBigInt(user.total_points),
-        regular_points,
-        bonus_points,
-        referrer_points,
-        allocation: user.user_allocation?.allocation,
-        first_activity_date: activityDate ? new Date(activityDate.timestamp * 1000) : undefined,
-        last_activity_date: user.updated_on ? new Date(user.updated_on) : undefined,
+        // regular_points,
+        // bonus_points,
+        // referrer_points,
+        // allocation: user.user_allocation?.allocation,
+        // first_activity_date: activityDate ? new Date(activityDate.timestamp * 1000) : undefined,
+        // last_activity_date: user.updated_on ? new Date(user.updated_on) : undefined,
       };
     });
 
     // calculate summary
-    const total_points_all_users = await this.prisma.points_aggregated.aggregate({
-      _sum: {
-        total_points: true,
-      },
-    });
+    const total_points_all_users = users.reduce(
+      (sum, user) => sum + user.total_points,
+      BigInt(0),
+    );
 
     return {
       users,
@@ -195,16 +195,18 @@ export class UsersService {
       },
       summary: {
         total_users: totalUsers,
-        total_points_all_users: safeToBigInt(total_points_all_users._sum.total_points),
+        total_points_all_users: safeToBigInt(total_points_all_users),
       },
     };
   }
 
   async getUserCompleteDetails(userAddress: string): Promise<UserCompleteDetails | null> {
     // check if user exists
+    console.log(`getUserCompleteDetails`, userAddress);
+    const userAddr = standariseAddress(userAddress);
     const aggregatedPoints = await this.prisma.points_aggregated.findUnique({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
       },
       include: {
         user_allocation: true,
@@ -216,15 +218,15 @@ export class UsersService {
     }
 
     // get points breakdown
-    const pointsBreakdown = await this.getUserPointsBreakdown(userAddress);
+    const pointsBreakdown = await this.getUserPointsBreakdown(userAddr);
 
     // get activity details
-    const activityDetails = await this.getUserActivityDetails(userAddress);
+    // const activityDetails = await this.getUserActivityDetails(userAddress);
 
     // get eligibility details
-    const eligibilityDetails = await this.getUserEligibilityDetails(userAddress);
+    // const eligibilityDetails = await this.getUserEligibilityDetails(userAddress);
 
-    const tagsDetails = await this.getUserTags(userAddress);
+    const tagsDetails = await this.getUserTags(userAddr);
 
     return {
       user_address: userAddress,
@@ -232,11 +234,11 @@ export class UsersService {
         total_points: BigInt(0),
         regular_points: BigInt(0),
         bonus_points: BigInt(0),
-        referrer_points: BigInt(0),
+        priority_points: BigInt(0),
       },
       allocation: aggregatedPoints.user_allocation?.allocation || '0',
-      activity: activityDetails,
-      eligibility: eligibilityDetails,
+      // activity: activityDetails,
+      // eligibility: eligibilityDetails,
       tags: tagsDetails,
     };
   }
@@ -247,7 +249,7 @@ export class UsersService {
       total_points: bigint;
       regular_points: bigint;
       bonus_points: bigint;
-      referrer_points: bigint;
+      priority_points: bigint;
     };
     history: Array<{
       block_number: number;
@@ -256,9 +258,10 @@ export class UsersService {
       type: UserPointsType;
     }>;
   }> {
+    const userAddr = standariseAddress(userAddress);
     const allPoints = await this.prisma.user_points.findMany({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
       },
       orderBy: {
         block_number: 'desc',
@@ -267,7 +270,7 @@ export class UsersService {
 
     const result = await this.prisma.points_aggregated.findFirst({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
       },
       orderBy: {
         block_number: 'desc',
@@ -279,48 +282,31 @@ export class UsersService {
 
     let total_points = safeToBigInt(result?.total_points || BigInt(0));
 
-    if (allPoints.length === 0) {
-      return {
-        user_address: userAddress,
-        summary: {
-          total_points: total_points,
-          regular_points: BigInt(0),
-          bonus_points: BigInt(0),
-          referrer_points: BigInt(0),
-        },
-        history: [],
-      };
-    }
-
     // calculate summary
-    const regular_points = allPoints
-      .filter((p) => p.type === UserPointsType.Regular)
-      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
-
     const bonus_points = allPoints
       .filter((p) => p.type === UserPointsType.Bonus)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
-    const referrer_points = allPoints
-      .filter((p) => p.type === UserPointsType.Referrer)
+    const priority_points = allPoints
+      .filter((p) => p.type === UserPointsType.Priority)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
-    total_points = bonus_points + referrer_points + regular_points;
 
     return {
       user_address: userAddress,
       summary: {
         total_points,
-        regular_points,
+        regular_points: total_points - bonus_points - priority_points,
         bonus_points,
-        referrer_points,
+        priority_points,
       },
-      history: allPoints.map((p) => ({
-        block_number: p.block_number,
-        points: safeToBigInt(p.points),
-        cummulative_points: safeToBigInt(p.cummulative_points),
-        type: p.type,
-      })),
+      // history: allPoints.map((p) => ({
+      //   block_number: p.block_number,
+      //   points: safeToBigInt(p.points),
+      //   cummulative_points: safeToBigInt(p.cummulative_points),
+      //   type: p.type,
+      // })),
+      history: [], // no extra details for now
     };
   }
 
@@ -331,30 +317,31 @@ export class UsersService {
     total_withdrawals: number;
   }> {
     // get first activity
+    const userAddr = standariseAddress(userAddress);
     const firstActivity = await this.prisma.users.findUnique({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
       },
     });
 
     // get deposits count
     const depositsCount = await this.prisma.deposits.count({
       where: {
-        owner: userAddress,
+        owner: userAddr,
       },
     });
 
     // get withdrawals count
     const withdrawalsCount = await this.prisma.withdraw_queue.count({
       where: {
-        receiver: userAddress,
+        receiver: userAddr,
       },
     });
 
     // get last activity from aggregated points
     const lastActivity = await this.prisma.points_aggregated.findUnique({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
       },
     });
 
@@ -406,6 +393,7 @@ export class UsersService {
   }
 
   private async checkEarlyUserBonusEligibility(userAddress: string) {
+    const userAddr = standariseAddress(userAddress);
     // get cutoff block
     const cutoffBlock = await this.prisma.blocks.findFirst({
       where: {
@@ -428,7 +416,7 @@ export class UsersService {
     // check if user had balance before cutoff
     const balanceBeforeCutoff = await this.prisma.user_balances.findFirst({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         block_number: {
           lte: cutoffBlock.block_number,
         },
@@ -449,7 +437,7 @@ export class UsersService {
     // check if bonus was awarded
     const bonusAwarded = await this.prisma.user_points.findFirst({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         type: UserPointsType.Bonus,
         block_number: {
           lte: cutoffBlock.block_number,
@@ -466,6 +454,7 @@ export class UsersService {
   }
 
   private async checkSixMonthBonusEligibility(userAddress: string) {
+    const userAddr = standariseAddress(userAddress);
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - SIX_MONTHS_DAYS);
@@ -476,7 +465,7 @@ export class UsersService {
     // get user balances in the period
     const userBalances = await this.prisma.user_balances.findMany({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         timestamp: {
           gte: startTimestamp,
           lte: endTimestamp,
@@ -498,7 +487,7 @@ export class UsersService {
     // check if six month bonus was awarded
     const bonusAwarded = await this.prisma.user_points.findFirst({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         type: UserPointsType.Bonus,
       },
     });
@@ -529,16 +518,17 @@ export class UsersService {
 
   private async checkReferralBonusEligibility(userAddress: string) {
     // check if user was referred
+    const userAddr = standariseAddress(userAddress);
     const referralRecord = await this.prisma.deposits_with_referral.findFirst({
       where: {
-        referee: userAddress,
+        referee: userAddr,
       },
     });
 
     // check if referral bonus was awarded
     const bonusAwarded = await this.prisma.user_points.findFirst({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         type: UserPointsType.Referrer,
       },
     });
@@ -574,9 +564,10 @@ export class UsersService {
     const startTimestamp = Math.floor(startDate.getTime() / 1000);
     const endTimestamp = Math.floor(endDate.getTime() / 1000);
 
+    const userAddr = standariseAddress(userAddress);
     const balances = await this.prisma.user_balances.findMany({
       where: {
-        user_address: userAddress,
+        user_address: userAddr,
         timestamp: {
           gte: startTimestamp,
           lte: endTimestamp,
@@ -661,11 +652,11 @@ export class UsersService {
   async getUserTags(userAddress: string): Promise<{
     early_adopter: boolean;
   }> {
+    const userAddr = standariseAddress(userAddress);
     const earlyAdopterPoints = await this.prisma.user_points.findFirst({
       where: {
-        user_address: userAddress,
-        // TODO: change to Early type (UserPointsType.Early) later when the akira ser code is merged
-        type: UserPointsType.Regular,
+        user_address: userAddr,
+        type: UserPointsType.Early,
         points: {
           gt: 0,
         },

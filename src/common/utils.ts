@@ -155,3 +155,12 @@ export function safeToBigInt(value: any): bigint {
 
   return BigInt(0);
 }
+
+export function standariseAddress(address: string | bigint) {
+  let _a = address;
+  if (!address) {
+    _a = "0";
+  }
+  const a = num.getHexString(num.getDecimalString(_a.toString()));
+  return a;
+}
