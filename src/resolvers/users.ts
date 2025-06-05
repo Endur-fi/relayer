@@ -25,23 +25,23 @@ class UserSummary {
   @Field(() => String) // BigInt as string
   total_points!: string;
 
-  @Field(() => String)
-  regular_points!: string;
+  // @Field(() => String)
+  // regular_points!: string;
 
-  @Field(() => String)
-  bonus_points!: string;
+  // @Field(() => String)
+  // bonus_points!: string;
 
-  @Field(() => String)
-  referrer_points!: string;
+  // @Field(() => String)
+  // referrer_points!: string;
 
-  @Field(() => String, { nullable: true })
-  allocation?: string;
+  // @Field(() => String, { nullable: true })
+  // allocation?: string;
 
-  @Field(() => Date, { nullable: true })
-  first_activity_date?: Date;
+  // @Field(() => Date, { nullable: true })
+  // first_activity_date?: Date;
 
-  @Field(() => Date, { nullable: true })
-  last_activity_date?: Date;
+  // @Field(() => Date, { nullable: true })
+  // last_activity_date?: Date;
 }
 
 @ObjectType()
@@ -193,11 +193,11 @@ class UserCompleteDetails {
   @Field(() => String, { nullable: true })
   allocation?: string;
 
-  @Field(() => ActivityDetails)
-  activity!: ActivityDetails;
+  // @Field(() => ActivityDetails)
+  // activity!: ActivityDetails;
 
-  @Field(() => EligibilityDetails)
-  eligibility!: EligibilityDetails;
+  // @Field(() => EligibilityDetails)
+  // eligibility!: EligibilityDetails;
 
   @Field(() => UserTags)
   tags!: UserTags;
@@ -319,9 +319,9 @@ export class UsersResolver {
       users: result.users.map((user) => ({
         ...user,
         total_points: user.total_points.toString(),
-        regular_points: user.regular_points.toString(),
-        bonus_points: user.bonus_points.toString(),
-        referrer_points: user.referrer_points.toString(),
+        // regular_points: user.regular_points.toString(),
+        // bonus_points: user.bonus_points.toString(),
+        // referrer_points: user.referrer_points.toString(),
       })),
       pagination: result.pagination,
       summary: {
@@ -347,25 +347,25 @@ export class UsersResolver {
         total_points: result.points.total_points.toString(),
         regular_points: result.points.regular_points.toString(),
         bonus_points: result.points.bonus_points.toString(),
-        referrer_points: result.points.referrer_points.toString(),
+        referrer_points: result.points.priority_points.toString(),
       },
-      eligibility: {
-        early_user_bonus: {
-          ...result.eligibility.early_user_bonus,
-          points_before_cutoff:
-            result.eligibility.early_user_bonus.points_before_cutoff?.toString(),
-          bonus_awarded: result.eligibility.early_user_bonus.bonus_awarded?.toString(),
-        },
-        six_month_bonus: {
-          ...result.eligibility.six_month_bonus,
-          minimum_amount: result.eligibility.six_month_bonus.minimum_amount?.toString(),
-          bonus_awarded: result.eligibility.six_month_bonus.bonus_awarded?.toString(),
-        },
-        referral_bonus: {
-          ...result.eligibility.referral_bonus,
-          bonus_awarded: result.eligibility.referral_bonus.bonus_awarded?.toString(),
-        },
-      },
+      // eligibility: {
+      //   early_user_bonus: {
+      //     ...result.eligibility.early_user_bonus,
+      //     points_before_cutoff:
+      //       result.eligibility.early_user_bonus.points_before_cutoff?.toString(),
+      //     bonus_awarded: result.eligibility.early_user_bonus.bonus_awarded?.toString(),
+      //   },
+      //   six_month_bonus: {
+      //     ...result.eligibility.six_month_bonus,
+      //     minimum_amount: result.eligibility.six_month_bonus.minimum_amount?.toString(),
+      //     bonus_awarded: result.eligibility.six_month_bonus.bonus_awarded?.toString(),
+      //   },
+      //   referral_bonus: {
+      //     ...result.eligibility.referral_bonus,
+      //     bonus_awarded: result.eligibility.referral_bonus.bonus_awarded?.toString(),
+      //   },
+      // },
     };
   }
 
@@ -385,7 +385,7 @@ export class UsersResolver {
         total_points: result.summary.total_points.toString(),
         regular_points: result.summary.regular_points.toString(),
         bonus_points: result.summary.bonus_points.toString(),
-        referrer_points: result.summary.referrer_points.toString(),
+        referrer_points: result.summary.priority_points.toString(),
       },
       history: result.history.map((item) => ({
         ...item,

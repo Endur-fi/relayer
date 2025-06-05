@@ -34,16 +34,16 @@ async function main() {
   let netAllocation = 0n;
   for (const user of users) {
     const userPoints = BigInt(user.total_points);
-    const allocation = LUMPSUM_POOL * userPoints / totalPoints - 1n; // Subtract 1wei to avoid rounding issues
+    const allocation = Number(LUMPSUM_POOL * 10000n * userPoints / totalPoints - 1n) / 10000; // Subtract 1wei to avoid rounding issues
 
     netAllocation += BigInt(allocation);
 
     await prisma.user_allocation.upsert({
       where: { user_address: user.user_address },
-      update: { allocation: allocation.toString() },
+      update: { allocation: allocation.toFixed(4) },
       create: {
         user_address: user.user_address,
-        allocation: allocation.toString(),
+        allocation: allocation.toFixed(4),
       },
     });
     console.log(`Allocated ${allocation} STRK to ${user.user_address}`);
