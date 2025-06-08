@@ -7,8 +7,8 @@ import { ConfigService } from "./configService";
 import { Injectable, Logger } from "@nestjs/common";
 import { getNetwork } from "../../common/utils";
 import { Web3Number } from "@strkfarm/sdk";
+const  assert = require("assert");
 
-import assert = require("assert");
 interface ILSTService {
   sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
@@ -30,6 +30,7 @@ export class LSTService implements ILSTService {
     config: ConfigService,
     prismaService: PrismaService,
   ) {
+    console.log("LSTService initialized with config:", config);
     this.config = config;
     this.LST = new Contract(LSTAbi, getAddresses(getNetwork()).LST, config.get("account"))
       .typedv2(LSTAbi);

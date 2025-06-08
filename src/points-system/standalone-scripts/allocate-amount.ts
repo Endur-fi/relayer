@@ -1,3 +1,4 @@
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaClient } from '@prisma/my-client';
 
 /**
@@ -6,7 +7,7 @@ import { PrismaClient } from '@prisma/my-client';
  */
 
 const prisma = new PrismaClient();
-const LUMPSUM_POOL = BigInt(250_000 * 1e18); // 250K STRK
+const LUMPSUM_POOL_XSTRK = BigInt(250_000 * 1e18); // 250K xSTRK
 
 async function main() {
   const users = await prisma.points_aggregated.findMany({
@@ -32,26 +33,35 @@ async function main() {
   }
 
   let netAllocation = 0n;
-  for (const user of users) {
-    const userPoints = BigInt(user.total_points);
-    const allocation = Number(LUMPSUM_POOL * 10000n * userPoints / totalPoints - 1n) / 10000; // Subtract 1wei to avoid rounding issues
+  const BATCH_SIZE = 500;
+  for (let i=0; i<users.length; i += BATCH_SIZE) {
+    const batchUsers = users.slice(i, i + BATCH_SIZE);
+    const batch: any[] = [];
+    console.log(`Processing batch ${Math.ceil(i / BATCH_SIZE) + 1} of ${Math.ceil(users.length / BATCH_SIZE)}`);
+    for (const user of batchUsers) {
+      const userPoints = BigInt(user.total_points);
+      const allocation = Number(LUMPSUM_POOL_XSTRK * 10000n * userPoints / totalPoints - 1n) / 10000; // Subtract 1wei to avoid rounding issues
 
-    netAllocation += BigInt(allocation);
+      // console.log(`User: ${user.user_address}, Points: ${userPoints}, Allocation`, {allocation: allocation.toFixed(0), userPoints: userPoints.toString(), totalPoints: totalPoints.toString()});
+      netAllocation += BigInt((new Decimal(allocation)).toFixed(0));
 
-    await prisma.user_allocation.upsert({
-      where: { user_address: user.user_address },
-      update: { allocation: allocation.toFixed(4) },
-      create: {
-        user_address: user.user_address,
-        allocation: allocation.toFixed(4),
-      },
-    });
-    console.log(`Allocated ${allocation} STRK to ${user.user_address}`);
+      const xSTRKAmount = (allocation / 1e18).toFixed(4);
+      batch.push(prisma.user_allocation.upsert({
+        where: { user_address: user.user_address },
+        update: { allocation: xSTRKAmount },
+        create: {
+          user_address: user.user_address,
+          allocation: xSTRKAmount,
+        },
+      }));
+      // console.log(`Allocated ${xSTRKAmount} xSTRK to ${user.user_address}`);
+    }
+    await prisma.$transaction(batch);
   }
 
   // Check if net allocation matches the pool
-  if (netAllocation > LUMPSUM_POOL || netAllocation < (LUMPSUM_POOL - BigInt(1e18))) {
-    throw new Error(`Net allocation mismatch: expected near ${LUMPSUM_POOL}, got ${netAllocation}`);
+  if (netAllocation > LUMPSUM_POOL_XSTRK || netAllocation < (LUMPSUM_POOL_XSTRK - BigInt(1e18))) {
+    throw new Error(`Net allocation mismatch: expected near ${LUMPSUM_POOL_XSTRK}, got ${netAllocation}`);
   }
 
   console.log('Allocation complete.');

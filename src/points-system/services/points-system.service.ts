@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient, user_balances } from '@prisma/my-client';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Prisma, PrismaClient, user_balances, dex_positions } from '@prisma/my-client';
 import { DefaultArgs } from '@prisma/my-client/runtime/library';
 import pLimit from 'p-limit';
-
-import { logger, TryCatchAsync } from '../../common/utils';
+import { getNetwork, getProvider, logger, TryCatchAsync } from '../../common/utils';
 import {
   calculatePoints,
   fetchHoldingsFromApi,
@@ -11,6 +10,7 @@ import {
   prisma,
   sleep,
 } from '../utils';
+import { DexScoreService, DexScore } from './dex-points.service';
 
 const DB_BATCH_SIZE = 500; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
@@ -21,8 +21,32 @@ const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
 
 const POINTS_MULTIPLIER = 1;
 
+export interface IPointsSystemService {
+  fetchHoldingsWithRetry(
+    userAddr: string,
+    date: Date,
+  ): Promise<{ holdings: user_balances; dex_info: DexScore }>;
+  setConfig(config: { startDate: Date; endDate: Date }): void;
+  updatePointsAggregated(
+    userBalance: user_balances,
+    prismaTransaction: Omit<
+      PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>,
+      '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+    >,
+  ): Promise<void>;
+  loadAllUserRecords(allUsers: { user_address: string; timestamp: number }[]): Promise<void>;
+  getUserRecord(addr: string): Promise<Date | null>;
+  updateUserRecord(addr: string, record: Date): Promise<void>;
+  getAllTasks(): Promise<[string, Date][]>;
+  processTaskBatch(tasks: [string, Date][]): Promise<number>;
+  doOneCallPerUser(): Promise<void>;
+  loadBlocks(): Promise<void>;
+  sanityBlocks(): Promise<void>;
+  fetchAndStoreHoldings(): Promise<void>;
+}
+
 @Injectable()
-export class PointsSystemService {
+export class PointsSystemService implements IPointsSystemService {
   private prisma = prisma;
   private readonly userRecords: Record<string, Date | null> = {};
 
@@ -31,8 +55,17 @@ export class PointsSystemService {
     endDate: new Date(new Date().setHours(0, 0, 0, 0)),
   };
 
+  constructor(
+    @Inject(forwardRef(() => DexScoreService))
+    private readonly dexPoints: DexScoreService,
+  ) {
+  }
+
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
-  async fetchHoldingsWithRetry(userAddr: string, date: Date): Promise<user_balances> {
+  async fetchHoldingsWithRetry(
+    userAddr: string,
+    date: Date,
+  ): Promise<{ holdings: user_balances; dex_info: DexScore }> {
     let blockInfo: { block_number: number } | null = null;
     try {
       blockInfo = await findClosestBlockInfo(date);
@@ -42,14 +75,20 @@ export class PointsSystemService {
         );
       }
       const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
-      // const dbObject = await getAllHoldings(userAddr, blockInfo.block_number);
-      return {
-        ...dbObject,
+      const dex_info = await this.dexPoints.getDexBonusPoints(
+        userAddr,
+        blockInfo.block_number,
+        date,
+        Number(dbObject.strkHoldings.nostraDexAmount),
+      );
+      const holdings = {
+        ...dbObject.xSTRKHoldings,
         user_address: userAddr,
         block_number: blockInfo.block_number,
         timestamp: Math.floor(date.getTime() / 1000), // convert date to timestamp
         date: date.toISOString().split('T')[0], // format date as YYYY-MM-DD
       };
+      return { holdings, dex_info: dex_info };
     } catch (error) {
       logger.error(
         `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`,
@@ -59,6 +98,8 @@ export class PointsSystemService {
   }
 
   setConfig(config: { startDate: Date; endDate: Date }) {
+    config.endDate.setHours(0, 0, 0, 0); // set endDate to start of the day
+    config.startDate.setHours(0, 0, 0, 0); // set startDate to start of the day
     this.config = config;
   }
 
@@ -81,12 +122,12 @@ export class PointsSystemService {
     await prismaTransaction.user_allocation.upsert({
       where: { user_address: userAddr },
       update: {},
-      create: { 
+      create: {
         user_address: userAddr,
         allocation: '0', // Default allocation, can be updated later
       }, // Add other required fields if needed
     });
-    
+
     await prismaTransaction.points_aggregated.upsert({
       where: {
         user_address: userAddr,
@@ -107,7 +148,7 @@ export class PointsSystemService {
     });
   }
 
-  async loadAllUserRecords(allUsers: { user_address: string, timestamp: number }[]) {
+  async loadAllUserRecords(allUsers: { user_address: string; timestamp: number }[]) {
     // load all user records into memory
     // selects the latest record for each user
     const latestUserRecordsByDate = await prisma.user_balances.groupBy({
@@ -223,11 +264,33 @@ export class PointsSystemService {
     );
 
     const now2 = new Date();
-    console.log(`Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`);
+    console.log(
+      `Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`,
+    );
+
+    const dexScoreResults: dex_positions[] = [];
+    results.map((r) => {
+      if (!r.dex_info) {
+        return;
+      }
+      const dexInfo = r.dex_info;
+      dexInfo.ekuboScore.map((ek) => {
+        if (ek.score.toNumber() == 0) return;
+        dexScoreResults.push(ek);
+      });
+      dexInfo.nostraScore.map((nd) => {
+        if (nd.score.toNumber() == 0) return;
+        dexScoreResults.push(nd);
+      });
+      dexInfo.strkfarmEkuboScore.map((se) => {
+        if (se.score.toNumber() == 0) return;
+        dexScoreResults.push(se);
+      });
+    });
 
     // Insert user balances in a transaction
     // Filter out null results (skipped users/dates)
-    const validResults = results.filter(Boolean) as user_balances[];
+    const validResults = results.map((r) => r.holdings).filter(Boolean) as user_balances[];
 
     await prisma.$transaction(async (prismaTransaction) => {
       // Step 1: Create user balances
@@ -235,19 +298,26 @@ export class PointsSystemService {
         data: validResults,
       });
 
-      // Step 2: Update points for each user
+      // Step 2: Create dex positions
+      await prismaTransaction.dex_positions.createMany({
+        data: dexScoreResults,
+      });
+
+      // Step 3: Update points for each user
       for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
     }, { timeout: 300000 }); // 30 seconds timeout for the transaction
 
     const now3 = new Date();
-    console.log(`Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`);
+    console.log(
+      `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
+    );
     return validResults.length;
   }
 
-  // fetches all ekubo values and caches them in memory 
-  // happens on API side 
+  // fetches all ekubo values and caches them in memory
+  // happens on API side
   // only one time run
   async doOneCallPerUser() {
     // preload ekubo info
@@ -258,11 +328,15 @@ export class PointsSystemService {
         timestamp: true, // first registered timestamp
       },
     });
-    const tasks = allUsers.map((user) => [user.user_address, new Date(user.timestamp * 1000 + 86400000)] as [string, Date]);
+    const tasks = allUsers.map(
+      (user) => [user.user_address, new Date(user.timestamp * 1000 + 86400000)] as [string, Date],
+    );
     for (let i = 0; i < tasks.length; i = i + 5) {
       console.log(`Preloading holdings for user: ${i}/${tasks.length}`);
       const _tasks = tasks.slice(i, i + 5);
-      const proms  = _tasks.map((task) => globalLimit(() => this.fetchHoldingsWithRetry(task[0], new Date("2024-12-01"))));
+      const proms = _tasks.map((task) =>
+        globalLimit(() => this.fetchHoldingsWithRetry(task[0], new Date('2024-12-01'))),
+      );
       await Promise.all(proms);
     }
   }
@@ -289,7 +363,9 @@ export class PointsSystemService {
           timestamp: Math.round(new Date(block.date).getTime() / 1000), // convert date to timestamp
         },
       });
-      console.log(`Block ${res.block_number.toString()}, ${res.timestamp.toString()} loaded successfully.`);
+      console.log(
+        `Block ${res.block_number.toString()}, ${res.timestamp.toString()} loaded successfully.`,
+      );
     }
     console.log('Blocks loaded successfully.');
   }
@@ -332,7 +408,7 @@ export class PointsSystemService {
       logger.warn(`Missing blocks for dates: ${missingBlocks.join(', ')}`);
       throw new Error(`Missing blocks exist`);
     }
-    
+
     logger.info('All blocks are present for the date range.');
   }
 
@@ -381,10 +457,10 @@ export const xSTRK_DAPPS = [
   '0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b', // Ekubo Core
   '0x205fd8586f6be6c16f4aa65cc1034ecff96d96481878e55f629cd0cb83e05f', // Nostra xSTRK/STRK DEX pool
   '0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b', // STRKFarm xSTRK Sensei
-  ''
-]
+  '',
+];
 // contracts excluded from points system
 export const EXCLUSION_LIST = [
   ...xSTRK_DAPPS,
   '0x301c5ba2c76af76c28e9f4d55680d8507267b9d324129a71d6cdc54a3318298', // admin wallet
-]
+];

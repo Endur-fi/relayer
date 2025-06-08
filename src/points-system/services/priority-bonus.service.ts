@@ -144,7 +144,7 @@ export class PriorityBonusService {
             const existingPriorityBonus = await tx.user_points.findFirst({
               where: {
                 user_address: user.user_address,
-                type: UserPointsType.Referrer,
+                type: UserPointsType.Priority,
               },
             });
 
@@ -194,7 +194,7 @@ export class PriorityBonusService {
     // get actual Priority bonus points from database
     const actualPriorityPoints = await this.prisma.user_points.findMany({
       where: {
-        type: UserPointsType.Referrer,
+        type: UserPointsType.Priority,
         user_address: {
           in: summary.eligibleUsers.map((u) => u.user_address),
         },

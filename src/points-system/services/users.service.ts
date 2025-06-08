@@ -47,7 +47,7 @@ interface UserCompleteDetails {
     total_points: bigint;
     regular_points: bigint;
     bonus_points: bigint;
-    priority_points: bigint;
+    // priority_points: bigint;
   };
   allocation: string;
   // activity: {
@@ -234,9 +234,9 @@ export class UsersService {
         total_points: BigInt(0),
         regular_points: BigInt(0),
         bonus_points: BigInt(0),
-        priority_points: BigInt(0),
+        // priority_points: BigInt(0),
       },
-      allocation: aggregatedPoints.user_allocation?.allocation || '0',
+      allocation: '0', // TODO TEMP // aggregatedPoints.user_allocation?.allocation || '0',
       // activity: activityDetails,
       // eligibility: eligibilityDetails,
       tags: tagsDetails,
@@ -249,7 +249,7 @@ export class UsersService {
       total_points: bigint;
       regular_points: bigint;
       bonus_points: bigint;
-      priority_points: bigint;
+      // priority_points: bigint;
     };
     history: Array<{
       block_number: number;
@@ -295,10 +295,10 @@ export class UsersService {
     return {
       user_address: userAddress,
       summary: {
-        total_points,
+        total_points: total_points - priority_points, // TODO TEMP: remove priority points from total
         regular_points: total_points - bonus_points - priority_points,
         bonus_points,
-        priority_points,
+        // priority_points,
       },
       // history: allPoints.map((p) => ({
       //   block_number: p.block_number,
@@ -627,7 +627,7 @@ export class UsersService {
       },
     });
 
-    const regular = pointsByType.find((p) => p.type === UserPointsType.Regular)?._sum.points || 0;
+    const regular = pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
     const bonus = pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points || 0;
     const referrer = pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum.points || 0;
 

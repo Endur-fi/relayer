@@ -27,6 +27,7 @@ export const DAPPs = [
   'nostraDex',
   'wallet', // i.e. endur (xSTRK held in wallet directly)
   'strkfarm',
+  'opus'
 ];
 
 type dAppAmountProperty =
@@ -72,7 +73,14 @@ export async function fetchHoldingsFromApi(
   userAddr: string,
   blockNumber: number,
   date: Date,
-): Promise<user_balances> {
+): Promise<{
+  xSTRKHoldings: user_balances;
+  strkHoldings: {
+    strkfarmEkuboAmount: string;
+    nostraDexAmount: string;
+    ekuboAmount: string;
+  };
+}> {
   const endpoint = Math.random() < 0.5 ? API_BASE_URL : API_BASE_URL;
   const url = `${endpoint}/${userAddr}/${blockNumber}`;
   const response = await axios.get(url);
@@ -95,9 +103,12 @@ export async function fetchHoldingsFromApi(
     walletAmount: '0',
     strkfarmAmount: '0',
     total_amount: '0',
+    opusAmount: '0',
     date: date.toISOString().split('T')[0],
     timestamp: timestamp,
   };
+
+  const strkAmountsObject = {...dbObject};
 
   let totalAmount = 0;
   for (let dapp of DAPPs) {
@@ -114,6 +125,12 @@ export async function fetchHoldingsFromApi(
     totalAmount += xSTRKAmount;
     const key = `${dapp}Amount` as dAppAmountProperty;
     dbObject[key] = xSTRKAmount.toString();
+
+    const STRKAmount = Number(
+      Number(data[dapp][0].STRKAmount.bigNumber * 100) /
+        10 ** data[dapp][0].STRKAmount.decimals,
+    ) / 100;
+    strkAmountsObject[key] = STRKAmount.toString();
   }
 
   // handle exceptions
@@ -121,10 +138,22 @@ export async function fetchHoldingsFromApi(
     Number(data["strkfarmEkubo"][0].xSTRKAmount.bigNumber * 100) /
       10 ** data["strkfarmEkubo"][0].xSTRKAmount.decimals,
   ) / 100;
+  const strkfarmSTRKAmount = Number(
+    Number(data["strkfarmEkubo"][0].STRKAmount.bigNumber * 100) /
+      10 ** data["strkfarmEkubo"][0].STRKAmount.decimals,
+  ) / 100;
+
   dbObject.strkfarmAmount = (Number(dbObject.strkfarmAmount) + strkfarmEkuboAmount).toString();
 
   dbObject.total_amount = totalAmount.toString();
-  return dbObject;
+  return {
+    xSTRKHoldings: dbObject,
+    strkHoldings: {
+      strkfarmEkuboAmount: strkfarmEkuboAmount.toString(),
+      nostraDexAmount: strkAmountsObject.nostraDexAmount,
+      ekuboAmount: strkAmountsObject.ekuboAmount,
+    }
+  };
 }
 
 export function calculatePoints(totalAmount: string, multipler: number): BigInt {
