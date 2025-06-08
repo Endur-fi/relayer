@@ -84,11 +84,70 @@ interface UserCompleteDetails {
   };
 }
 
+interface LeaderboardCache {
+  data: PaginatedUsersResult | null;
+  timestamp: number;
+  isUpdating: boolean;
+}
+
 @Injectable()
 export class UsersService {
   private prisma = prisma;
 
+  private leaderboardCache: LeaderboardCache = {
+    data: null,
+    timestamp: 0,
+    isUpdating: false,
+  };
+  private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+
   async getAllUsersWithDetails(options: PaginationOptions): Promise<PaginatedUsersResult> {
+    // check if cache is valid
+    const now = Date.now();
+    if (
+      this.leaderboardCache.data &&
+      now - this.leaderboardCache.timestamp < this.CACHE_TTL_MS &&
+      !this.leaderboardCache.isUpdating
+    ) {
+      return this.getCachedDataWithPagination(options);
+    }
+
+    // if cache is being updated by another request, wait for it
+    if (this.leaderboardCache.isUpdating) {
+      return new Promise((resolve) => {
+        const checkCache = () => {
+          if (this.leaderboardCache.data && !this.leaderboardCache.isUpdating) {
+            resolve(this.getCachedDataWithPagination(options));
+          } else {
+            setTimeout(checkCache, 100);
+          }
+        };
+        checkCache();
+      });
+    }
+
+    this.leaderboardCache.isUpdating = true;
+
+    try {
+      const freshData = await this.fetchFreshLeaderboardData(options);
+
+      // update cache
+      this.leaderboardCache = {
+        data: freshData,
+        timestamp: now,
+        isUpdating: false,
+      };
+
+      return this.getCachedDataWithPagination(options);
+    } catch (error) {
+      this.leaderboardCache.isUpdating = false;
+      throw error;
+    }
+  }
+
+  private async fetchFreshLeaderboardData(
+    options: PaginationOptions,
+  ): Promise<PaginatedUsersResult> {
     const offset = (options.page - 1) * options.limit;
 
     // get total count
@@ -110,93 +169,57 @@ export class UsersService {
         orderBy = { total_points: 'desc' };
     }
 
-    // get paginated users
-    const aggregatedPoints = await this.prisma.points_aggregated.findMany({
-      skip: offset,
-      take: options.limit,
+    // get all users (not paginated) for cache
+    const allAggregatedPoints = await this.prisma.points_aggregated.findMany({
       orderBy,
       select: {
         user_address: true,
         total_points: true,
-      }
-    });
-
-    // const userAddresses = aggregatedPoints.map((u) => u.user_address);
-
-    // get points breakdown for all users
-    // const allUserPoints = await this.prisma.user_points.groupBy({
-    //   by: ['user_address', 'type'],
-    //   where: {
-    //     user_address: {
-    //       in: userAddresses,
-    //     },
-    //   },
-    //   _sum: {
-    //     points: true,
-    //   },
-    // });
-
-    // get activity dates
-    // const activityDates = await this.prisma.users.findMany({
-    //   where: {
-    //     user_address: {
-    //       in: userAddresses,
-    //     },
-    //   },
-    //   select: {
-    //     user_address: true,
-    //     timestamp: true,
-    //   },
-    // });
-
-    // organize data
-    const users: UserSummary[] = aggregatedPoints.map((user) => {
-      // const userPoints = allUserPoints.filter((p) => p.user_address === user.user_address);
-
-      // const regular_points = userPoints
-      //   .filter((p) => p.type === UserPointsType.Regular)
-      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
-
-      // const bonus_points = userPoints
-      //   .filter((p) => p.type === UserPointsType.Bonus)
-      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
-
-      // const referrer_points = userPoints
-      //   .filter((p) => p.type === UserPointsType.Referrer)
-      //   .reduce((sum, p) => sum + safeToBigInt(p._sum.points), BigInt(0));
-
-      // const activityDate = activityDates.find((a) => a.user_address === user.user_address);
-
-      return {
-        user_address: user.user_address,
-        total_points: safeToBigInt(user.total_points),
-        // regular_points,
-        // bonus_points,
-        // referrer_points,
-        // allocation: user.user_allocation?.allocation,
-        // first_activity_date: activityDate ? new Date(activityDate.timestamp * 1000) : undefined,
-        // last_activity_date: user.updated_on ? new Date(user.updated_on) : undefined,
-      };
+      },
     });
 
     // calculate summary
-    const total_points_all_users = users.reduce(
-      (sum, user) => sum + user.total_points,
+    const total_points_all_users = allAggregatedPoints.reduce(
+      (sum, user) => sum + safeToBigInt(user.total_points),
       BigInt(0),
     );
 
     return {
-      users,
+      users: allAggregatedPoints.map((user) => ({
+        user_address: user.user_address,
+        total_points: safeToBigInt(user.total_points),
+      })),
       pagination: {
-        page: options.page,
-        limit: options.limit,
+        page: 1,
+        limit: allAggregatedPoints.length,
         total: totalUsers,
-        totalPages: Math.ceil(totalUsers / options.limit),
+        totalPages: 1,
       },
       summary: {
         total_users: totalUsers,
         total_points_all_users: safeToBigInt(total_points_all_users),
       },
+    };
+  }
+
+  private getCachedDataWithPagination(options: PaginationOptions): PaginatedUsersResult {
+    if (!this.leaderboardCache.data) {
+      throw new Error('Cache is empty');
+    }
+
+    const { page, limit } = options;
+    const offset = (page - 1) * limit;
+    const paginatedUsers = this.leaderboardCache.data.users.slice(offset, offset + limit);
+
+    return {
+      users: paginatedUsers,
+      pagination: {
+        page,
+        limit,
+        total: this.leaderboardCache.data.pagination.total,
+        totalPages: Math.ceil(this.leaderboardCache.data.pagination.total / limit),
+      },
+      summary: this.leaderboardCache.data.summary,
     };
   }
 
@@ -290,7 +313,6 @@ export class UsersService {
     const priority_points = allPoints
       .filter((p) => p.type === UserPointsType.Priority)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
-
 
     return {
       user_address: userAddress,
