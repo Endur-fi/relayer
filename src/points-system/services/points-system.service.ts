@@ -414,6 +414,7 @@ export class PointsSystemService implements IPointsSystemService {
 
   async fetchAndStoreHoldings() {
     // sanity check for blocks
+    await this.doOneCallPerUser();
     // await this.loadBlocks();
     // await this.sanityBlocks();
 
