@@ -26,7 +26,8 @@ async function main() {
   }
 
   const totalPoints = users.reduce((sum, u) => sum + BigInt(u.total_points), 0n);
-
+  console.log(`Total points across all users: ${totalPoints}`);
+  
   if (totalPoints === 0n) {
     console.warn('Total points is zero.');
     return;

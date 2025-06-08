@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserPointsType } from '@prisma/my-client';
 
-import { logger } from '../../common/utils';
+import { logger, standariseAddress } from '../../common/utils';
 import { bigIntToDecimal, prisma } from '../utils';
 
 const BATCH_SIZE = 100;
@@ -54,7 +54,7 @@ export class PriorityBonusService {
       distinct: ['referee'],
     });
 
-    const refereeAddresses = eligibleReferees.map((r) => r.referee);
+    const refereeAddresses = eligibleReferees.map((r) => standariseAddress(r.referee));
     console.log(`Found ${refereeAddresses.length} eligible referees for priority bonus`);
     
     if (refereeAddresses.length === 0) {
@@ -75,6 +75,7 @@ export class PriorityBonusService {
         },
       },
     });
+    console.log(`Found ${aggregatedPoints.length} users with aggregated points`);
 
     // check which users already have Priority bonus points
     const existingPriorityBonuses = await this.prisma.user_points.findMany({
@@ -91,6 +92,7 @@ export class PriorityBonusService {
     });
 
     const usersWithExistingBonus = new Set(existingPriorityBonuses.map((p) => p.user_address));
+    console.log(`Found ${usersWithExistingBonus.size} users with existing Priority bonus`);
 
     // filter out users who already have priority bonus
     const eligibleUsers = aggregatedPoints
@@ -166,6 +168,17 @@ export class PriorityBonusService {
               },
             });
 
+            await tx.points_aggregated.update({
+              where: {
+                user_address: user.user_address,
+              },
+              data: {
+                total_points: {
+                  increment: user.bonus_points,
+                },
+              },
+            });
+
             usersProcessed++;
             totalBonusAwarded += user.bonus_points;
 
@@ -177,7 +190,7 @@ export class PriorityBonusService {
             throw error;
           }
         }
-      });
+      }, { timeout: 300000 });
     }
 
     logger.info(`Successfully processed ${usersProcessed} users for priority bonus`);
