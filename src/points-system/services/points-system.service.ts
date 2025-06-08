@@ -220,7 +220,7 @@ export class PointsSystemService implements IPointsSystemService {
 
       // create tasks for each date from currentDate to endDate
       // for each user
-      while (currentDate <= this.config.endDate) {
+      while (currentDate < this.config.endDate) {
         allTasks.push([user.user_address, new Date(currentDate)]);
         currentDate.setDate(currentDate.getDate() + 1);
       }

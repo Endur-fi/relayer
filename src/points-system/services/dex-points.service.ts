@@ -127,12 +127,12 @@ export class DexScoreService implements IDexScoreService {
 
       logger.info(`Saving current prices: ${processStartDate.toISOString().split('T')[0]}, block: ${blockInfo.block_number}`);
       try {
-        const currentPrice = await this.getCurrentPrice(blockInfo.block_number);
+        // const currentPrice = await this.getCurrentPrice(blockInfo.block_number);
         const truePrice = await this.getTruePrice(blockInfo.block_number, pricer);
         await prisma.price_info.create({
           data: {
             block_number: blockInfo.block_number,
-            dex_price: currentPrice.toString(),
+            dex_price: "0",
             true_price: truePrice.toString(),
             timestamp: Math.round(processStartDate.getTime() / 1000), // convert to seconds
           },
@@ -219,6 +219,15 @@ export class DexScoreService implements IDexScoreService {
   }
   
   async getDexBonusPoints(address: string, blockNumber: number, date: Date, nostraDEXStrkAmount: number): Promise<DexScore> {
+    const START_DATE = new Date('2025-06-01');
+    if (date < START_DATE) {
+      // points on DEXes havent started yet
+      return {
+        ekuboScore: [],
+        nostraScore: [],
+        strkfarmEkuboScore: [],
+      };
+    }
     const currentPrice = await prisma.price_info.findFirst({
       where: {
         timestamp: Math.round(date.getTime() / 1000), // convert to seconds
@@ -327,7 +336,7 @@ export class DexScoreService implements IDexScoreService {
     let STRKAmount = MyNumber.fromEther("0", 18);
   
     const resp = await axios.get(
-      `https://mainnet-api.ekubo.org/positions/${address}`,
+      `https://mainnet-api.ekubo.org/positions/${address}?showClosed=true`,
       {
         headers: {
           Host: "mainnet-api.ekubo.org",

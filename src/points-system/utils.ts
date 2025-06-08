@@ -36,7 +36,8 @@ type dAppAmountProperty =
   | 'nostraLendingAmount'
   | 'nostraDexAmount'
   | 'walletAmount'
-  | 'strkfarmAmount';
+  | 'strkfarmAmount'
+  | 'opusAmount';
 
 const blockCache: Record<string, { block_number: number }> = {};
 export async function findClosestBlockInfo(date: Date) {
