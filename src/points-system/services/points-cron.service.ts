@@ -32,6 +32,10 @@ export class PointsCronService {
     //   endDate: new Date(),
     // });
 
+    this.init();
+  }
+
+  async init() {
     await this.dexScoreService.saveCurrentPrices();
     await this.pointsSystemService.fetchAndStoreHoldings();
     // await this.dexScoreService.saveBonusPoints();
