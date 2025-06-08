@@ -144,7 +144,7 @@ export class DexScoreService implements IDexScoreService {
       processStartDate.setDate(processStartDate.getDate() + 1);
     }
 
-    process.exit(0);
+    // process.exit(0);
   }
 
   @TryCatchAsync(3, 10000) // attempts, retry delay in ms
