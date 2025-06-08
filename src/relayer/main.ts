@@ -35,7 +35,6 @@ import { DelegatorService } from './services/delegatorService';
 })
 class AppModule {}
 
-
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);

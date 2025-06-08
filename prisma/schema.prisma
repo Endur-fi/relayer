@@ -166,6 +166,7 @@ model user_balances {
   nostraDexAmount     String
   walletAmount        String
   strkfarmAmount      String
+  opusAmount         String @default("0")
 
   total_amount String
   date         String
@@ -175,7 +176,6 @@ model user_balances {
 }
 
 enum UserPointsType {
-  Regular
   Early
   Priority
   Bonus
@@ -188,6 +188,7 @@ model user_points {
   points             Decimal
   cummulative_points Decimal // within a given type
   type               UserPointsType
+  remarks            String?
 
   @@unique([block_number, user_address, type])
 }
@@ -216,4 +217,33 @@ model blocks {
   block_number Int     @unique
   timestamp    Int
   cursor       BigInt? @map("_cursor")
+}
+
+model price_info {
+  block_number Int     @unique
+  dex_price        Decimal @db.Decimal(30, 18)
+  true_price      Decimal @db.Decimal(30, 18)
+  timestamp    Int
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([block_number])
+}
+
+model dex_positions {
+  // e.g. nostra
+  // ekubo_fee_tick_spacing
+  pool_key String
+  user_address String
+  strk_amount String
+  score Decimal
+
+  // to store any additional info
+  additional_info String @default("{}")
+  
+  block_number Int
+  timestamp Int
+  
+  @@unique([user_address, pool_key, timestamp])
 }

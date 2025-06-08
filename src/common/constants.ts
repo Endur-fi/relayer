@@ -95,9 +95,4 @@ export const REFERRERS_WITH_CODE = [
   '79X2C',
   '26CE6',
   'DC322',
-  'B0NTV',
-  'STRKY',
-  'FLEXX',
-  'H4A5T',
-  'FABIO',
 ];

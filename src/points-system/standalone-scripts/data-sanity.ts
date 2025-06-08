@@ -2,7 +2,8 @@ import { PrismaClient } from "@prisma/client"
 import { ABI as LSTAbi } from "../../../abis/LST";
 import { Contract } from "starknet";
 import { getProvider } from "../../common/utils";
-import { xSTRK_DAPPS } from "../services/points-system.service";
+import { EXCLUSION_LIST, xSTRK_DAPPS } from "../services/points-system.service";
+import assert from "assert";
 
 const prisma = new PrismaClient();
 
@@ -36,6 +37,9 @@ async function checkSanity(date: string) {
       date
     }
   });
+  if (!blockInfo) {
+    throw new Error(`No block info found for date: ${date}`);
+  }
   const debt = await nostraXSTRKDebt(blockInfo?.block_number ?? 0);
   const xSTRKSupply = await totalSupply(blockInfo?.block_number ?? 0);
 
@@ -55,23 +59,52 @@ async function checkSanity(date: string) {
   // sort by total_amount descending
   const sorted = data.sort((a, b) => Number(b.total_amount) - Number(a.total_amount));
   // log top 10
-  console.log(`Top 10 users for ${date}:`);
-  sorted.slice(0, 10).forEach((item, index) => {
-    console.log(`${index + 1}. User: ${item.user_address}, Amount: ${item.total_amount}`);
-  });
+  // console.log(`Top 10 users for ${date}:`);
+  // sorted.slice(0, 10).forEach((item, index) => {
+  //   console.log(`${index + 1}. User: ${item.user_address}, Amount: ${item.total_amount}`);
+  // });
 
   const total = data.reduce((acc, curr) => acc + Number(curr.total_amount), 0);
   console.log(`Total amount for ${date}: ${total}`);
 
   const effectiveCalc = total - debt;
   console.log(`Effective calculation for ${date}: ${effectiveCalc}`);
+  console.log(`Total xSTRK supply for ${date}: ${xSTRKSupply}`);
 
   const diff = effectiveCalc - xSTRKSupply;
   console.log(`Difference between effective calculation and xSTRK supply: ${diff}`);
+
+  assert(Math.abs(diff) < 0.015 * xSTRKSupply, `Data sanity check failed for date ${date}. Difference is too high: ${diff}`);
+}
+
+async function checkNoPointsForExcludedDapps(date: string) {
+  const blockInfo = await prisma.points_aggregated.findMany({
+    where: {
+      total_points: {
+        gt: 0
+      },
+      user_address: {
+        in: EXCLUSION_LIST
+      }
+    }
+  });
+  if (!blockInfo || blockInfo.length === 0) {
+    console.log(`No points found for excluded dapps on date: ${date}`);
+    return;
+  }
+  console.log(`Points found for excluded dapps on date: ${date}`);
+  blockInfo.forEach((item) => {
+    console.log(`User: ${item.user_address}, Points: ${item.total_points}, block: ${item.block_number}`);
+  });
 }
 
 async function main() {
-  checkSanity('2025-01-02')
+  // let start = new Date('2025-05-26');
+  // while (start < new Date('2025-05-27')) {
+  //   await checkSanity(start.toISOString().split('T')[0]);
+  //   start.setDate(start.getDate() + 1);
+  // }
+  checkNoPointsForExcludedDapps('2025-05-26');
 }
 
 

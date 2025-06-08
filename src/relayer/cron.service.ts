@@ -10,7 +10,7 @@ import { NotifService } from "./services/notifService";
 import { LSTService } from './services/lstService';
 import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { getAddresses, getLSTDecimals, Network } from '../common/constants';
-import assert = require('assert');
+const assert = require('assert');
 import { DelegatorService } from './services/delegatorService';
 
 function getCronSettings(action: 'process-withdraw-queue') {

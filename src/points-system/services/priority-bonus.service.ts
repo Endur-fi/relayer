@@ -55,7 +55,8 @@ export class PriorityBonusService {
     });
 
     const refereeAddresses = eligibleReferees.map((r) => r.referee);
-
+    console.log(`Found ${refereeAddresses.length} eligible referees for priority bonus`);
+    
     if (refereeAddresses.length === 0) {
       return {
         totalEligibleReferees: 0,
@@ -99,6 +100,7 @@ export class PriorityBonusService {
         total_points: user.total_points,
         bonus_points: user.total_points, // double the points (100% bonus)
       }));
+    console.log(`Eligible users for priority bonus: ${eligibleUsers.length}`);
 
     const totalCurrentPoints = eligibleUsers.reduce(
       (sum, user) => sum + user.total_points,
@@ -144,7 +146,7 @@ export class PriorityBonusService {
             const existingPriorityBonus = await tx.user_points.findFirst({
               where: {
                 user_address: user.user_address,
-                type: UserPointsType.Referrer,
+                type: UserPointsType.Priority,
               },
             });
 
@@ -194,7 +196,7 @@ export class PriorityBonusService {
     // get actual Priority bonus points from database
     const actualPriorityPoints = await this.prisma.user_points.findMany({
       where: {
-        type: UserPointsType.Referrer,
+        type: UserPointsType.Priority,
         user_address: {
           in: summary.eligibleUsers.map((u) => u.user_address),
         },

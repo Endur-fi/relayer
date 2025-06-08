@@ -91,8 +91,8 @@ class PointsSummary {
   @Field(() => String)
   bonus_points!: string;
 
-  @Field(() => String)
-  referrer_points!: string;
+  // @Field(() => String)
+  // priority_points!: string;
 }
 
 @ObjectType()
@@ -347,7 +347,7 @@ export class UsersResolver {
         total_points: result.points.total_points.toString(),
         regular_points: result.points.regular_points.toString(),
         bonus_points: result.points.bonus_points.toString(),
-        referrer_points: result.points.priority_points.toString(),
+        // priority_points: result.points.priority_points.toString(),
       },
       // eligibility: {
       //   early_user_bonus: {
@@ -369,56 +369,56 @@ export class UsersResolver {
     };
   }
 
-  @Query(() => UserPointsBreakdown, { nullable: true })
-  async getUserPointsBreakdown(
-    @Arg('userAddress', () => String) userAddress: string,
-  ): Promise<UserPointsBreakdown | null> {
-    const result = await this.usersService.getUserPointsBreakdown(userAddress);
+  // @Query(() => UserPointsBreakdown, { nullable: true })
+  // async getUserPointsBreakdown(
+  //   @Arg('userAddress', () => String) userAddress: string,
+  // ): Promise<UserPointsBreakdown | null> {
+  //   const result = await this.usersService.getUserPointsBreakdown(userAddress);
 
-    if (!result) {
-      return null;
-    }
+  //   if (!result) {
+  //     return null;
+  //   }
 
-    return {
-      ...result,
-      summary: {
-        total_points: result.summary.total_points.toString(),
-        regular_points: result.summary.regular_points.toString(),
-        bonus_points: result.summary.bonus_points.toString(),
-        referrer_points: result.summary.priority_points.toString(),
-      },
-      history: result.history.map((item) => ({
-        ...item,
-        points: item.points.toString(),
-        cummulative_points: item.cummulative_points.toString(),
-        type: item.type.toString(),
-      })),
-    };
-  }
+  //   return {
+  //     ...result,
+  //     summary: {
+  //       total_points: result.summary.total_points.toString(),
+  //       regular_points: result.summary.regular_points.toString(),
+  //       bonus_points: result.summary.bonus_points.toString(),
+  //       referrer_points: result.summary.priority_points.toString(),
+  //     },
+  //     history: result.history.map((item) => ({
+  //       ...item,
+  //       points: item.points.toString(),
+  //       cummulative_points: item.cummulative_points.toString(),
+  //       type: item.type.toString(),
+  //     })),
+  //   };
+  // }
 
-  @Query(() => [BalanceHistory])
-  async getUserBalanceHistory(
-    @Arg('userAddress', () => String) userAddress: string,
-    @Arg('days', () => Int, { defaultValue: 30 }) days: number,
-  ): Promise<BalanceHistory[]> {
-    const result = await this.usersService.getUserBalanceHistory(userAddress, days);
-    return result;
-  }
+  // @Query(() => [BalanceHistory])
+  // async getUserBalanceHistory(
+  //   @Arg('userAddress', () => String) userAddress: string,
+  //   @Arg('days', () => Int, { defaultValue: 30 }) days: number,
+  // ): Promise<BalanceHistory[]> {
+  //   const result = await this.usersService.getUserBalanceHistory(userAddress, days);
+  //   return result;
+  // }
 
-  @Query(() => UsersStatistics)
-  async getUsersStatistics(): Promise<UsersStatistics> {
-    const result = await this.usersService.getUsersStatistics();
+  // @Query(() => UsersStatistics)
+  // async getUsersStatistics(): Promise<UsersStatistics> {
+  //   const result = await this.usersService.getUsersStatistics();
 
-    return {
-      ...result,
-      total_points_distributed: result.total_points_distributed.toString(),
-      points_by_type: {
-        regular: result.points_by_type.regular.toString(),
-        bonus: result.points_by_type.bonus.toString(),
-        referrer: result.points_by_type.referrer.toString(),
-      },
-    };
-  }
+  //   return {
+  //     ...result,
+  //     total_points_distributed: result.total_points_distributed.toString(),
+  //     points_by_type: {
+  //       regular: result.points_by_type.regular.toString(),
+  //       bonus: result.points_by_type.bonus.toString(),
+  //       referrer: result.points_by_type.referrer.toString(),
+  //     },
+  //   };
+  // }
 
   @Query(() => UserTags)
   async getUserTags(@Arg('userAddress', () => String) userAddress: string): Promise<UserTags> {

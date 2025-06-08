@@ -6,7 +6,7 @@ import { bigIntToDecimal, calculatePoints, prisma } from '../utils';
 
 // ! Update these constants as needed
 export const EARLY_USER_BONUS_PERCENTAGE = 20; // 20% bonus
-const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z'); // May 25th, 2025 eod
+const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z'); // May 26th, 2025 eod
 
 const SIX_MONTHS_DAYS = 180; // 6 months
 const SIX_MONTH_BONUS_MULTIPLIER = 0.2; // 20% bonus
@@ -20,15 +20,15 @@ export class BonusService {
 
   // calculate and award early user bonus points
   async calculateAndAwardEarlyUserBonus(): Promise<void> {
-    logger.info('Starting Early User Bonus calculation...');
+    logger.info('Starting Early User Early calculation...');
     logger.info(`Cutoff date: ${EARLY_USER_CUTOFF_DATE.toISOString()}`);
-    logger.info(`Bonus percentage: ${EARLY_USER_BONUS_PERCENTAGE}%`);
+    logger.info(`Early percentage: ${EARLY_USER_BONUS_PERCENTAGE}%`);
 
     try {
       // check if any early user bonuses have already been awarded
       const existingBonuses = await this.prisma.user_points.count({
         where: {
-          type: UserPointsType.Bonus,
+          type: UserPointsType.Early,
         },
       });
 
@@ -72,11 +72,11 @@ export class BonusService {
         );
       }
 
-      logger.info('Early User Bonus calculation completed successfully!');
+      logger.info('Early User Early calculation completed successfully!');
       logger.info(`Total users processed: ${totalProcessed}`);
       logger.info(`Total bonus points awarded: ${totalBonusAwarded}`);
     } catch (error) {
-      logger.error('Error during Early User Bonus calculation:', error);
+      logger.error('Error during Early User Early calculation:', error);
       throw error;
     }
   }
@@ -160,7 +160,7 @@ export class BonusService {
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        timestamp: 'asc',
       },
     });
 
@@ -198,6 +198,7 @@ export class BonusService {
 
       // it needs to be within the cutoff block range bcz that ensures latest points have been aggregated
       if (userGroup.block_number > cutoffBlock.block_number || userGroup.block_number < lowerCutoff.block_number) {
+        console.error(`User ${userGroup.user_address} has points outside the cutoff range, block: ${userGroup.block_number}`);
         throw new Error(`Points aggregation moved ahead, computing now will give incorrect results`);
       }
       // calculate points for this user's balance
@@ -322,9 +323,8 @@ export class BonusService {
           });
 
           if (existingBonus) {
-            throw new Error(
-              `Early Bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`,
-            );
+            console.warn(`Early user bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`);
+            continue; // skip if bonus already exists
           }
 
           // create bonus points record
@@ -358,7 +358,7 @@ export class BonusService {
         processed: users.length,
         bonusAwarded: batchBonusAwarded,
       };
-    });
+    }, { timeout: 300000 }); // 5 minutes timeout for the transaction
   }
 
   private async processSixMonthBatch(
@@ -546,7 +546,7 @@ export class BonusService {
           block_number_user_address_type: {
             block_number: user.latestBlockBeforeCutoff,
             user_address: user.user_address,
-            type: UserPointsType.Bonus,
+            type: UserPointsType.Early,
           },
         },
       });

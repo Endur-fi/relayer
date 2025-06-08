@@ -11,7 +11,7 @@ import { prisma } from '../utils';
  * Usage: node priority-bonus-script.ts [--dry-run] [--summary-only]
  */
 
-const cutOffTime = new Date('2025-05-25T00:00:00Z'); // 5th may 2025, 00:00 UTC
+const cutOffTime = new Date('2025-05-25T23:59:00Z'); // 5th may 2025, 00:00 UTC
 const ReferrsToConsider = REFERRERS_WITH_CODE;
 
 async function main() {
