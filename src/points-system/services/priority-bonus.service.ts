@@ -55,7 +55,8 @@ export class PriorityBonusService {
     });
 
     const refereeAddresses = eligibleReferees.map((r) => r.referee);
-
+    console.log(`Found ${refereeAddresses.length} eligible referees for priority bonus`);
+    
     if (refereeAddresses.length === 0) {
       return {
         totalEligibleReferees: 0,
@@ -99,6 +100,7 @@ export class PriorityBonusService {
         total_points: user.total_points,
         bonus_points: user.total_points, // double the points (100% bonus)
       }));
+    console.log(`Eligible users for priority bonus: ${eligibleUsers.length}`);
 
     const totalCurrentPoints = eligibleUsers.reduce(
       (sum, user) => sum + user.total_points,

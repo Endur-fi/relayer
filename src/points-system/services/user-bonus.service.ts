@@ -20,15 +20,15 @@ export class BonusService {
 
   // calculate and award early user bonus points
   async calculateAndAwardEarlyUserBonus(): Promise<void> {
-    logger.info('Starting Early User Bonus calculation...');
+    logger.info('Starting Early User Early calculation...');
     logger.info(`Cutoff date: ${EARLY_USER_CUTOFF_DATE.toISOString()}`);
-    logger.info(`Bonus percentage: ${EARLY_USER_BONUS_PERCENTAGE}%`);
+    logger.info(`Early percentage: ${EARLY_USER_BONUS_PERCENTAGE}%`);
 
     try {
       // check if any early user bonuses have already been awarded
       const existingBonuses = await this.prisma.user_points.count({
         where: {
-          type: UserPointsType.Bonus,
+          type: UserPointsType.Early,
         },
       });
 
@@ -72,11 +72,11 @@ export class BonusService {
         );
       }
 
-      logger.info('Early User Bonus calculation completed successfully!');
+      logger.info('Early User Early calculation completed successfully!');
       logger.info(`Total users processed: ${totalProcessed}`);
       logger.info(`Total bonus points awarded: ${totalBonusAwarded}`);
     } catch (error) {
-      logger.error('Error during Early User Bonus calculation:', error);
+      logger.error('Error during Early User Early calculation:', error);
       throw error;
     }
   }
@@ -546,7 +546,7 @@ export class BonusService {
           block_number_user_address_type: {
             block_number: user.latestBlockBeforeCutoff,
             user_address: user.user_address,
-            type: UserPointsType.Bonus,
+            type: UserPointsType.Early,
           },
         },
       });
