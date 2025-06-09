@@ -43,6 +43,7 @@ interface PaginatedUsersResult {
 
 interface UserCompleteDetails {
   user_address: string;
+  rank: number;
   points: {
     total_points: bigint;
     regular_points: bigint;
@@ -253,6 +254,7 @@ export class UsersService {
 
     return {
       user_address: userAddress,
+      rank: pointsBreakdown.rank,
       points: (pointsBreakdown?.summary && pointsBreakdown.summary) || {
         total_points: BigInt(0),
         regular_points: BigInt(0),
@@ -268,6 +270,7 @@ export class UsersService {
 
   async getUserPointsBreakdown(userAddress: string): Promise<{
     user_address: string;
+    rank: number;
     summary: {
       total_points: bigint;
       regular_points: bigint;
@@ -303,6 +306,17 @@ export class UsersService {
       },
     });
 
+    const rankInfo = await this.prisma.points_aggregated.aggregate({
+      where: {
+        total_points: {
+          gt: result?.total_points || BigInt(0),
+        },
+      },
+      _count: {
+        total_points: true,
+      },
+    });
+
     let total_points = safeToBigInt(result?.total_points || BigInt(0));
 
     // calculate summary
@@ -316,6 +330,7 @@ export class UsersService {
 
     return {
       user_address: userAddress,
+      rank: rankInfo._count.total_points + 1, // +1 because we count users with more points
       summary: {
         total_points: total_points - priority_points, // TODO TEMP: remove priority points from total
         regular_points: total_points - bonus_points - priority_points,

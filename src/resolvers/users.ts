@@ -187,6 +187,9 @@ class UserCompleteDetails {
   @Field(() => String)
   user_address!: string;
 
+  @Field(() => Number)
+  rank!: number;
+
   @Field(() => PointsSummary)
   points!: PointsSummary;
 
