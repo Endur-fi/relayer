@@ -44,7 +44,7 @@ export interface IDexScoreService {
     truePrice: number,
     date: Date
   ): Promise<dex_positions[]>;
-  getTruePrice(blockNumber: number, pricer: Pricer): Promise<number>;
+  getTruePrice(blockNumber: number, pricer: PricerFromApi): Promise<number>;
   saveBonusPoints(): Promise<void>;
   getCurrentPrice(blockNumber: number): Promise<number>;
   saveCurrentPrices(): Promise<void>;
@@ -109,9 +109,7 @@ export class DexScoreService implements IDexScoreService {
 
     // to get true price
     const config = getMainnetConfig(process.env.RPC_URL!);
-    const pricer = new Pricer(config, await Global.getTokens());
-    pricer.start();
-    await pricer.waitTillReady();
+    const pricer = new PricerFromApi(config, await Global.getTokens());
 
     while (processStartDate < endDate) {
       // increment date by one day
@@ -146,7 +144,7 @@ export class DexScoreService implements IDexScoreService {
   }
 
   @TryCatchAsync(3, 10000) // attempts, retry delay in ms
-  async getTruePrice(blockNumber: number, pricer: Pricer) {
+  async getTruePrice(blockNumber: number, pricer: PricerFromApi) {
     const ekuboVaultMod = new EkuboCLVault(getMainnetConfig(process.env.RPC_URL!, blockNumber), pricer, EkuboCLVaultStrategies[0]);
     const truePrice = await ekuboVaultMod.truePrice();
     logger.info(`True price for block ${blockNumber}: ${truePrice}`);
