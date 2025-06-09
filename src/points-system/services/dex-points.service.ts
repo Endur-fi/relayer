@@ -234,7 +234,7 @@ export class DexScoreService implements IDexScoreService {
       }
     });
     if (!currentPrice) {
-      throw new Error(`No price found for date: ${date.toISOString().split('T')[0]}`);
+      throw new Error(`No price found for date: ${date.toISOString()}`);
     }
 
     const nostraScore: dex_positions[] = [{

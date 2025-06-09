@@ -13,7 +13,7 @@ import {
 import { DexScoreService, DexScore } from './dex-points.service';
 import { writeFileSync } from 'fs';
 
-const DB_BATCH_SIZE = 500; // no of records to insert at once
+const DB_BATCH_SIZE = 100; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
 const MAX_RETRIES = 5; // max number of retry attempts
 const RETRY_DELAY = 30000; // 30 seconds delay between retries
@@ -39,7 +39,7 @@ export interface IPointsSystemService {
   getUserRecord(addr: string): Promise<Date | null>;
   updateUserRecord(addr: string, record: Date): Promise<void>;
   getAllTasks(): Promise<[string, Date][]>;
-  processTaskBatch(tasks: [string, Date][]): Promise<number>;
+  processTaskBatch(tasks: [string, Date][]): Promise<void>;
   doOneCallPerUser(): Promise<void>;
   loadBlocks(): Promise<void>;
   sanityBlocks(): Promise<void>;
@@ -91,6 +91,7 @@ export class PointsSystemService implements IPointsSystemService {
       };
       return { holdings, dex_info: dex_info };
     } catch (error) {
+      console.error(error);
       logger.error(
         `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`,
       );
@@ -247,7 +248,7 @@ export class PointsSystemService implements IPointsSystemService {
     return allTasks;
   }
 
-  async processTaskBatch(tasks: [string, Date][]): Promise<number> {
+  async processTaskBatch(tasks: [string, Date][]) {
     const now = new Date();
     console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`);
     const minDate = tasks.reduce((min, task) => {
@@ -323,13 +324,17 @@ export class PointsSystemService implements IPointsSystemService {
       for (const userBalance of validResults) {
         await this.updatePointsAggregated(userBalance, prismaTransaction);
       }
-    }, { timeout: 300000 }); // 30 seconds timeout for the transaction
-
-    const now3 = new Date();
-    console.log(
-      `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
-    );
-    return validResults.length;
+    }, { timeout: 300000 })
+    // .then(() => { // 30 seconds timeout for the transaction
+        const now3 = new Date();
+        console.log(
+          `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
+        );
+        return validResults.length;
+    // }).catch((error) => {
+    //   console.error(`Error processing batch: ${error.message}`, error);
+    //   process.exit(1); // Exit the process on error
+    // });
   }
 
   // fetches all ekubo values and caches them in memory
@@ -452,8 +457,7 @@ export class PointsSystemService implements IPointsSystemService {
         )}`,
       );
 
-      const inserted = await this.processTaskBatch(taskBatch);
-      totalInserted += inserted;
+      await this.processTaskBatch(taskBatch);
 
       // add small delay between batches
       if (i + DB_BATCH_SIZE < allTasks.length) {
@@ -461,7 +465,7 @@ export class PointsSystemService implements IPointsSystemService {
       }
     }
 
-    logger.info(`Data fetching and storage complete. Total records inserted: ${totalInserted}`);
+    logger.info(`Data fetching and storage complete`);
   }
 }
 
