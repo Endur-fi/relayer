@@ -1,0 +1,83 @@
+[
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1274006",
+    "strk_amount": "34.40990813159991",
+    "score": "1437.6582010435534",
+    "block_number": 1453065,
+    "user_address": "0x2fa672e581238c226ef368ad72f5db0fc1c0d6d4d650f1b04ff840fefc2470d",
+    "additional_info": "{\"lower_price\":1.0191816389335957,\"upper_price\":1.0523228664445732}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1274004",
+    "strk_amount": "0.9831412075064795",
+    "score": "41.075989344404974",
+    "block_number": 1453065,
+    "user_address": "0x2fa672e581238c226ef368ad72f5db0fc1c0d6d4d650f1b04ff840fefc2470d",
+    "additional_info": "{\"lower_price\":1.0191816389335957,\"upper_price\":1.0523228664445732}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1276522",
+    "strk_amount": "83.40984447127988",
+    "score": "3501.942966739661",
+    "block_number": 1453065,
+    "user_address": "0x19a3ac605f030b1f46e483f3d613fc6a5dfa20f4aade6bc07fa4dff45b7ab25",
+    "additional_info": "{\"lower_price\":1.0202013298230708,\"upper_price\":1.0533757151211078}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1291387",
+    "strk_amount": "2501.460027445701",
+    "score": "121020.6614393975",
+    "block_number": 1453065,
+    "user_address": "0x7f487c538d0de7940eb0fe7a14f700cf7ef6408a27802cdf5aa0cd1c3c638a3",
+    "additional_info": "{\"lower_price\":1.0502203250054136,\"upper_price\":1.0554845736523264}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1278169",
+    "strk_amount": "181.98716298982353",
+    "score": "7678.075690937732",
+    "block_number": 1453065,
+    "user_address": "0x78cc525a72e8c75727e482c9169ca32650101ac4e7a111ffe0a6aa33397c154",
+    "additional_info": "{\"lower_price\":1.02122204091294,\"upper_price\":1.054429617172392}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1300925",
+    "strk_amount": "345.7732880455421",
+    "score": "16976.108486390087",
+    "block_number": 1453065,
+    "user_address": "0x6535e934e56f81e1e9115f5bbcd996134e1b2ac726f812dfeb1535f70e68e6d",
+    "additional_info": "{\"lower_price\":1.0533757151211078,\"upper_price\":1.060775209442162}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1278478",
+    "strk_amount": "229.96862469556064",
+    "score": "10188.086282664548",
+    "block_number": 1453065,
+    "user_address": "0x3049854bbcedf3324e4aa8bd4196b4541e7a099cf91ae8eaf42483a9d072ed9",
+    "additional_info": "{\"lower_price\":1.0314854878958777,\"upper_price\":1.157196103561635}",
+    "timestamp": 1748736000
+  },
+  {
+    "pool_key": "ekubo_170141183460469235273462165868118016_1000_1278615",
+    "strk_amount": "66.45793843015655",
+    "score": "2929.8713781559522",
+    "block_number": 1453065,
+    "user_address": "0x279e7d46b9e3f36151b9c32d7cecac646c243c265b1acce5de48796c02352c2",
+    "additional_info": "{\"lower_price\":1.030454518494166,\"upper_price\":1.157196103561635}",
+    "timestamp": 1748736000
+  },
+  {
+    "score": "0.4765578712058088",
+    "pool_key": "strkfarmEkubo",
+    "strk_amount": "0.009621428544742612",
+    "additional_info": "{\"lower_price\":1.0552734979514247,\"upper_price\":1.0556956915725688,\"balance\":\"10699700335111370201\",\"total_supply\":\"13930913727784224811474610\",\"total_strk_amount\":\"12527013542146522739386\"}",
+    "block_number": 1453065,
+    "user_address": "0x65af1aeb618b58d2993760818a29c46efe1b15fa8a17cf4b9f879ca278d3e1e",
+    "timestamp": 1748736000
+  }
+]

@@ -11,6 +11,7 @@ import {
   sleep,
 } from '../utils';
 import { DexScoreService, DexScore } from './dex-points.service';
+import { writeFileSync } from 'fs';
 
 const DB_BATCH_SIZE = 500; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
@@ -292,6 +293,21 @@ export class PointsSystemService implements IPointsSystemService {
     // Filter out null results (skipped users/dates)
     const validResults = results.map((r) => r.holdings).filter(Boolean) as user_balances[];
 
+    writeFileSync(`holdings2.json`, JSON.stringify(validResults, null, 2));
+    writeFileSync(`holdings2a.json`, JSON.stringify(dexScoreResults, null, 2));
+
+    // duplicate dex scores
+    const uniqueDexScores = new Map<string, dex_positions>();
+    dexScoreResults.forEach((score) => {
+      const key = `${score.user_address}-${score.pool_key}-${score.timestamp}`;
+      if (!uniqueDexScores.has(key)) {
+        uniqueDexScores.set(key, score);
+      } else {
+        console.warn(
+          `Duplicate dex score found for user ${score.user_address}, pool ${score.pool_key}, timestamp ${score.timestamp}. Skipping duplicate.`,
+        );
+      }
+    });
     await prisma.$transaction(async (prismaTransaction) => {
       // Step 1: Create user balances
       await prismaTransaction.user_balances.createMany({
@@ -414,7 +430,7 @@ export class PointsSystemService implements IPointsSystemService {
 
   async fetchAndStoreHoldings() {
     // sanity check for blocks
-    await this.doOneCallPerUser();
+    // await this.doOneCallPerUser();
     // await this.loadBlocks();
     // await this.sanityBlocks();
 

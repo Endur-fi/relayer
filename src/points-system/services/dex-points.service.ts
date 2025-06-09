@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { getNetwork, getProvider, standariseAddress, TryCatchAsync } from "../../common/utils";
 import { findClosestBlockInfo, prisma } from "../utils";
-import { EkuboCLVault, getMainnetConfig, Global, Pricer, EkuboCLVaultStrategies, logger } from '@strkfarm/sdk';
+import { EkuboCLVault, getMainnetConfig, Global, Pricer, EkuboCLVaultStrategies, logger, PricerFromApi } from '@strkfarm/sdk';
 import { BlockIdentifier, Contract, num, RpcProvider, uint256 } from "starknet";
 import EkuboAbi from '../../common/abi/ekubo.abi.json';
 import STRKFarmEkuboAbi from "../../common/abi/strkfarm.ekubo.json";
@@ -53,7 +53,7 @@ export interface IDexScoreService {
 @Injectable()
 export class DexScoreService implements IDexScoreService {
   config = getMainnetConfig(process.env.RPC_URL!);
-  pricer: Pricer | null = null;
+  pricer: PricerFromApi | null = null;
   strkfarmEkuboCache: { [block_number: number]: {
     total_supply: bigint;
     positionInfo: {
@@ -70,9 +70,7 @@ export class DexScoreService implements IDexScoreService {
   constructor() {}
 
   async init() {
-    const pricer = new Pricer(this.config, await Global.getTokens());
-    pricer.start();
-    await pricer.waitTillReady();
+    const pricer = new PricerFromApi(this.config, await Global.getTokens());
     this.pricer = pricer;
   }
 
@@ -394,7 +392,7 @@ export class DexScoreService implements IDexScoreService {
             );
 
             const positionInfo: dex_positions = {
-              pool_key: `ekubo_${num.getDecimalString(position.pool_key.fee)}_${num.getDecimalString(position.pool_key.tick_spacing)}`,
+              pool_key: `ekubo_${num.getDecimalString(position.pool_key.fee)}_${num.getDecimalString(position.pool_key.tick_spacing)}_${position.id}`,
               strk_amount: (Number(result.amount1.toString()) / 1e18).toString(),
               score: new Decimal(score), // will be calculated later
               block_number: blockNumber,
