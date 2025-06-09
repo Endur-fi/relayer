@@ -226,7 +226,7 @@ export class DexScoreService implements IDexScoreService {
     }
     const currentPrice = await prisma.price_info.findFirst({
       where: {
-        timestamp: Math.round(date.getTime() / 1000), // convert to seconds
+        timestamp: Math.round(new Date(date.toISOString().split('T')[0]).getTime() / 1000), // convert to seconds
       },
       select: {
         dex_price: true,
