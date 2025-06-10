@@ -261,7 +261,7 @@ export class UsersService {
         bonus_points: BigInt(0),
         // priority_points: BigInt(0),
       },
-      allocation: '0', // TODO TEMP // aggregatedPoints.user_allocation?.allocation || '0',
+      allocation: aggregatedPoints.user_allocation?.allocation || '0',
       // activity: activityDetails,
       // eligibility: eligibilityDetails,
       tags: tagsDetails,
