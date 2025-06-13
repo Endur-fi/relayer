@@ -173,3 +173,12 @@ export async function sleep(ms: number): Promise<void> {
 }
 
 export const bigIntToDecimal = (value: bigint): Decimal => new Decimal(value.toString());
+
+export const getDate = (dateString?: string): Date => {
+  const date = dateString ? new Date(dateString) : new Date();
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+export const getDateString = (date: Date): string => {
+  return date.toISOString().split('T')[0];
+}

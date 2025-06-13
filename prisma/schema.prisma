@@ -190,7 +190,7 @@ model user_points {
   type               UserPointsType
   remarks            String?
 
-  @@unique([block_number, user_address, type])
+  @@unique(name: "id", fields: [block_number, user_address, type])
 }
 
 model points_aggregated {
@@ -238,6 +238,7 @@ model dex_positions {
   user_address String
   strk_amount String
   score Decimal
+  is_points_settled Boolean @default(false) // indicates if the points for this position have been settled
 
   // to store any additional info
   additional_info String @default("{}")
@@ -245,5 +246,5 @@ model dex_positions {
   block_number Int
   timestamp Int
   
-  @@unique([user_address, pool_key, timestamp])
+  @@unique(name: "id", fields: [user_address, pool_key, timestamp])
 }

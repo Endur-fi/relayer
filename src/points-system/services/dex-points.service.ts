@@ -1,13 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { getNetwork, getProvider, standariseAddress, TryCatchAsync } from "../../common/utils";
-import { findClosestBlockInfo, prisma } from "../utils";
+import { findClosestBlockInfo, getDate, getDateString, prisma } from "../utils";
 import { EkuboCLVault, getMainnetConfig, Global, Pricer, EkuboCLVaultStrategies, logger, PricerFromApi } from '@strkfarm/sdk';
 import { BlockIdentifier, Contract, num, RpcProvider, uint256 } from "starknet";
 import EkuboAbi from '../../common/abi/ekubo.abi.json';
 import STRKFarmEkuboAbi from "../../common/abi/strkfarm.ekubo.json";
 import { getAddresses } from "../../common/constants";
 import MyNumber from "../../common/MyNumber";
-import { dex_positions, UserPointsType } from '@prisma/my-client';
+import { dex_positions, Prisma, PrismaClient, UserPointsType } from '@prisma/my-client';
 import axios from "axios";
 import ekuboPositionAbi from "../../common/abi/ekubo.position.abi.json";
 import { Decimal } from "@prisma/client/runtime/library";
@@ -17,6 +17,7 @@ const EKUBO_POSITION_ADDRESS =
   "0x02e0af29598b407c8716b17f6d2795eca1b471413fa03fb145a5e33722184067";
 const XSTRK_ADDRESS = getAddresses(getNetwork()).LST;
 const STRK_DECIMALS = 18;
+const MULTIPLIER = 0.7; // dex points multiplier
 
 export interface DexScore {
   ekuboScore: dex_positions[];
@@ -66,6 +67,7 @@ export class DexScoreService implements IDexScoreService {
       upper: { mag: number; sign: number };
     };
   } } = {};
+  bonusPointsPerScore: { [date: string]: { totalScore: number; totalPoints: number } } = {};
 
   constructor() {}
 
@@ -76,9 +78,9 @@ export class DexScoreService implements IDexScoreService {
 
 
   async saveCurrentPrices() {
-    const startDate = new Date('2025-05-25')
-    const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0); // set to 00:00:00 of the day
+    const startDate = getDate('2025-05-25');
+    const endDate = getDate();
+    console.log(`Saving current prices from: ${getDateString(startDate)} to ${getDateString(endDate)}`);
 
     const latestStoredDate = await prisma.price_info.findFirst({
       orderBy: {
@@ -89,23 +91,12 @@ export class DexScoreService implements IDexScoreService {
     // get job start date
     let processStartDate = startDate;
     if (latestStoredDate) {
-      const blockInfo = await prisma.blocks.findFirst({
-        where: {
-          block_number: {
-            lte: latestStoredDate.block_number + 500,
-            gte: latestStoredDate.block_number - 500,
-          }
-        }
-      })
-      if (!blockInfo) {
-        throw new Error(`No block found for latest stored date: ${latestStoredDate.block_number}`);
-      }
-      processStartDate = new Date(blockInfo.timestamp * 1000); // convert timestamp to Date
+      processStartDate = new Date(latestStoredDate.timestamp * 1000); // convert timestamp to Date
     }
 
     // set to 00:00:00 of the day
-    processStartDate.setHours(0, 0, 0, 0);
     processStartDate.setDate(processStartDate.getDate() + 1);
+    logger.info(`Starting to save current prices from: ${processStartDate.toISOString()} to ${endDate.toISOString()}`);
 
     // to get true price
     const config = getMainnetConfig(process.env.RPC_URL!);
@@ -113,15 +104,15 @@ export class DexScoreService implements IDexScoreService {
 
     while (processStartDate < endDate) {
       // increment date by one day
-
+      logger.info(`saveCurrentPrices: Processing date: ${getDateString(processStartDate)}`);
       const blockInfo = await findClosestBlockInfo(processStartDate);
       if (!blockInfo || !blockInfo.block_number) {
-        logger.warn(`No block found for date: ${processStartDate.toISOString().split('T')[0]}`);
+        logger.warn(`No block found for date: ${getDateString(processStartDate)}`);
         processStartDate.setDate(processStartDate.getDate() + 1);
-        throw new Error(`No block found for date: ${processStartDate.toISOString().split('T')[0]}`);
+        throw new Error(`No block found for date: ${getDateString(processStartDate)}`);
       }
 
-      logger.info(`Saving current prices: ${processStartDate.toISOString().split('T')[0]}, block: ${blockInfo.block_number}`);
+      logger.info(`Saving current prices: ${getDateString(processStartDate)}, block: ${blockInfo.block_number}`);
       try {
         // const currentPrice = await this.getCurrentPrice(blockInfo.block_number);
         const truePrice = await this.getTruePrice(blockInfo.block_number, pricer);
@@ -215,7 +206,7 @@ export class DexScoreService implements IDexScoreService {
   }
   
   async getDexBonusPoints(address: string, blockNumber: number, date: Date, nostraDEXStrkAmount: number): Promise<DexScore> {
-    const START_DATE = new Date('2025-06-01');
+    const START_DATE = getDate('2025-06-01');
     if (date < START_DATE) {
       // points on DEXes havent started yet
       return {
@@ -226,7 +217,7 @@ export class DexScoreService implements IDexScoreService {
     }
     const currentPrice = await prisma.price_info.findFirst({
       where: {
-        timestamp: Math.round(new Date(date.toISOString().split('T')[0]).getTime() / 1000), // convert to seconds
+        timestamp: Math.round(date.getTime() / 1000), // convert to seconds
       },
       select: {
         dex_price: true,
@@ -244,6 +235,7 @@ export class DexScoreService implements IDexScoreService {
       block_number: blockNumber,
       user_address: address,
       additional_info: "{}",
+      is_points_settled: false,
       timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
     }]
 
@@ -272,6 +264,7 @@ export class DexScoreService implements IDexScoreService {
       additional_info: JSON.stringify({}),
       block_number: blockNumber,
       user_address: userAddress,
+      is_points_settled: false,
       timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
     };
     if (Number(bal) === 0) {
@@ -399,6 +392,7 @@ export class DexScoreService implements IDexScoreService {
                 lower_price: EkuboCLVault.tickToPrice(position.bounds.lower),
                 upper_price: EkuboCLVault.tickToPrice(position.bounds.upper),
               }),
+              is_points_settled: false,
               timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
             };
             positionsInfo.push(positionInfo);
@@ -417,34 +411,27 @@ export class DexScoreService implements IDexScoreService {
   };
 
   async saveBonusPoints(): Promise<void> {
-    // todo ! reset
-    const overallStartDate = new Date('2025-06-07');
-    const latestDate = await prisma.dex_positions.findFirst({
+    // get all users
+    const dexPositions = await prisma.dex_positions.findMany({
       orderBy: {
-        timestamp: 'desc',
+        timestamp: 'asc',
       },
-      select: {
-        timestamp: true,
-      },
-    });
-    const startDate = latestDate ? new Date(latestDate.timestamp * 1000) : overallStartDate;
-    const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0); // set to 00:00:00 of the day
-
-    while (startDate < endDate) {
-      // increment date by one day
-      try {
-        console.log(`Processing date: ${startDate.toISOString().split('T')[0]}`);
-        await this.saveBonusPointsByDate(startDate);
-      } catch (error) {
-        console.error(`Error processing date ${startDate.toISOString().split('T')[0]}:`, error);
+      where: {
+        is_points_settled: false,
       }
-      startDate.setDate(startDate.getDate() + 1);
-    }
+    });
+
+    await this.saveBonusPointsByDate(dexPositions);
+    logger.info(`Saved bonus points for ${dexPositions.length} dex positions.`);
   }
 
-  async saveBonusPointsByDate(date: Date): Promise<void> {
-    date.setHours(0, 0, 0, 0); // set to 00:00:00 of the day
+  async computeBonusPointsPerScore(date: Date): Promise<{ dexPositions: dex_positions[] }> {
+    if (this.bonusPointsPerScore[date.toISOString().split('T')[0]]) {
+      console.log(`Bonus points already computed for date: ${date.toISOString().split('T')[0]}`);
+      return { dexPositions: [] }
+    }
+
+    console.log(`Computing bonus points for date: ${date.toISOString().split('T')[0]}`);
     const dex_positions: dex_positions[] = await prisma.dex_positions.findMany({
       where: {
         timestamp: Math.round(date.getTime() / 1000), // convert to seconds
@@ -454,7 +441,6 @@ export class DexScoreService implements IDexScoreService {
       throw new Error(`No dex positions found for date: ${date.toISOString().split('T')[0]}`);
     }
         
-    const MULTIPLIER = 0.7;
     const totalSTRK = dex_positions.reduce((acc, pos) => {
       const strkAmount = pos.strk_amount ? parseFloat(pos.strk_amount) : 0;
       return acc + strkAmount;
@@ -470,35 +456,100 @@ export class DexScoreService implements IDexScoreService {
     console.log(`Total score for date ${date.toISOString().split('T')[0]}: ${totalScore}`);
     console.log(`Total bonus points for date ${date.toISOString().split('T')[0]}: ${totalBonusPoints}`);
 
-    for (let i = 0; i < dex_positions.length; i+= 500) {
-      const batch = dex_positions.slice(i, i + 500);
-      const txs: any[] = [];
-      console.log(`Processing batch ${i / 500 + 1} of ${Math.ceil(dex_positions.length / 500)}`);
-      for (const pos of batch) {
-        const userPoint = prisma.user_points.create({
-          data: {
-            block_number: pos.block_number,
-            user_address: pos.user_address,
-            points: new Decimal(pos.score.toString()).mul(totalBonusPoints).div(totalScore).toNumber(),
-            cummulative_points: new Decimal(pos.score.toString()).mul(MULTIPLIER).toString(),
-            type: UserPointsType.Bonus,
-            remarks: 'dex_bonus'
-          },
-        });
-        const aggregationUpdate = prisma.points_aggregated.updateMany({
-          where: {
-            user_address: pos.user_address,
-          },
-          data: {
-            total_points: {
-              increment: new Decimal(pos.score.toString()).mul(MULTIPLIER).toNumber(),
-            },
-          },
-        });
-        txs.push(userPoint);
-        txs.push(aggregationUpdate);
-      }
-      await prisma.$transaction(txs);
+    this.bonusPointsPerScore[date.toISOString().split('T')[0]] = {
+      totalScore: totalScore,
+      totalPoints: totalBonusPoints,
+    };
+
+    return {
+      dexPositions: dex_positions,
+    }
+  }
+
+  async processDexPosition(dexPosition: dex_positions, tx: Prisma.TransactionClient) {
+    // compute bonus points for the date
+    const date = new Date(dexPosition.timestamp * 1000); // convert timestamp to Date
+    let totalBonusPointsInfo = this.bonusPointsPerScore[date.toISOString().split('T')[0]];
+    if (!totalBonusPointsInfo) {
+      const res = await this.computeBonusPointsPerScore(date);
+      totalBonusPointsInfo = this.bonusPointsPerScore[date.toISOString().split('T')[0]];
+    }
+    const totalBonusPoints = totalBonusPointsInfo.totalPoints;
+    const totalScore = totalBonusPointsInfo.totalScore;
+    const pos = dexPosition;
+    // add user points
+    const points = Math.round(new Decimal(pos.score.toString()).mul(totalBonusPoints).div(totalScore).toNumber());
+    await tx.user_points.upsert({
+      where: {
+        id: {
+          user_address: pos.user_address,
+          block_number: pos.block_number,
+          type: UserPointsType.Bonus,
+        }
+      },
+      update: {
+        points: {
+          increment: points,
+        },
+        cummulative_points: {
+          increment: points,
+        }
+      },
+      create: {
+        block_number: pos.block_number,
+        user_address: pos.user_address,
+        type: UserPointsType.Bonus,
+        points: points,
+        cummulative_points: points,
+        remarks: 'dex_bonus'
+      },
+    });
+    
+    // set is settled
+    await tx.dex_positions.update({
+      where: {
+        id: {
+          user_address: pos.user_address,
+          timestamp: pos.timestamp,
+          pool_key: pos.pool_key,
+        }
+      },
+      data: {
+        is_points_settled: true,
+      },
+    });
+
+    // update aggregated points
+    await tx.points_aggregated.updateMany({
+      where: {
+        user_address: pos.user_address,
+      },
+      data: {
+        total_points: {
+          increment: points,
+        },
+      },
+    });
+  }
+
+  async saveBonusPointsByDate(dexPositions: dex_positions[]): Promise<void> {
+    const BATCH_SIZE = 50;
+    const TOTAL_BATCHES = Math.ceil(dexPositions.length / BATCH_SIZE);
+    for (let i = 0; i < dexPositions.length; i+= BATCH_SIZE) {
+      const batch = dexPositions.slice(i, i + BATCH_SIZE);
+      const CURRENT_BATCH = Math.ceil(i / BATCH_SIZE) + 1;
+      logger.verbose(`Processing batch ${CURRENT_BATCH} of ${TOTAL_BATCHES} for date: ${new Date(batch[0].timestamp * 1000).toISOString().split('T')[0]}`);
+      await prisma.$transaction(async (tx) => {
+        for (const dexPosition of batch) {
+          try {
+            await this.processDexPosition(dexPosition, tx);
+          } catch (error) {
+            console.error(`Error processing dex position for user ${dexPosition.user_address} on date ${new Date(dexPosition.timestamp * 1000).toISOString().split('T')[0]}:`, error);
+            throw error; // rethrow to trigger retry
+          }
+        }
+      }, { timeout: 300000 });
+      logger.verbose(`Processed batch of ${batch.length} dex positions for date: ${new Date(batch[0].timestamp * 1000).toISOString().split('T')[0]}`);
     }
   }
 }

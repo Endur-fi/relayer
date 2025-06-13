@@ -7,11 +7,15 @@ import {
   calculatePoints,
   fetchHoldingsFromApi,
   findClosestBlockInfo,
+  getDate,
   prisma,
   sleep,
 } from '../utils';
 import { DexScoreService, DexScore } from './dex-points.service';
 import { writeFileSync } from 'fs';
+import { Contract } from 'starknet';
+import { ABI as LSTAbi } from "../../../abis/LST";
+import assert from 'assert';
 
 const DB_BATCH_SIZE = 100; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
@@ -39,7 +43,7 @@ export interface IPointsSystemService {
   getUserRecord(addr: string): Promise<Date | null>;
   updateUserRecord(addr: string, record: Date): Promise<void>;
   getAllTasks(): Promise<[string, Date][]>;
-  processTaskBatch(tasks: [string, Date][]): Promise<void>;
+  processTaskBatch(tasks: [string, Date][]): Promise<number>;
   doOneCallPerUser(): Promise<void>;
   loadBlocks(): Promise<void>;
   sanityBlocks(): Promise<void>;
@@ -52,8 +56,8 @@ export class PointsSystemService implements IPointsSystemService {
   private readonly userRecords: Record<string, Date | null> = {};
 
   config = {
-    startDate: new Date('2024-11-25'),
-    endDate: new Date(new Date().setHours(0, 0, 0, 0)),
+    startDate: getDate('2024-11-25'),
+    endDate: getDate(),
   };
 
   constructor(
@@ -100,8 +104,6 @@ export class PointsSystemService implements IPointsSystemService {
   }
 
   setConfig(config: { startDate: Date; endDate: Date }) {
-    config.endDate.setHours(0, 0, 0, 0); // set endDate to start of the day
-    config.startDate.setHours(0, 0, 0, 0); // set startDate to start of the day
     this.config = config;
   }
 
@@ -162,7 +164,7 @@ export class PointsSystemService implements IPointsSystemService {
     allUsers.forEach((addr) => {
       const userRecord = latestUserRecordsByDate.find((r) => r.user_address === addr.user_address);
       if (userRecord && userRecord._max && userRecord._max.date) {
-        this.userRecords[addr.user_address] = new Date(userRecord._max.date);
+        this.userRecords[addr.user_address] = getDate(userRecord._max.date);
       } else {
         this.userRecords[addr.user_address] = new Date(addr.timestamp * 1000); // convert timestamp to Date
       }
@@ -249,14 +251,14 @@ export class PointsSystemService implements IPointsSystemService {
   }
 
   async processTaskBatch(tasks: [string, Date][]) {
-    const now = new Date();
-    console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`);
+    const now = getDate();
+    console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`, now.getTime());
     const minDate = tasks.reduce((min, task) => {
       return task[1] < min ? task[1] : min;
-    }, new Date());
+    }, getDate());
     const maxDate = tasks.reduce((max, task) => {
       return task[1] > max ? task[1] : max;
-    }, new Date(0));
+    }, getDate());
     console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
 
     const results = await Promise.all(
@@ -265,7 +267,7 @@ export class PointsSystemService implements IPointsSystemService {
       ),
     );
 
-    const now2 = new Date();
+    const now2 = getDate();
     console.log(
       `Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`,
     );
@@ -326,7 +328,7 @@ export class PointsSystemService implements IPointsSystemService {
       }
     }, { timeout: 300000 })
     // .then(() => { // 30 seconds timeout for the transaction
-        const now3 = new Date();
+        const now3 = getDate();
         console.log(
           `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
         );
@@ -356,7 +358,7 @@ export class PointsSystemService implements IPointsSystemService {
       console.log(`Preloading holdings for user: ${i}/${tasks.length}`);
       const _tasks = tasks.slice(i, i + 5);
       const proms = _tasks.map((task) =>
-        globalLimit(() => this.fetchHoldingsWithRetry(task[0], new Date('2024-12-01'))),
+        globalLimit(() => this.fetchHoldingsWithRetry(task[0], getDate('2024-12-01'))),
       );
       await Promise.all(proms);
     }
@@ -381,7 +383,7 @@ export class PointsSystemService implements IPointsSystemService {
         },
         create: {
           block_number: block.block_number,
-          timestamp: Math.round(new Date(block.date).getTime() / 1000), // convert date to timestamp
+          timestamp: Math.round(getDate(block.date).getTime() / 1000), // convert date to timestamp
         },
       });
       console.log(
@@ -396,7 +398,7 @@ export class PointsSystemService implements IPointsSystemService {
     // check if there are blocks for each day
     const startDate = this.config.startDate;
     const endDate = this.config.endDate;
-    const currentDate = new Date(startDate);
+    const currentDate = new Date(startDate.getTime());
     const missingBlocks: string[] = [];
     let store: any[] = [];
     const fs = require('fs');
@@ -423,7 +425,7 @@ export class PointsSystemService implements IPointsSystemService {
 
     // store the blocks in json
     console.log(`Storing blocks for dates`);
-    store = store.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    store = store.sort((a, b) => getDate(a.date).getTime() - getDate(b.date).getTime());
     fs.writeFileSync(`blocks.json`, JSON.stringify(store, null, 2));
     if (missingBlocks.length > 0) {
       logger.warn(`Missing blocks for dates: ${missingBlocks.join(', ')}`);
@@ -465,7 +467,85 @@ export class PointsSystemService implements IPointsSystemService {
       }
     }
 
+    const uniqueDates = new Set<string>();
+    allTasks.forEach((task) => {
+      const dateStr = task[1].toISOString().split('T')[0];
+      uniqueDates.add(dateStr);
+    });
+    logger.info(`Unique dates found: ${Array.from(uniqueDates).join(', ')}`);
+
+    for (const date of uniqueDates) {
+      await this.checkSanity(date);
+    }
+    
     logger.info(`Data fetching and storage complete`);
+  }
+
+  async nostraXSTRKDebt(blockNumber: number) {
+    const dToken = '0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d'
+    const contract = new Contract(LSTAbi, dToken, getProvider());
+    const debt: any = await contract.call('total_supply', [], {
+      blockIdentifier: blockNumber
+    })
+    console.log(`Nostra X STRK Debt at block ${blockNumber}:`, debt / BigInt(1e18));
+    return Number(debt / BigInt(1e18));
+  }
+
+  async totalSupply(blockNumber: number) {
+    const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
+    const contract = new Contract(LSTAbi, lst, getProvider());
+    const supply: any = await contract.call('total_supply', [], {
+      blockIdentifier: blockNumber
+    })
+    console.log(`Total supply at block ${blockNumber}:`, supply / BigInt(1e18));
+    return Number(supply / BigInt(1e18));
+  }
+
+  async checkSanity(date: string) {
+    const blockInfo = await prisma.user_balances.findFirst({
+      select: {
+        block_number: true
+      },
+      where: {
+        date
+      }
+    });
+    if (!blockInfo) {
+      throw new Error(`No block info found for date: ${date}`);
+    }
+  
+    // await checkBalances(blockInfo.block_number);
+  
+    const debt = await this.nostraXSTRKDebt(blockInfo?.block_number ?? 0);
+    const xSTRKSupply = await this.totalSupply(blockInfo?.block_number ?? 0);
+  
+    const data = await prisma.user_balances.findMany({
+      where: {
+        date,
+        user_address: {
+          notIn: xSTRK_DAPPS
+        }
+      },
+      select: {
+        user_address: true,
+        total_amount: true
+      }
+    })
+  
+    // sort by total_amount descending
+    const sorted = data.sort((a, b) => Number(b.total_amount) - Number(a.total_amount));
+  
+    const total = data.reduce((acc, curr) => acc + Number(curr.total_amount), 0);
+    console.log(`Total amount for ${date}: ${total}`);
+  
+    const effectiveCalc = total - debt;
+    console.log(`Effective calculation for ${date}: ${effectiveCalc}`);
+    console.log(`Total xSTRK supply for ${date}: ${xSTRKSupply}`);
+  
+    const diff = effectiveCalc - xSTRKSupply;
+    console.log(`Difference between effective calculation and xSTRK supply: date: ${date} - diff ${diff}`);
+  
+    assert(Math.abs(diff) < 0.015 * xSTRKSupply, `Data sanity check failed for date ${date}. Difference is too high: ${diff}`);
   }
 }
 

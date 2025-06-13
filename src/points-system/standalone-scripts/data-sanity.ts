@@ -4,8 +4,11 @@ import { Contract } from "starknet";
 import { getProvider } from "../../common/utils";
 import { EXCLUSION_LIST, xSTRK_DAPPS } from "../services/points-system.service";
 import assert from "assert";
+import pLimit from 'p-limit';
 
 const prisma = new PrismaClient();
+const GLOBAL_CONCURRENCY_LIMIT = 25; // total concurrent API calls allowed
+const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
 
 async function totalSupply(blockNumber: number) {
   const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
@@ -15,6 +18,32 @@ async function totalSupply(blockNumber: number) {
   })
   console.log(`Total supply at block ${blockNumber}:`, supply / BigInt(1e18));
   return Number(supply / BigInt(1e18));
+}
+
+async function getXSTRKBalance(userAddress: string, blockNumber: number) {
+  const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
+  const contract = new Contract(LSTAbi, lst, getProvider());
+  const balance: any = await contract.call('balance_of', [userAddress], {
+    blockIdentifier: blockNumber
+  })
+  return balance;
+}
+
+async function getvxSTRKBalance(userAddress: string, blockNumber: number) {
+  // const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
+  const v2 = '0x040f67320745980459615f4f3e7dd71002dbe6c68c8249c847c82dbe327b23cb'
+  const contract = new Contract(LSTAbi, v2, getProvider());
+  const balance: any = await contract.call('balance_of', [userAddress], {
+    blockIdentifier: blockNumber
+  })
+  return balance;
+}
+
+async function checkBalance(userAddress: string, blockNumber: number, expected: number, balFn: (userAddress: string, blockNumber: number) => Promise<BigInt> = getXSTRKBalance) {
+  const balance: any = await balFn(userAddress, blockNumber);
+  console.log(`Balance of ${userAddress} at block ${blockNumber}:`, balance / BigInt(1e18));
+  assert(Math.abs(Math.round(Number(balance / BigInt(1e18))) - Math.round(expected)) <= Math.max(0.001 * expected, 1), `Balance mismatch for user ${userAddress} at block ${blockNumber}. Expected: ${expected}, Actual: ${balance / BigInt(1e18)}`);
+  return Number(balance / BigInt(1e18));
 }
 
 async function nostraXSTRKDebt(blockNumber: number) {
@@ -40,6 +69,9 @@ async function checkSanity(date: string) {
   if (!blockInfo) {
     throw new Error(`No block info found for date: ${date}`);
   }
+
+  // await checkBalances(blockInfo.block_number);
+
   const debt = await nostraXSTRKDebt(blockInfo?.block_number ?? 0);
   const xSTRKSupply = await totalSupply(blockInfo?.block_number ?? 0);
 
@@ -98,13 +130,47 @@ async function checkNoPointsForExcludedDapps(date: string) {
   });
 }
 
+async function checkBalances(blockNumber: number, dataKey = 'walletAmount', checkBalanceFn = getXSTRKBalance) {
+  const users = await prisma.user_balances.findMany({
+    where: {
+      block_number: blockNumber,
+    }
+  });
+  
+  const proms: any[] = [];
+  users.forEach((user) => {
+    proms.push(globalLimit(() => {
+      // console.log(`Checking balance for user`, user, dataKey);
+      return checkBalance(user.user_address, blockNumber, Number((user as any)[dataKey]), checkBalanceFn)
+    }));
+  });
+  await Promise.all(proms);
+  console.log(`Checked balances for block number: ${blockNumber}`);
+}
+
+async function doDAppsSanityCheck(blockNumber: number) {
+  const userBalances = await prisma.user_balances.findMany({
+    where: {
+      block_number: blockNumber,
+    }
+  });
+  const vesuSingleton = '0xd8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160'
+  const expectedVesuBalance = userBalances.reduce((acc, curr) => {
+    return acc + Number(curr.vesuAmount);
+  }, 0);
+  await checkBalances(blockNumber, 'vesuAmount', getvxSTRKBalance);
+  // await checkBalance(vesuSingleton, blockNumber, expectedVesuBalance);
+}
+
 async function main() {
-  // let start = new Date('2025-05-26');
-  // while (start < new Date('2025-05-27')) {
+  let start = new Date('2025-06-08');
+  // while (start < new Date('2025-06-08')) {
   //   await checkSanity(start.toISOString().split('T')[0]);
   //   start.setDate(start.getDate() + 1);
   // }
-  checkNoPointsForExcludedDapps('2025-05-26');
+  await checkSanity('2025-06-08');
+  // await doDAppsSanityCheck(1453065);
+  // checkNoPointsForExcludedDapps('2025-06-01');
 }
 
 

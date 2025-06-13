@@ -68,11 +68,44 @@ async function main() {
   console.log('Allocation complete.');
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
+async function saveAlocations() {
+  const allocations = await prisma.user_allocation.findMany({
+    where: {
+
+    },
+    select: {
+      user_address: true,
+      allocation: true,
+    },
   });
+
+  const filtered = allocations.filter(a => Number(a.allocation) > 0);
+  console.log(`Total allocations: ${filtered.length}`);
+
+  const fs = require('fs');
+  const outputFile = 'allocationsLocal.json';
+  fs.writeFileSync(outputFile, JSON.stringify(filtered, null, 2));
+}
+
+function compare() {
+  const fs = require('fs');
+  const allocations = JSON.parse(fs.readFileSync('allocationsLocal.json', 'utf8'));
+  const origAllocations = JSON.parse(fs.readFileSync('allocationsOrig.json', 'utf8'));
+
+  const missingUsersInLocal = origAllocations.filter((a: any) => !allocations.some((b: any) => b.user_address === a.user_address));
+  console.log(`Missing users in local: ${missingUsersInLocal.length}`);
+  console.log('Missing users:', missingUsersInLocal);
+}
+
+if (require.main === module) {
+  // saveAlocations();
+  compare();
+  // main()
+  //   .catch((e) => {
+  //     console.error(e);
+  //     process.exit(1);
+  //   })
+  //   .finally(async () => {
+  //     await prisma.$disconnect();
+  //   });
+}

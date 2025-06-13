@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { PointsSystemService } from './points-system.service';
 import { TryCatchAsync } from '../../common/utils';
 import { DexScoreService } from './dex-points.service';
+import { getDate } from '../utils';
 
 @Injectable()
 export class PointsCronService {
@@ -20,24 +21,21 @@ export class PointsCronService {
     console.log('Running task on application start...');
 
     // configure cron at 12am
-    const now = new Date();
-    now.setDate(now.getDate() - 1); // run until previous date
     this.pointsSystemService.setConfig({
-      startDate: new Date('2024-11-25'),
-      endDate: new Date(),
+      startDate: getDate('2024-11-25'),
+      endDate: getDate(),
     });
-
-    // this.pointsSystemService.setConfig({
-    //   startDate: new Date('2025-06-07'),
-    //   endDate: new Date(),
-    // });
 
     this.init();
   }
 
   async init() {
-    await this.dexScoreService.saveCurrentPrices();
-    await this.pointsSystemService.fetchAndStoreHoldings();
+    try {
+      await this.dexScoreService.saveCurrentPrices();
+      await this.pointsSystemService.fetchAndStoreHoldings();
+    } catch(error) {
+      this.logger.error('Error during initialization:', error);
+    }
     // await this.dexScoreService.saveBonusPoints();
   }
 }
