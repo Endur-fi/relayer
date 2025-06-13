@@ -251,7 +251,7 @@ export class PointsSystemService implements IPointsSystemService {
   }
 
   async processTaskBatch(tasks: [string, Date][]) {
-    const now = getDate();
+    const now = new Date();
     console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`, now.getTime());
     const minDate = tasks.reduce((min, task) => {
       return task[1] < min ? task[1] : min;
@@ -267,7 +267,7 @@ export class PointsSystemService implements IPointsSystemService {
       ),
     );
 
-    const now2 = getDate();
+    const now2 = new Date();
     console.log(
       `Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`,
     );
@@ -328,7 +328,7 @@ export class PointsSystemService implements IPointsSystemService {
       }
     }, { timeout: 300000 })
     // .then(() => { // 30 seconds timeout for the transaction
-        const now3 = getDate();
+        const now3 = new Date();
         console.log(
           `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
         );
