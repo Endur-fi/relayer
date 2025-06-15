@@ -8,6 +8,7 @@ import {
   fetchHoldingsFromApi,
   findClosestBlockInfo,
   getDate,
+  getDateString,
   prisma,
   sleep,
 } from '../utils';
@@ -166,7 +167,7 @@ export class PointsSystemService implements IPointsSystemService {
       if (userRecord && userRecord._max && userRecord._max.date) {
         this.userRecords[addr.user_address] = getDate(userRecord._max.date);
       } else {
-        this.userRecords[addr.user_address] = new Date(addr.timestamp * 1000); // convert timestamp to Date
+        this.userRecords[addr.user_address] = getDate(getDateString(new Date(addr.timestamp * 1000))); // convert timestamp to Date
       }
     });
   }
