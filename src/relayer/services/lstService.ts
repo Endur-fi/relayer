@@ -4,7 +4,7 @@ import { ABI as StrkAbi } from "../../../abis/Strk";
 import { getAddresses } from "../../common/constants";
 import { PrismaService } from "./prismaService";
 import { ConfigService } from "./configService";
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { getNetwork } from "../../common/utils";
 import { Web3Number } from "@strkfarm/sdk";
 const  assert = require("assert");
@@ -27,7 +27,9 @@ export class LSTService implements ILSTService {
   readonly LST: Contract;
 
   constructor(
+    @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
+    @Inject(forwardRef(() => PrismaService))
     prismaService: PrismaService,
   ) {
     console.log("LSTService initialized with config:", config);

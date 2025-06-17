@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { ConfigService } from "./services/configService";
@@ -52,14 +52,20 @@ export class CronService {
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
-  arbContract: Contract | null;
+  arbContract: Contract | null = null;
 
   constructor(
+    @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
+    @Inject(forwardRef(() => WithdrawalQueueService))
     withdrawalQueueService: WithdrawalQueueService,
+    @Inject(forwardRef(() => DelegatorService))
     delegatorService: DelegatorService,
+    @Inject(forwardRef(() => PrismaService))
     prismaService: PrismaService,
+    @Inject(forwardRef(() => LSTService))
     lstService: LSTService,
+    @Inject(forwardRef(() => NotifService))
     notifService: NotifService,
   ) {
     this.config = config;
@@ -354,6 +360,9 @@ export class CronService {
   }
 
   async executeArb(swapInfo: SwapInfo) {
+    if (!this.arbContract) {
+      throw new Error('Arb contract is not initialized');
+    }
     const call = this.arbContract.populate('buy_xstrk', {
       swap_params: swapInfo,
       receiver: '0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45' // treasury arb (VT holds)
