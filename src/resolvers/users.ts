@@ -464,11 +464,11 @@ export class UsersResolver {
       const result = await this.usersService.addPointsToUser(input.userAddress, input.points);
 
       return {
-        success: true,
-        message: 'Points added successfully',
+        success: result.success,
+        message: result.message,
         userAddress: input.userAddress,
-        pointsAdded: input.points,
-        newTotalPoints: result.data.newTotalPoints.toString(),
+        pointsAdded: result.success ? input.points : '0',
+        newTotalPoints: result?.data?.newTotalPoints?.toString() ?? '0',
       };
     } catch (error) {
       return {

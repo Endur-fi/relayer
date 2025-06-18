@@ -730,6 +730,21 @@ export class UsersService {
         currentBlockNumber = latestBlock ? latestBlock.block_number : 0;
       }
 
+      const existingBonus = await this.prisma.user_points.findFirst({
+        where: {
+          user_address: userAddr,
+          type: UserPointsType.Bonus,
+          remarks: 'follow_bonus',
+        },
+      });
+
+      if (existingBonus) {
+        return {
+          success: false,
+          message: `${pointsToAdd} bonus points already awarded to this user (${userAddress})`,
+        };
+      }
+
       const result = await this.prisma.$transaction(async (tx) => {
         // get current cumulative points for bonus type
         const existingBonusPoints = await tx.user_points.findMany({
