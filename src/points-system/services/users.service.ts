@@ -704,4 +704,136 @@ export class UsersService {
       early_adopter: !!earlyAdopterPoints,
     };
   }
+
+  async addPointsToUser(
+    userAddress: string,
+    points: string,
+    blockNumber?: number,
+  ): Promise<{ success: boolean; message: string; data?: any }> {
+    try {
+      const userAddr = standariseAddress(userAddress);
+      const pointsToAdd = safeToBigInt(points);
+
+      if (pointsToAdd <= 0) {
+        return {
+          success: false,
+          message: 'Points must be greater than 0',
+        };
+      }
+
+      let currentBlockNumber = blockNumber;
+
+      if (!currentBlockNumber) {
+        const latestBlock = await this.prisma.blocks.findFirst({
+          orderBy: { block_number: 'desc' },
+        });
+        currentBlockNumber = latestBlock ? latestBlock.block_number : 0;
+      }
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        // get current cumulative points for bonus type
+        const existingBonusPoints = await tx.user_points.findMany({
+          where: {
+            user_address: userAddr,
+            type: UserPointsType.Bonus,
+          },
+          orderBy: {
+            block_number: 'desc',
+          },
+          take: 1,
+        });
+
+        const currentCumulativeBonus =
+          existingBonusPoints.length > 0
+            ? safeToBigInt(existingBonusPoints[0].cummulative_points)
+            : BigInt(0);
+
+        const newCumulativeBonus = currentCumulativeBonus + pointsToAdd;
+
+        const userPointsRecord = await tx.user_points.create({
+          data: {
+            block_number: currentBlockNumber,
+            user_address: userAddr,
+            points: pointsToAdd.toString(),
+            cummulative_points: newCumulativeBonus.toString(),
+            type: UserPointsType.Bonus,
+            remarks: 'follow_bonus',
+          },
+        });
+
+        const existingAggregated = await tx.points_aggregated.findUnique({
+          where: { user_address: userAddr },
+        });
+
+        let aggregatedRecord;
+        if (existingAggregated) {
+          // update existing record
+          aggregatedRecord = await tx.points_aggregated.update({
+            where: { user_address: userAddr },
+            data: {
+              total_points: safeToBigInt(existingAggregated.total_points) + pointsToAdd,
+              block_number: currentBlockNumber,
+              timestamp: Math.floor(Date.now() / 1000),
+            },
+          });
+        } else {
+          aggregatedRecord = await tx.points_aggregated.create({
+            data: {
+              user_address: userAddr,
+              total_points: pointsToAdd,
+              block_number: currentBlockNumber,
+              timestamp: Math.floor(Date.now() / 1000),
+            },
+          });
+        }
+
+        // ensure user exists in users table
+        const existingUser = await tx.users.findUnique({
+          where: { user_address: userAddr },
+        });
+
+        if (!existingUser) {
+          await tx.users.create({
+            data: {
+              block_number: currentBlockNumber,
+              user_address: userAddr,
+              timestamp: Math.floor(Date.now() / 1000),
+              tx_hash: '0x0', // placeholder since this is a manual points addition
+            },
+          });
+        }
+
+        return {
+          userPointsRecord,
+          aggregatedRecord,
+          pointsAdded: pointsToAdd,
+          newTotal: safeToBigInt(aggregatedRecord.total_points),
+        };
+      });
+
+      // clear cache since points have been updated
+      this.leaderboardCache = {
+        data: null,
+        timestamp: 0,
+        isUpdating: false,
+      };
+
+      return {
+        success: true,
+        message: `Successfully added ${pointsToAdd} points to user ${userAddress}`,
+        data: {
+          userAddress: userAddr,
+          pointsAdded: result.pointsAdded.toString(),
+          newTotalPoints: result.newTotal.toString(),
+          blockNumber: currentBlockNumber,
+        },
+      };
+    } catch (error) {
+      console.error('Error adding points to user:', error);
+      return {
+        success: false,
+        message: `Failed to add points: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
 }

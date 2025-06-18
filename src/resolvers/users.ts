@@ -1,4 +1,4 @@
-import { Arg, Field, InputType, Int, ObjectType, Query, Resolver } from 'type-graphql';
+import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from 'type-graphql';
 
 import { UsersService } from '../points-system/services/users.service';
 
@@ -15,6 +15,15 @@ class PaginationOptionsInput {
 
   @Field(() => String, { defaultValue: 'desc' })
   sortOrder!: 'asc' | 'desc';
+}
+
+@InputType()
+class AddPointsInput {
+  @Field(() => String)
+  userAddress!: string;
+
+  @Field(() => String)
+  points!: string;
 }
 
 @ObjectType()
@@ -296,6 +305,24 @@ class UsersStatistics {
   average_points_per_user!: number;
 }
 
+@ObjectType()
+class AddPointsResult {
+  @Field(() => Boolean)
+  success!: boolean;
+
+  @Field(() => String)
+  message!: string;
+
+  @Field(() => String)
+  userAddress!: string;
+
+  @Field(() => String)
+  pointsAdded!: string;
+
+  @Field(() => String)
+  newTotalPoints!: string;
+}
+
 @Resolver()
 export class UsersResolver {
   private usersService!: UsersService;
@@ -427,5 +454,30 @@ export class UsersResolver {
   async getUserTags(@Arg('userAddress', () => String) userAddress: string): Promise<UserTags> {
     const result = await this.usersService.getUserTags(userAddress);
     return result;
+  }
+
+  @Mutation(() => AddPointsResult)
+  async addPointsToUser(
+    @Arg('input', () => AddPointsInput) input: AddPointsInput,
+  ): Promise<AddPointsResult> {
+    try {
+      const result = await this.usersService.addPointsToUser(input.userAddress, input.points);
+
+      return {
+        success: true,
+        message: 'Points added successfully',
+        userAddress: input.userAddress,
+        pointsAdded: input.points,
+        newTotalPoints: result.data.newTotalPoints.toString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to add points',
+        userAddress: input.userAddress,
+        pointsAdded: '0',
+        newTotalPoints: '0',
+      };
+    }
   }
 }
