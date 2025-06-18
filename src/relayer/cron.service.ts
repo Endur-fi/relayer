@@ -379,17 +379,15 @@ export class CronService {
     this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_7AM)
+  @Cron(CronExpression.EVERY_MINUTE)
   @TryCatchAsync(3, 100000)
   async claimRewards() {
-    const unclaimedRewards = await this.delegatorService.getTotalUnclaimedRewards();
+    const unclaimedRewards = await this.lstService.unclaimedRewards();
     this.logger.log(`Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`);
-   if (unclaimedRewards < 100) {
-      this.notifService.sendMessage(`Too low rewards to claim: ${unclaimedRewards.toFixed(0)} STRK`);
-      return;
+    if (unclaimedRewards.gt(0)) {
+      await this.lstService.claimRewards();
+      this.notifService.sendMessage(`Claimed rewards: ${unclaimedRewards.toString()} STRK`);
     }
-
-    await this.lstService.claimRewards();
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)

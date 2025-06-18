@@ -13,6 +13,7 @@ interface ILSTService {
   sendToWithdrawQueue(amount: Web3Number): void;
   stake(delegator: string, amount: bigint): void;
   getSTRKBalance(): Promise<Web3Number>;
+  unclaimedRewards(): Promise<Web3Number>;
   claimRewards(): void;
   bulkStake(): void;
   exchangeRate(): Promise<number>;
@@ -99,6 +100,11 @@ export class LSTService implements ILSTService {
     }
   }
 
+  async unclaimedRewards() {
+    const res = await this.LST.call('unclaimed_rewards', []);
+    return Web3Number.fromWei(res.toString(), 18);
+  }
+  
   async claimRewards() {
     const acc = this.config.get("account");
     const tx = await acc.execute([this.LST.populate('claim_rewards', [])]);
