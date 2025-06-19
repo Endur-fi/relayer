@@ -12,12 +12,6 @@ const POINTS_MULTIPLIER = 1;
 interface UserSummary {
   user_address: string;
   total_points: bigint;
-  // regular_points: bigint;
-  // bonus_points: bigint;
-  // referrer_points: bigint;
-  // allocation?: string;
-  // first_activity_date?: Date;
-  // last_activity_date?: Date;
 }
 
 interface PaginationOptions {
@@ -51,38 +45,8 @@ interface UserCompleteDetails {
     early_adopter_points: bigint;
     follow_bonus_points: bigint;
     dex_bonus_points: bigint;
-    // priority_points: bigint;
   };
   allocation: string;
-  // activity: {
-  //   first_activity_date?: Date;
-  //   last_activity_date?: Date;
-  //   total_deposits: number;
-  //   total_withdrawals: number;
-  // };
-  // eligibility: {
-  //   early_user_bonus: {
-  //     eligible: boolean;
-  //     points_before_cutoff?: bigint;
-  //     bonus_awarded?: bigint;
-  //     cutoff_date: Date;
-  //   };
-  //   six_month_bonus: {
-  //     eligible: boolean;
-  //     minimum_amount?: bigint;
-  //     bonus_awarded?: bigint;
-  //     period: {
-  //       start_date: Date;
-  //       end_date: Date;
-  //     };
-  //   };
-  //   referral_bonus: {
-  //     eligible: boolean;
-  //     is_referred_user: boolean;
-  //     referrer_address?: string;
-  //     bonus_awarded?: bigint;
-  //   };
-  // };
   tags: {
     early_adopter: boolean;
   };
@@ -247,12 +211,6 @@ export class UsersService {
     // get points breakdown
     const pointsBreakdown = await this.getUserPointsBreakdown(userAddr);
 
-    // get activity details
-    // const activityDetails = await this.getUserActivityDetails(userAddress);
-
-    // get eligibility details
-    // const eligibilityDetails = await this.getUserEligibilityDetails(userAddress);
-
     const tagsDetails = await this.getUserTags(userAddr);
 
     return {
@@ -264,12 +222,9 @@ export class UsersService {
         bonus_points: BigInt(0),
         follow_bonus_points: BigInt(0),
         dex_bonus_points: BigInt(0),
-        // priority_points: BigInt(0),
         early_adopter_points: BigInt(0),
       },
       allocation: aggregatedPoints.user_allocation?.allocation || '0',
-      // activity: activityDetails,
-      // eligibility: eligibilityDetails,
       tags: tagsDetails,
     };
   }
@@ -284,7 +239,6 @@ export class UsersService {
       early_adopter_points: bigint;
       follow_bonus_points: bigint;
       dex_bonus_points: bigint;
-      // priority_points: bigint;
     };
     history: Array<{
       block_number: number;
@@ -353,20 +307,13 @@ export class UsersService {
       user_address: userAddress,
       rank: rankInfo._count.total_points + 1, // +1 because we count users with more points
       summary: {
-        total_points: total_points,
+        total_points: total_points - priority_points, // TODO TEMP: remove priority points from total
         regular_points: total_points - bonus_points - priority_points,
         bonus_points,
         early_adopter_points,
         follow_bonus_points,
         dex_bonus_points,
-        // priority_points,
       },
-      // history: allPoints.map((p) => ({
-      //   block_number: p.block_number,
-      //   points: safeToBigInt(p.points),
-      //   cummulative_points: safeToBigInt(p.cummulative_points),
-      //   type: p.type,
-      // })),
       history: [], // no extra details for now
     };
   }
@@ -774,77 +721,46 @@ export class UsersService {
       }
 
       const result = await this.prisma.$transaction(async (tx) => {
-        // get current cumulative points for bonus type
-        const existingBonusPoints = await tx.user_points.findMany({
-          where: {
-            user_address: userAddr,
-            type: UserPointsType.Bonus,
-          },
-          orderBy: {
-            block_number: 'desc',
-          },
-          take: 1,
-        });
-
-        const currentCumulativeBonus =
-          existingBonusPoints.length > 0
-            ? safeToBigInt(existingBonusPoints[0].cummulative_points)
-            : BigInt(0);
-
-        const newCumulativeBonus = currentCumulativeBonus + pointsToAdd;
-
         const userPointsRecord = await tx.user_points.create({
           data: {
             block_number: currentBlockNumber,
             user_address: userAddr,
             points: pointsToAdd.toString(),
-            cummulative_points: newCumulativeBonus.toString(),
             type: UserPointsType.Bonus,
             remarks: 'follow_bonus',
           },
         });
 
-        const existingAggregated = await tx.points_aggregated.findUnique({
+        const aggregatedRecord = await tx.points_aggregated.upsert({
           where: { user_address: userAddr },
+          update: {
+            total_points: {
+              increment: pointsToAdd,
+            },
+            block_number: currentBlockNumber,
+            timestamp: Math.floor(Date.now() / 1000),
+            updated_on: new Date(),
+          },
+          create: {
+            user_address: userAddr,
+            total_points: pointsToAdd,
+            block_number: currentBlockNumber,
+            timestamp: Math.floor(Date.now() / 1000),
+            created_on: new Date(),
+            updated_on: new Date(),
+          },
         });
 
-        let aggregatedRecord;
-        if (existingAggregated) {
-          // update existing record
-          aggregatedRecord = await tx.points_aggregated.update({
-            where: { user_address: userAddr },
-            data: {
-              total_points: safeToBigInt(existingAggregated.total_points) + pointsToAdd,
-              block_number: currentBlockNumber,
-              timestamp: Math.floor(Date.now() / 1000),
-            },
-          });
-        } else {
-          aggregatedRecord = await tx.points_aggregated.create({
-            data: {
-              user_address: userAddr,
-              total_points: pointsToAdd,
-              block_number: currentBlockNumber,
-              timestamp: Math.floor(Date.now() / 1000),
-            },
-          });
-        }
-
-        // ensure user exists in users table
-        const existingUser = await tx.users.findUnique({
+        await tx.users.upsert({
           where: { user_address: userAddr },
+          update: {},
+          create: {
+            block_number: currentBlockNumber,
+            user_address: userAddr,
+            timestamp: Math.floor(Date.now() / 1000),
+            tx_hash: '0x0', // placeholder since this is a manual points addition
+          },
         });
-
-        if (!existingUser) {
-          await tx.users.create({
-            data: {
-              block_number: currentBlockNumber,
-              user_address: userAddr,
-              timestamp: Math.floor(Date.now() / 1000),
-              tx_hash: '0x0', // placeholder since this is a manual points addition
-            },
-          });
-        }
 
         return {
           userPointsRecord,

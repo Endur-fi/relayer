@@ -233,9 +233,6 @@ class PointsHistoryItem {
   points!: string;
 
   @Field(() => String)
-  cummulative_points!: string;
-
-  @Field(() => String)
   type!: string;
 }
 
