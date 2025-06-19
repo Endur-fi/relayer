@@ -1,6 +1,6 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import { Prisma, PrismaClient, user_balances, dex_positions } from '@prisma/my-client';
-import { DefaultArgs } from '@prisma/my-client/runtime/library';
+import { Prisma, PrismaClient, user_balances, dex_positions } from '@prisma/client';
+import { DefaultArgs } from '@prisma/client/runtime/library';
 import pLimit from 'p-limit';
 import { getNetwork, getProvider, logger, TryCatchAsync } from '../../common/utils';
 import {

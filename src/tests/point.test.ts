@@ -9,7 +9,7 @@ import {
   jest,
 } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaClient } from '@prisma/my-client';
+import { PrismaClient } from '@prisma/client';
 import axios from 'axios';
 import dotenv from 'dotenv';
 dotenv.config();

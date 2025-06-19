@@ -7,7 +7,7 @@ import EkuboAbi from '../../common/abi/ekubo.abi.json';
 import STRKFarmEkuboAbi from "../../common/abi/strkfarm.ekubo.json";
 import { getAddresses } from "../../common/constants";
 import MyNumber from "../../common/MyNumber";
-import { dex_positions, Prisma, PrismaClient, UserPointsType } from '@prisma/my-client';
+import { dex_positions, Prisma, PrismaClient, UserPointsType } from '@prisma/client';
 import axios from "axios";
 import ekuboPositionAbi from "../../common/abi/ekubo.position.abi.json";
 import { Decimal } from "@prisma/client/runtime/library";

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { CairoOption, Contract } from "starknet";
 import { getAddresses, getLSTDecimals } from "../../common/constants";
 import { ConfigService } from "./configService";
@@ -28,6 +28,7 @@ export class DelegatorService implements IDelegatorService {
   readonly delegators: Contract[] = [];
 
   constructor(
+    @Inject(forwardRef(() => ConfigService))
     config: ConfigService
   ) {
     this.delegators = getAddresses(config.get("network"))

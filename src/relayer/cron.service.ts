@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { ConfigService } from "./services/configService";
@@ -52,14 +52,20 @@ export class CronService {
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
-  arbContract: Contract | null;
+  arbContract: Contract | null = null;
 
   constructor(
+    @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
+    @Inject(forwardRef(() => WithdrawalQueueService))
     withdrawalQueueService: WithdrawalQueueService,
+    @Inject(forwardRef(() => DelegatorService))
     delegatorService: DelegatorService,
+    @Inject(forwardRef(() => PrismaService))
     prismaService: PrismaService,
+    @Inject(forwardRef(() => LSTService))
     lstService: LSTService,
+    @Inject(forwardRef(() => NotifService))
     notifService: NotifService,
   ) {
     this.config = config;
@@ -86,7 +92,7 @@ export class CronService {
     // Run on init
     await this.processWithdrawQueue();
     await this.sendStats();
-    await this.checkAndExecuteArbitrage();
+    // await this.checkAndExecuteArbitrage();
 
     // Just for testing
     // await this.stakeFunds();
@@ -163,7 +169,7 @@ export class CronService {
       }
 
       // if no withdrawals to claim, break entire loop
-      if (calls.length === 0 && (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
+      if (calls.length === 0 || (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
         this.logger.warn(`No withdrawals to claim`);
         break;
       }
@@ -237,7 +243,7 @@ export class CronService {
       this.notifService.sendMessage(`No STRK to stake`);
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync()
   async checkAndExecuteArbitrage() {
     if (getNetwork() != Network.mainnet) return;
@@ -354,6 +360,9 @@ export class CronService {
   }
 
   async executeArb(swapInfo: SwapInfo) {
+    if (!this.arbContract) {
+      throw new Error('Arb contract is not initialized');
+    }
     const call = this.arbContract.populate('buy_xstrk', {
       swap_params: swapInfo,
       receiver: '0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45' // treasury arb (VT holds)
@@ -370,17 +379,15 @@ export class CronService {
     this.notifService.sendMessage(`Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`);
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_7AM)
+  @Cron(CronExpression.EVERY_MINUTE)
   @TryCatchAsync(3, 100000)
   async claimRewards() {
-    const unclaimedRewards = await this.delegatorService.getTotalUnclaimedRewards();
+    const unclaimedRewards = await this.lstService.unclaimedRewards();
     this.logger.log(`Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`);
-   if (unclaimedRewards < 100) {
-      this.notifService.sendMessage(`Too low rewards to claim: ${unclaimedRewards.toFixed(0)} STRK`);
-      return;
+    if (unclaimedRewards.gt(0)) {
+      await this.lstService.claimRewards();
+      this.notifService.sendMessage(`Claimed rewards: ${unclaimedRewards.toString()} STRK`);
     }
-
-    await this.lstService.claimRewards();
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)

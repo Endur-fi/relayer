@@ -4,7 +4,7 @@ import { ConfigService } from "./configService";
 import { getAddresses } from "../../common/constants";
 import { ABI as WQAbi } from "../../../abis/WithdrawalQueue";
 import { ABI as StrkAbi } from "../../../abis/Strk";
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
 import { getNetwork } from "../../common/utils";
 
@@ -30,7 +30,9 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   readonly WQ;
 
   constructor(
+    @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
+    @Inject(forwardRef(() => PrismaService))
     prismaService: PrismaService,
   ) {
     this.WQ = new Contract(

@@ -6,7 +6,7 @@ import {
   FindFirstWithdraw_queueResolver,
   FindManyWithdraw_queueResolver,
 } from '@generated/type-graphql';
-import { PrismaClient } from '@prisma/my-client';
+import { PrismaClient } from '@prisma/client';
 import { buildSchema } from 'type-graphql';
 
 import { UsersResolver } from '../resolvers/users';

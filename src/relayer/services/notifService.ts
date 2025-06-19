@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { TelegramNotif } from '@strkfarm/sdk';
 import { ConfigService } from "./configService";
 
@@ -12,7 +12,10 @@ export class NotifService implements INotifService {
   readonly telegram: TelegramNotif | null = null;
   readonly config: ConfigService;
 
-  constructor(config: ConfigService) {
+  constructor(
+    @Inject(forwardRef(() => ConfigService))
+    config: ConfigService
+  ) {
     const tgToken = config.get("tgToken");
     if (tgToken) {
       this.telegram = new TelegramNotif(tgToken, false);

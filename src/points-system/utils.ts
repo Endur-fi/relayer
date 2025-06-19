@@ -1,5 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library';
-import { PrismaClient, user_balances } from '@prisma/my-client';
+import { PrismaClient, user_balances } from '@prisma/client';
 import { logger } from '@strkfarm/sdk';
 import axios from 'axios';
 
