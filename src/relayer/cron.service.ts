@@ -92,7 +92,7 @@ export class CronService {
     // Run on init
     await this.processWithdrawQueue();
     await this.sendStats();
-    await this.checkAndExecuteArbitrage();
+    // await this.checkAndExecuteArbitrage();
 
     // Just for testing
     // await this.stakeFunds();
@@ -169,7 +169,7 @@ export class CronService {
       }
 
       // if no withdrawals to claim, break entire loop
-      if (calls.length === 0 && (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
+      if (calls.length === 0 || (i + MAX_WITHDRAWALS) >= pendingWithdrawals.length) {
         this.logger.warn(`No withdrawals to claim`);
         break;
       }
@@ -243,7 +243,7 @@ export class CronService {
       this.notifService.sendMessage(`No STRK to stake`);
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync()
   async checkAndExecuteArbitrage() {
     if (getNetwork() != Network.mainnet) return;
