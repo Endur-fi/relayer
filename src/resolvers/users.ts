@@ -100,6 +100,15 @@ class PointsSummary {
   @Field(() => String)
   bonus_points!: string;
 
+  @Field(() => String)
+  early_adopter_points!: string;
+
+  @Field(() => String)
+  follow_bonus_points!: string;
+
+  @Field(() => String, { nullable: true })
+  dex_bonus_points!: string;
+
   // @Field(() => String)
   // priority_points!: string;
 }
@@ -377,6 +386,9 @@ export class UsersResolver {
         total_points: result.points.total_points.toString(),
         regular_points: result.points.regular_points.toString(),
         bonus_points: result.points.bonus_points.toString(),
+        early_adopter_points: result.points.early_adopter_points.toString(),
+        follow_bonus_points: result.points.follow_bonus_points.toString(),
+        dex_bonus_points: result.points.dex_bonus_points.toString(),
         // priority_points: result.points.priority_points.toString(),
       },
       // eligibility: {

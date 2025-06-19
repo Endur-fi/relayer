@@ -48,6 +48,9 @@ interface UserCompleteDetails {
     total_points: bigint;
     regular_points: bigint;
     bonus_points: bigint;
+    early_adopter_points: bigint;
+    follow_bonus_points: bigint;
+    dex_bonus_points: bigint;
     // priority_points: bigint;
   };
   allocation: string;
@@ -259,7 +262,10 @@ export class UsersService {
         total_points: BigInt(0),
         regular_points: BigInt(0),
         bonus_points: BigInt(0),
+        follow_bonus_points: BigInt(0),
+        dex_bonus_points: BigInt(0),
         // priority_points: BigInt(0),
+        early_adopter_points: BigInt(0),
       },
       allocation: aggregatedPoints.user_allocation?.allocation || '0',
       // activity: activityDetails,
@@ -275,6 +281,9 @@ export class UsersService {
       total_points: bigint;
       regular_points: bigint;
       bonus_points: bigint;
+      early_adopter_points: bigint;
+      follow_bonus_points: bigint;
+      dex_bonus_points: bigint;
       // priority_points: bigint;
     };
     history: Array<{
@@ -328,13 +337,28 @@ export class UsersService {
       .filter((p) => p.type === UserPointsType.Priority)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
+    const early_adopter_points = allPoints
+      .filter((p) => p.type === UserPointsType.Early)
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
+    const follow_bonus_points = allPoints
+      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'follow_bonus')
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
+    const dex_bonus_points = allPoints
+      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'dex_bonus')
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
     return {
       user_address: userAddress,
       rank: rankInfo._count.total_points + 1, // +1 because we count users with more points
       summary: {
-        total_points: total_points - priority_points, // TODO TEMP: remove priority points from total
+        total_points: total_points,
         regular_points: total_points - bonus_points - priority_points,
         bonus_points,
+        early_adopter_points,
+        follow_bonus_points,
+        dex_bonus_points,
         // priority_points,
       },
       // history: allPoints.map((p) => ({
@@ -637,6 +661,7 @@ export class UsersService {
       regular: bigint;
       bonus: bigint;
       referrer: bigint;
+      early_adopter: bigint;
     };
     average_points_per_user: number;
   }> {
@@ -667,6 +692,8 @@ export class UsersService {
     const regular = pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
     const bonus = pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points || 0;
     const referrer = pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum.points || 0;
+    const early_adopter =
+      pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
 
     const totalPointsDistributed = safeToBigInt(totalPointsResult._sum.total_points);
     const averagePointsPerUser =
@@ -681,6 +708,7 @@ export class UsersService {
         regular: safeToBigInt(regular),
         bonus: safeToBigInt(bonus),
         referrer: safeToBigInt(referrer),
+        early_adopter: safeToBigInt(early_adopter),
       },
       average_points_per_user: Math.round(averagePointsPerUser),
     };
