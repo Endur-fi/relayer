@@ -1,5 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library';
-import { PrismaClient } from '@prisma/my-client';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * This script allocates a fixed amount of STRK to users based on their points.

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { UserPointsType } from '@prisma/my-client';
+import { UserPointsType } from '@prisma/client';
 
 import { logger, standariseAddress } from '../../common/utils';
 import { bigIntToDecimal, prisma } from '../utils';

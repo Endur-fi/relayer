@@ -1,7 +1,6 @@
 // standard path for graphql (Node)
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/my-client"
 }
 
 // standard path for graphql (Node)
