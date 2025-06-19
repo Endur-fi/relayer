@@ -165,7 +165,7 @@ model user_balances {
   nostraDexAmount     String
   walletAmount        String
   strkfarmAmount      String
-  opusAmount         String @default("0")
+  opusAmount          String @default("0")
 
   total_amount String
   date         String
@@ -182,12 +182,12 @@ enum UserPointsType {
 }
 
 model user_points {
-  block_number       Int
-  user_address       String
-  points             Decimal
-  cummulative_points Decimal // within a given type
-  type               UserPointsType
-  remarks            String?
+  block_number Int
+  user_address String
+  points       Decimal
+  // cummulative_points Decimal // within a given type
+  type         UserPointsType
+  remarks      String?
 
   @@unique(name: "id", fields: [block_number, user_address, type])
 }
@@ -220,8 +220,8 @@ model blocks {
 
 model price_info {
   block_number Int     @unique
-  dex_price        Decimal @db.Decimal(30, 18)
-  true_price      Decimal @db.Decimal(30, 18)
+  dex_price    Decimal @db.Decimal(30, 18)
+  true_price   Decimal @db.Decimal(30, 18)
   timestamp    Int
 
   created_at DateTime @default(now())
@@ -233,17 +233,17 @@ model price_info {
 model dex_positions {
   // e.g. nostra
   // ekubo_fee_tick_spacing
-  pool_key String
-  user_address String
-  strk_amount String
-  score Decimal
+  pool_key          String
+  user_address      String
+  strk_amount       String
+  score             Decimal
   is_points_settled Boolean @default(false) // indicates if the points for this position have been settled
 
   // to store any additional info
   additional_info String @default("{}")
-  
+
   block_number Int
-  timestamp Int
-  
+  timestamp    Int
+
   @@unique(name: "id", fields: [user_address, pool_key, timestamp])
 }
