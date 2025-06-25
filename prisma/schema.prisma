@@ -204,11 +204,12 @@ model points_aggregated {
 }
 
 model user_allocation {
-  user_address String   @unique
-  allocation   String
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-
+  user_address      String             @unique
+  allocation        String
+  proof             String?
+  merkle_root       String?
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
   points_aggregated points_aggregated?
 }
 
