@@ -9,7 +9,6 @@ interface PoolMemberInfo {
   delegator: Contract,
   rewardAddress: string,
   amount: Web3Number,
-  index: string,
   unclaimedRewards: Web3Number,
   unPoolAmount: Web3Number,
   unPoolTime: Date | null
@@ -47,21 +46,19 @@ export class DelegatorService implements IDelegatorService {
     // {
     //   reward_address: 1254925468566415475020808191746114863081461075213051000422250263239065616617n,
     //   amount: 9011093044960616394675n,
-    //   index: 434247658687096083680169510n,
     //   unclaimed_rewards: 61882242543753629n,
     //   commission: 0n,
     //   unpool_amount: 261000000000000000000000n,
-    //   unpool_time: CairoOption { Some: 1741093793n, None: undefined }
+    //   unpool_time: CairoOption { Some: { seconds: 1750930665n }, None: undefined }
     // }
-    const unPoolTimeOption: CairoOption<bigint> = result.unpool_time;
+    const unPoolTimeOption: CairoOption<{ seconds: bigint }> = result.unpool_time;
     return {
       delegator: this.delegators[delegatorIndex],
       rewardAddress: result.reward_address.toString(),
       amount: Web3Number.fromWei(result.amount.toString(), getLSTDecimals()),
-      index: result.index.toString(),
       unclaimedRewards: Web3Number.fromWei(result.unclaimed_rewards.toString(), getLSTDecimals()),
       unPoolAmount: Web3Number.fromWei(result.unpool_amount.toString(), getLSTDecimals()),
-      unPoolTime: unPoolTimeOption.isSome() ? new Date(Number(unPoolTimeOption.Some.toString()) * 1000) : null,
+      unPoolTime: unPoolTimeOption.Some ? new Date(Number(unPoolTimeOption.Some.seconds.toString()) * 1000) : null,
     }
   }
 
