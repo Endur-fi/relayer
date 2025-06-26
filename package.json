@@ -8,7 +8,8 @@
     "amount:allocate": "tsx src/points-system/standalone-scripts/allocate-amount.ts",
     "bonus-six:dry": "tsx src/points-system/standalone-scripts/six-month-bonus-script.ts --dry-run",
     "bonus-referral:dry": "tsx src/points-system/standalone-scripts/refrees-script.ts --dry-run",
-    "bonus-referral:summary": "tsx src/points-system/standalone-scripts/refrees-script.ts --dry-summary"
+    "bonus-referral:summary": "tsx src/points-system/standalone-scripts/refrees-script.ts --dry-summary",
+    "generate-proofs": "tsx src/points-system/standalone-scripts/generate-proofs.ts"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
@@ -37,6 +38,7 @@
     "@nestjs/platform-express": "10.4.1",
     "@nestjs/schedule": "4.1.1",
     "@prisma/client": "5.22.0",
+    "@scure/starknet": "^1.1.2",
     "@strkfarm/sdk": "^1.0.44",
     "assert": "^2.1.0",
     "axios": "^1.9.0",

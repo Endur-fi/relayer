@@ -56,7 +56,7 @@ export class PriorityBonusService {
 
     const refereeAddresses = eligibleReferees.map((r) => standariseAddress(r.referee));
     console.log(`Found ${refereeAddresses.length} eligible referees for priority bonus`);
-    
+
     if (refereeAddresses.length === 0) {
       return {
         totalEligibleReferees: 0,
@@ -123,7 +123,10 @@ export class PriorityBonusService {
   }
 
   //  calculate and award priority bonus points
-  async calculateAndAwardPriorityBonus(summary: PriorityBonusSummary, cutOffBlock: number): Promise<PriorityBonusResult> {
+  async calculateAndAwardPriorityBonus(
+    summary: PriorityBonusSummary,
+    cutOffBlock: number,
+  ): Promise<PriorityBonusResult> {
     logger.info('Starting priority bonus calculation...');
 
     if (summary.eligibleUsers.length === 0) {
@@ -142,55 +145,58 @@ export class PriorityBonusService {
     for (let i = 0; i < summary.eligibleUsers.length; i += BATCH_SIZE) {
       const batch = summary.eligibleUsers.slice(i, i + BATCH_SIZE);
 
-      await this.prisma.$transaction(async (tx) => {
-        for (const user of batch) {
-          try {
-            const existingPriorityBonus = await tx.user_points.findFirst({
-              where: {
-                user_address: user.user_address,
-                type: UserPointsType.Priority,
-              },
-            });
-
-            if (existingPriorityBonus) {
-              logger.warn(`User ${user.user_address} already has Priority bonus, skipping`);
-              usersSkipped++;
-              continue;
-            }
-
-            await tx.user_points.create({
-              data: {
-                block_number: cutOffBlock,
-                user_address: user.user_address,
-                points: bigIntToDecimal(user.bonus_points),
-                cummulative_points: bigIntToDecimal(user.bonus_points),
-                type: UserPointsType.Priority,
-              },
-            });
-
-            await tx.points_aggregated.update({
-              where: {
-                user_address: user.user_address,
-              },
-              data: {
-                total_points: {
-                  increment: user.bonus_points,
+      await this.prisma.$transaction(
+        async (tx) => {
+          for (const user of batch) {
+            try {
+              const existingPriorityBonus = await tx.user_points.findFirst({
+                where: {
+                  user_address: user.user_address,
+                  type: UserPointsType.Priority,
                 },
-              },
-            });
+              });
 
-            usersProcessed++;
-            totalBonusAwarded += user.bonus_points;
+              if (existingPriorityBonus) {
+                logger.warn(`User ${user.user_address} already has Priority bonus, skipping`);
+                usersSkipped++;
+                continue;
+              }
 
-            if (usersProcessed % 50 === 0) {
-              logger.info(`Processed ${usersProcessed}/${summary.eligibleUsers.length} users...`);
+              await tx.user_points.create({
+                data: {
+                  block_number: cutOffBlock,
+                  user_address: user.user_address,
+                  points: bigIntToDecimal(user.bonus_points),
+                  // cummulative_points: bigIntToDecimal(user.bonus_points),
+                  type: UserPointsType.Priority,
+                },
+              });
+
+              await tx.points_aggregated.update({
+                where: {
+                  user_address: user.user_address,
+                },
+                data: {
+                  total_points: {
+                    increment: user.bonus_points,
+                  },
+                },
+              });
+
+              usersProcessed++;
+              totalBonusAwarded += user.bonus_points;
+
+              if (usersProcessed % 50 === 0) {
+                logger.info(`Processed ${usersProcessed}/${summary.eligibleUsers.length} users...`);
+              }
+            } catch (error) {
+              logger.error(`Error processing user ${user.user_address}:`, error);
+              throw error;
             }
-          } catch (error) {
-            logger.error(`Error processing user ${user.user_address}:`, error);
-            throw error;
           }
-        }
-      }, { timeout: 300000 });
+        },
+        { timeout: 300000 },
+      );
     }
 
     logger.info(`Successfully processed ${usersProcessed} users for priority bonus`);
