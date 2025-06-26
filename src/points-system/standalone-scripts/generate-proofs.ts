@@ -28,17 +28,29 @@ async function main() {
 
   const allocations = users.map((u) => ({
     address: BigInt(num.getDecimalString(u.user_address)),
-    cumulative_amount: BigInt(Math.floor(Number(u.allocation))),
+    cumulative_amount: (() => {
+      const allocationStr = u.allocation.toString();
+      const [intPart, decPart = ''] = allocationStr.split('.');
+      const paddedDecPart = decPart.padEnd(18, '0').slice(0, 18);
+      return BigInt(intPart + paddedDecPart);
+    })(),
   }));
 
   const tree = new MerkleTree(allocations);
+
   const merkleRoot = '0x' + tree.root.value.toString(16);
   console.log('Merkle Root:', merkleRoot);
 
   // generate and store proofs for each user
   for (const user of users) {
     const addressFelt = BigInt(num.getDecimalString(user.user_address));
-    const allocationInt = BigInt(Math.floor(Number(user.allocation)));
+
+    // Convert allocation to wei consistently with the tree calculation
+    const allocationStr = user.allocation.toString();
+    const [intPart, decPart = ''] = allocationStr.split('.');
+    const paddedDecPart = decPart.padEnd(18, '0').slice(0, 18);
+    const allocationInt = BigInt(intPart + paddedDecPart);
+
     const proofObj = tree.address_calldata(addressFelt);
 
     await prisma.user_allocation.update({
