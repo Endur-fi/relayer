@@ -393,40 +393,45 @@ export class CronService {
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
   @TryCatchAsync(3, 100000)
   async claimUnstakedFunds() {
-    const delegators = await this.delegatorService.getUnstakeAmounts();
-    const now = new Date();
-    this.logger.log(`Checking unstaked funds for ${delegators.length} delegators`);
+    try {
+      const delegators = await this.delegatorService.getUnstakeAmounts();
+      const now = new Date();
+      this.logger.log(`Checking unstaked funds for ${delegators.length} delegators`);
 
-    let totalUnstakeAmount = 0;
-    const calls = delegators.map((del) => {
-      if (del.unPoolTime && del.unPoolTime <= now) {
-        this.logger.log(`Unstake time reached for ${del.delegator.address}`);
-        this.notifService.sendMessage(`Unstake time reached for ${del.delegator.address}`);
-        const call = del.delegator.populate('unstake_action', []);
-        totalUnstakeAmount += Number(del.unPoolAmount.toString());
-        return call;
-      } else {
-        this.logger.log(`Unstake time not reached for ${del.delegator.address}`);
-        this.logger.log(`Unstake time: ${del.unPoolTime}, Current time: ${now}`);
+      let totalUnstakeAmount = 0;
+      const calls = delegators.map((del) => {
+        if (del.unPoolTime && del.unPoolTime <= now) {
+          this.logger.log(`Unstake time reached for ${del.delegator.address}`);
+          this.notifService.sendMessage(`Unstake time reached for ${del.delegator.address}`);
+          const call = del.delegator.populate('unstake_action', []);
+          totalUnstakeAmount += Number(del.unPoolAmount.toString());
+          return call;
+        } else {
+          this.logger.log(`Unstake time not reached for ${del.delegator.address}`);
+          this.logger.log(`Unstake time: ${del.unPoolTime}, Current time: ${now}`);
+        }
+        return null;
+      }).filter((call) => call !== null);
+
+      if (calls.length == 0) {
+        this.logger.log(`No unstake actions to perform`);
+        this.notifService.sendMessage(`No unstake actions to perform`);
+        return;
       }
-      return null;
-    }).filter((call) => call !== null);
 
-    if (calls.length == 0) {
-      this.logger.log(`No unstake actions to perform`);
-      this.notifService.sendMessage(`No unstake actions to perform`);
-      return;
+      this.notifService.sendMessage(`Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`);
+      const account = this.config.get('account');
+      const provider = this.config.get('provider');
+      const tx = await account.execute(calls);
+      this.logger.log('Unstake tx: ', tx.transaction_hash);
+      await provider.waitForTransaction(tx.transaction_hash, {
+        successStates: [TransactionExecutionStatus.SUCCEEDED]
+      })
+      this.logger.log('Unstake tx confirmed');
+      this.notifService.sendMessage(`Unstake tx confirmed: ${tx.transaction_hash}`);
+    } catch(err) {
+      console.error('Error in claimUnstakedFunds:', err);
+      throw err;
     }
-
-    this.notifService.sendMessage(`Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`);
-    const account = this.config.get('account');
-    const provider = this.config.get('provider');
-    const tx = await account.execute(calls);
-    this.logger.log('Unstake tx: ', tx.transaction_hash);
-    await provider.waitForTransaction(tx.transaction_hash, {
-      successStates: [TransactionExecutionStatus.SUCCEEDED]
-    })
-    this.logger.log('Unstake tx confirmed');
-    this.notifService.sendMessage(`Unstake tx confirmed: ${tx.transaction_hash}`);
   }
 }
