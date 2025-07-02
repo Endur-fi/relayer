@@ -160,7 +160,6 @@ CREATE TABLE "user_allocation" (
     "user_address" TEXT NOT NULL,
     "allocation" TEXT NOT NULL,
     "proof" TEXT,
-    "merkle_root" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL
 );

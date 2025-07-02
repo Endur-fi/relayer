@@ -47,7 +47,6 @@ interface UserCompleteDetails {
     dex_bonus_points: bigint;
   };
   allocation: string;
-  merkle_root: string | null;
   proof: string | null;
   tags: {
     early_adopter: boolean;
@@ -227,7 +226,6 @@ export class UsersService {
         early_adopter_points: BigInt(0),
       },
       allocation: aggregatedPoints.user_allocation?.allocation || '0',
-      merkle_root: aggregatedPoints.user_allocation?.merkle_root || null,
       proof: aggregatedPoints.user_allocation?.proof || null,
       tags: tagsDetails,
     };

@@ -215,9 +215,6 @@ class UserCompleteDetails {
   allocation?: string;
 
   @Field(() => String, { nullable: true })
-  merkle_root?: string;
-
-  @Field(() => String, { nullable: true })
   proof?: string;
 
   // @Field(() => ActivityDetails)
@@ -385,7 +382,6 @@ export class UsersResolver {
 
     return {
       ...result,
-      merkle_root: result.merkle_root ?? undefined,
       proof: result.proof ?? undefined,
       points: {
         total_points: result.points.total_points.toString(),
