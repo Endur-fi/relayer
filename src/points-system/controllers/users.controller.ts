@@ -139,7 +139,7 @@ export class UsersController {
           history: pointsBreakdown.history.map((record) => ({
             ...record,
             points: record.points.toString(),
-            cummulative_points: record.cummulative_points.toString(),
+            // cummulative_points: record.cummulative_points.toString(),
           })),
         },
       };

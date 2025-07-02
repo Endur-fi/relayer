@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "UserPointsType" AS ENUM ('Regular', 'Bonus');
+CREATE TYPE "UserPointsType" AS ENUM ('Early', 'Priority', 'Bonus', 'Referrer');
 
 -- CreateTable
 CREATE TABLE "deposits" (
@@ -23,6 +23,19 @@ CREATE TABLE "deposits_with_referral" (
     "referrer" TEXT NOT NULL,
     "referee" TEXT NOT NULL,
     "assets" TEXT NOT NULL,
+    "_cursor" BIGINT
+);
+
+-- CreateTable
+CREATE TABLE "transfer" (
+    "block_number" INTEGER NOT NULL,
+    "tx_index" INTEGER NOT NULL DEFAULT 0,
+    "event_index" INTEGER NOT NULL DEFAULT 0,
+    "timestamp" INTEGER NOT NULL,
+    "txHash" TEXT NOT NULL,
+    "from" TEXT NOT NULL,
+    "to" TEXT NOT NULL,
+    "value" DECIMAL(30,0) NOT NULL,
     "_cursor" BIGINT
 );
 
@@ -117,6 +130,7 @@ CREATE TABLE "user_balances" (
     "nostraDexAmount" TEXT NOT NULL,
     "walletAmount" TEXT NOT NULL,
     "strkfarmAmount" TEXT NOT NULL,
+    "opusAmount" TEXT NOT NULL DEFAULT '0',
     "total_amount" TEXT NOT NULL,
     "date" TEXT NOT NULL,
     "timestamp" INTEGER NOT NULL
@@ -127,8 +141,8 @@ CREATE TABLE "user_points" (
     "block_number" INTEGER NOT NULL,
     "user_address" TEXT NOT NULL,
     "points" DECIMAL(65,30) NOT NULL,
-    "cummulative_points" DECIMAL(65,30) NOT NULL,
-    "type" "UserPointsType" NOT NULL
+    "type" "UserPointsType" NOT NULL,
+    "remarks" TEXT
 );
 
 -- CreateTable
@@ -142,10 +156,42 @@ CREATE TABLE "points_aggregated" (
 );
 
 -- CreateTable
+CREATE TABLE "user_allocation" (
+    "user_address" TEXT NOT NULL,
+    "allocation" TEXT NOT NULL,
+    "proof" TEXT,
+    "merkle_root" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
 CREATE TABLE "blocks" (
     "block_number" INTEGER NOT NULL,
     "timestamp" INTEGER NOT NULL,
     "_cursor" BIGINT
+);
+
+-- CreateTable
+CREATE TABLE "price_info" (
+    "block_number" INTEGER NOT NULL,
+    "dex_price" DECIMAL(30,18) NOT NULL,
+    "true_price" DECIMAL(30,18) NOT NULL,
+    "timestamp" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "dex_positions" (
+    "pool_key" TEXT NOT NULL,
+    "user_address" TEXT NOT NULL,
+    "strk_amount" TEXT NOT NULL,
+    "score" DECIMAL(65,30) NOT NULL,
+    "is_points_settled" BOOLEAN NOT NULL DEFAULT false,
+    "additional_info" TEXT NOT NULL DEFAULT '{}',
+    "block_number" INTEGER NOT NULL,
+    "timestamp" INTEGER NOT NULL
 );
 
 -- CreateIndex
@@ -159,6 +205,12 @@ CREATE INDEX "deposits_with_referral__cursor_idx" ON "deposits_with_referral"("_
 
 -- CreateIndex
 CREATE UNIQUE INDEX "deposits_with_referral_block_number_tx_index_event_index_key" ON "deposits_with_referral"("block_number", "tx_index", "event_index");
+
+-- CreateIndex
+CREATE INDEX "transfer__cursor_idx" ON "transfer"("_cursor");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "transfer_block_number_tx_index_event_index_key" ON "transfer"("block_number", "tx_index", "event_index");
 
 -- CreateIndex
 CREATE INDEX "withdraw_queue__cursor_idx" ON "withdraw_queue"("_cursor");
@@ -209,7 +261,19 @@ CREATE UNIQUE INDEX "user_points_block_number_user_address_type_key" ON "user_po
 CREATE UNIQUE INDEX "points_aggregated_user_address_key" ON "points_aggregated"("user_address");
 
 -- CreateIndex
-CREATE INDEX "points_aggregated_user_address_idx" ON "points_aggregated"("user_address");
+CREATE UNIQUE INDEX "user_allocation_user_address_key" ON "user_allocation"("user_address");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "blocks_block_number_key" ON "blocks"("block_number");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "price_info_block_number_key" ON "price_info"("block_number");
+
+-- CreateIndex
+CREATE INDEX "price_info_block_number_idx" ON "price_info"("block_number");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "dex_positions_user_address_pool_key_timestamp_key" ON "dex_positions"("user_address", "pool_key", "timestamp");
+
+-- AddForeignKey
+ALTER TABLE "points_aggregated" ADD CONSTRAINT "points_aggregated_user_address_fkey" FOREIGN KEY ("user_address") REFERENCES "user_allocation"("user_address") ON DELETE RESTRICT ON UPDATE CASCADE;
