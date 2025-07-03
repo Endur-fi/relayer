@@ -83,3 +83,6 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+// Root
+// 0x51368126012a878e215fc3598f4db9e3286d6047ddf6239fd9074be601c68fe
