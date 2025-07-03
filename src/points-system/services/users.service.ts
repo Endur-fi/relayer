@@ -12,12 +12,6 @@ const POINTS_MULTIPLIER = 1;
 interface UserSummary {
   user_address: string;
   total_points: bigint;
-  // regular_points: bigint;
-  // bonus_points: bigint;
-  // referrer_points: bigint;
-  // allocation?: string;
-  // first_activity_date?: Date;
-  // last_activity_date?: Date;
 }
 
 interface PaginationOptions {
@@ -48,38 +42,12 @@ interface UserCompleteDetails {
     total_points: bigint;
     regular_points: bigint;
     bonus_points: bigint;
-    // priority_points: bigint;
+    early_adopter_points: bigint;
+    follow_bonus_points: bigint;
+    dex_bonus_points: bigint;
   };
   allocation: string;
-  // activity: {
-  //   first_activity_date?: Date;
-  //   last_activity_date?: Date;
-  //   total_deposits: number;
-  //   total_withdrawals: number;
-  // };
-  // eligibility: {
-  //   early_user_bonus: {
-  //     eligible: boolean;
-  //     points_before_cutoff?: bigint;
-  //     bonus_awarded?: bigint;
-  //     cutoff_date: Date;
-  //   };
-  //   six_month_bonus: {
-  //     eligible: boolean;
-  //     minimum_amount?: bigint;
-  //     bonus_awarded?: bigint;
-  //     period: {
-  //       start_date: Date;
-  //       end_date: Date;
-  //     };
-  //   };
-  //   referral_bonus: {
-  //     eligible: boolean;
-  //     is_referred_user: boolean;
-  //     referrer_address?: string;
-  //     bonus_awarded?: bigint;
-  //   };
-  // };
+  proof: string | null;
   tags: {
     early_adopter: boolean;
   };
@@ -244,12 +212,6 @@ export class UsersService {
     // get points breakdown
     const pointsBreakdown = await this.getUserPointsBreakdown(userAddr);
 
-    // get activity details
-    // const activityDetails = await this.getUserActivityDetails(userAddress);
-
-    // get eligibility details
-    // const eligibilityDetails = await this.getUserEligibilityDetails(userAddress);
-
     const tagsDetails = await this.getUserTags(userAddr);
 
     return {
@@ -259,11 +221,12 @@ export class UsersService {
         total_points: BigInt(0),
         regular_points: BigInt(0),
         bonus_points: BigInt(0),
-        // priority_points: BigInt(0),
+        follow_bonus_points: BigInt(0),
+        dex_bonus_points: BigInt(0),
+        early_adopter_points: BigInt(0),
       },
       allocation: aggregatedPoints.user_allocation?.allocation || '0',
-      // activity: activityDetails,
-      // eligibility: eligibilityDetails,
+      proof: aggregatedPoints.user_allocation?.proof || null,
       tags: tagsDetails,
     };
   }
@@ -275,7 +238,9 @@ export class UsersService {
       total_points: bigint;
       regular_points: bigint;
       bonus_points: bigint;
-      // priority_points: bigint;
+      early_adopter_points: bigint;
+      follow_bonus_points: bigint;
+      dex_bonus_points: bigint;
     };
     history: Array<{
       block_number: number;
@@ -328,6 +293,18 @@ export class UsersService {
       .filter((p) => p.type === UserPointsType.Priority)
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
+    const early_adopter_points = allPoints
+      .filter((p) => p.type === UserPointsType.Early)
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
+    const follow_bonus_points = allPoints
+      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'follow_bonus')
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
+    const dex_bonus_points = allPoints
+      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'dex_bonus')
+      .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
+
     return {
       user_address: userAddress,
       rank: rankInfo._count.total_points + 1, // +1 because we count users with more points
@@ -335,14 +312,10 @@ export class UsersService {
         total_points: total_points - priority_points, // TODO TEMP: remove priority points from total
         regular_points: total_points - bonus_points - priority_points,
         bonus_points,
-        // priority_points,
+        early_adopter_points,
+        follow_bonus_points,
+        dex_bonus_points,
       },
-      // history: allPoints.map((p) => ({
-      //   block_number: p.block_number,
-      //   points: safeToBigInt(p.points),
-      //   cummulative_points: safeToBigInt(p.cummulative_points),
-      //   type: p.type,
-      // })),
       history: [], // no extra details for now
     };
   }
@@ -637,6 +610,7 @@ export class UsersService {
       regular: bigint;
       bonus: bigint;
       referrer: bigint;
+      early_adopter: bigint;
     };
     average_points_per_user: number;
   }> {
@@ -667,6 +641,8 @@ export class UsersService {
     const regular = pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
     const bonus = pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points || 0;
     const referrer = pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum.points || 0;
+    const early_adopter =
+      pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
 
     const totalPointsDistributed = safeToBigInt(totalPointsResult._sum.total_points);
     const averagePointsPerUser =
@@ -681,6 +657,7 @@ export class UsersService {
         regular: safeToBigInt(regular),
         bonus: safeToBigInt(bonus),
         referrer: safeToBigInt(referrer),
+        early_adopter: safeToBigInt(early_adopter),
       },
       average_points_per_user: Math.round(averagePointsPerUser),
     };
@@ -703,5 +680,121 @@ export class UsersService {
     return {
       early_adopter: !!earlyAdopterPoints,
     };
+  }
+
+  async addPointsToUser(
+    userAddress: string,
+    points: string,
+    blockNumber?: number,
+  ): Promise<{ success: boolean; message: string; data?: any }> {
+    try {
+      const userAddr = standariseAddress(userAddress);
+      const pointsToAdd = safeToBigInt(points);
+
+      if (pointsToAdd <= 0) {
+        return {
+          success: false,
+          message: 'Points must be greater than 0',
+        };
+      }
+
+      let currentBlockNumber = blockNumber;
+
+      if (!currentBlockNumber) {
+        const latestBlock = await this.prisma.blocks.findFirst({
+          orderBy: { block_number: 'desc' },
+        });
+        currentBlockNumber = latestBlock ? latestBlock.block_number : 0;
+      }
+
+      const existingBonus = await this.prisma.user_points.findFirst({
+        where: {
+          user_address: userAddr,
+          type: UserPointsType.Bonus,
+          remarks: 'follow_bonus',
+        },
+      });
+
+      if (existingBonus) {
+        return {
+          success: false,
+          message: `${pointsToAdd} bonus points already awarded to this user (${userAddress})`,
+        };
+      }
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        const userPointsRecord = await tx.user_points.create({
+          data: {
+            block_number: currentBlockNumber,
+            user_address: userAddr,
+            points: pointsToAdd.toString(),
+            type: UserPointsType.Bonus,
+            remarks: 'follow_bonus',
+          },
+        });
+
+        const aggregatedRecord = await tx.points_aggregated.upsert({
+          where: { user_address: userAddr },
+          update: {
+            total_points: {
+              increment: pointsToAdd,
+            },
+            block_number: currentBlockNumber,
+            timestamp: Math.floor(Date.now() / 1000),
+            updated_on: new Date(),
+          },
+          create: {
+            user_address: userAddr,
+            total_points: pointsToAdd,
+            block_number: currentBlockNumber,
+            timestamp: Math.floor(Date.now() / 1000),
+            created_on: new Date(),
+            updated_on: new Date(),
+          },
+        });
+
+        await tx.users.upsert({
+          where: { user_address: userAddr },
+          update: {},
+          create: {
+            block_number: currentBlockNumber,
+            user_address: userAddr,
+            timestamp: Math.floor(Date.now() / 1000),
+            tx_hash: '0x0', // placeholder since this is a manual points addition
+          },
+        });
+
+        return {
+          userPointsRecord,
+          aggregatedRecord,
+          pointsAdded: pointsToAdd,
+          newTotal: safeToBigInt(aggregatedRecord.total_points),
+        };
+      });
+
+      // clear cache since points have been updated
+      this.leaderboardCache = {
+        data: null,
+        timestamp: 0,
+        isUpdating: false,
+      };
+
+      return {
+        success: true,
+        message: `Successfully added ${pointsToAdd} points to user ${userAddress}`,
+        data: {
+          userAddress: userAddr,
+          pointsAdded: result.pointsAdded.toString(),
+          newTotalPoints: result.newTotal.toString(),
+          blockNumber: currentBlockNumber,
+        },
+      };
+    } catch (error) {
+      console.error('Error adding points to user:', error);
+      return {
+        success: false,
+        message: `Failed to add points: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   }
 }

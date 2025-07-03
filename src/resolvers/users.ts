@@ -1,4 +1,4 @@
-import { Arg, Field, InputType, Int, ObjectType, Query, Resolver } from 'type-graphql';
+import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from 'type-graphql';
 
 import { UsersService } from '../points-system/services/users.service';
 
@@ -15,6 +15,15 @@ class PaginationOptionsInput {
 
   @Field(() => String, { defaultValue: 'desc' })
   sortOrder!: 'asc' | 'desc';
+}
+
+@InputType()
+class AddPointsInput {
+  @Field(() => String)
+  userAddress!: string;
+
+  @Field(() => String)
+  points!: string;
 }
 
 @ObjectType()
@@ -90,6 +99,15 @@ class PointsSummary {
 
   @Field(() => String)
   bonus_points!: string;
+
+  @Field(() => String)
+  early_adopter_points!: string;
+
+  @Field(() => String)
+  follow_bonus_points!: string;
+
+  @Field(() => String, { nullable: true })
+  dex_bonus_points!: string;
 
   // @Field(() => String)
   // priority_points!: string;
@@ -196,6 +214,9 @@ class UserCompleteDetails {
   @Field(() => String, { nullable: true })
   allocation?: string;
 
+  @Field(() => String, { nullable: true })
+  proof?: string;
+
   // @Field(() => ActivityDetails)
   // activity!: ActivityDetails;
 
@@ -213,9 +234,6 @@ class PointsHistoryItem {
 
   @Field(() => String)
   points!: string;
-
-  @Field(() => String)
-  cummulative_points!: string;
 
   @Field(() => String)
   type!: string;
@@ -296,6 +314,24 @@ class UsersStatistics {
   average_points_per_user!: number;
 }
 
+@ObjectType()
+class AddPointsResult {
+  @Field(() => Boolean)
+  success!: boolean;
+
+  @Field(() => String)
+  message!: string;
+
+  @Field(() => String)
+  userAddress!: string;
+
+  @Field(() => String)
+  pointsAdded!: string;
+
+  @Field(() => String)
+  newTotalPoints!: string;
+}
+
 @Resolver()
 export class UsersResolver {
   private usersService!: UsersService;
@@ -346,10 +382,14 @@ export class UsersResolver {
 
     return {
       ...result,
+      proof: result.proof ?? undefined,
       points: {
         total_points: result.points.total_points.toString(),
         regular_points: result.points.regular_points.toString(),
         bonus_points: result.points.bonus_points.toString(),
+        early_adopter_points: result.points.early_adopter_points.toString(),
+        follow_bonus_points: result.points.follow_bonus_points.toString(),
+        dex_bonus_points: result.points.dex_bonus_points.toString(),
         // priority_points: result.points.priority_points.toString(),
       },
       // eligibility: {
@@ -427,5 +467,30 @@ export class UsersResolver {
   async getUserTags(@Arg('userAddress', () => String) userAddress: string): Promise<UserTags> {
     const result = await this.usersService.getUserTags(userAddress);
     return result;
+  }
+
+  @Mutation(() => AddPointsResult)
+  async addPointsToUser(
+    @Arg('input', () => AddPointsInput) input: AddPointsInput,
+  ): Promise<AddPointsResult> {
+    try {
+      const result = await this.usersService.addPointsToUser(input.userAddress, input.points);
+
+      return {
+        success: result.success,
+        message: result.message,
+        userAddress: input.userAddress,
+        pointsAdded: result.success ? input.points : '0',
+        newTotalPoints: result?.data?.newTotalPoints?.toString() ?? '0',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to add points',
+        userAddress: input.userAddress,
+        pointsAdded: '0',
+        newTotalPoints: '0',
+      };
+    }
   }
 }

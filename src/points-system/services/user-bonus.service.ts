@@ -59,7 +59,10 @@ export class BonusService {
 
       for (let i = 0; i < usersWithPoints.length; i += BATCH_SIZE) {
         const batch = usersWithPoints.slice(i, i + BATCH_SIZE);
-        const batchResult = await this.processEarlyUserBatch(batch, EARLY_USER_BONUS_PERCENTAGE / 100);
+        const batchResult = await this.processEarlyUserBatch(
+          batch,
+          EARLY_USER_BONUS_PERCENTAGE / 100,
+        );
 
         totalProcessed += batchResult.processed;
         totalBonusAwarded += batchResult.bonusAwarded;
@@ -140,7 +143,6 @@ export class BonusService {
       latestBlockBeforeCutoff: number;
     }>
   > {
-
     // get the latest block number before the cutoff date
     const cutoffBlock = await this.prisma.blocks.findFirst({
       where: {
@@ -175,7 +177,7 @@ export class BonusService {
     logger.info(
       `Lower cutoff block ${lowerCutoff?.block_number} (timestamp: ${new Date(lowerCutoff?.timestamp * 1000).toISOString()})`,
     );
-    
+
     // query user_balances to find all users who had balances before the cutoff
     // and calculate their total points earned up to that date
     const usersWithBalances = await this.prisma.points_aggregated.findMany({
@@ -197,9 +199,16 @@ export class BonusService {
       if (!userGroup.block_number) continue;
 
       // it needs to be within the cutoff block range bcz that ensures latest points have been aggregated
-      if (userGroup.block_number > cutoffBlock.block_number || userGroup.block_number < lowerCutoff.block_number) {
-        console.error(`User ${userGroup.user_address} has points outside the cutoff range, block: ${userGroup.block_number}`);
-        throw new Error(`Points aggregation moved ahead, computing now will give incorrect results`);
+      if (
+        userGroup.block_number > cutoffBlock.block_number ||
+        userGroup.block_number < lowerCutoff.block_number
+      ) {
+        console.error(
+          `User ${userGroup.user_address} has points outside the cutoff range, block: ${userGroup.block_number}`,
+        );
+        throw new Error(
+          `Points aggregation moved ahead, computing now will give incorrect results`,
+        );
       }
       // calculate points for this user's balance
       // const points = calculatePoints(userGroup.total_points.toString(), pointsMultiplier) as bigint;
@@ -302,63 +311,68 @@ export class BonusService {
     }>,
     pointsMultiplier: number,
   ): Promise<{ processed: number; bonusAwarded: bigint }> {
-    return await this.prisma.$transaction(async (tx) => {
-      let batchBonusAwarded = BigInt(0);
+    return await this.prisma.$transaction(
+      async (tx) => {
+        let batchBonusAwarded = BigInt(0);
 
-      for (const user of users) {
-        // calculate bonus points (20% of points earned before cutoff)
-        const bonusPoints =
-          (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000) / BigInt(10000));
+        for (const user of users) {
+          // calculate bonus points (20% of points earned before cutoff)
+          const bonusPoints =
+            (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) / BigInt(10000);
 
-        if (bonusPoints > 0) {
-          // check if bonus already exists for this user
-          const existingBonus = await tx.user_points.findUnique({
-            where: {
-              block_number_user_address_type: {
+          if (bonusPoints > 0) {
+            // check if bonus already exists for this user
+            const existingBonus = await tx.user_points.findUnique({
+              where: {
+                block_number_user_address_type: {
+                  block_number: user.latestBlockBeforeCutoff,
+                  user_address: user.user_address,
+                  type: UserPointsType.Early,
+                },
+              },
+            });
+
+            if (existingBonus) {
+              console.warn(
+                `Early user bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`,
+              );
+              continue; // skip if bonus already exists
+            }
+
+            // create bonus points record
+            await tx.user_points.create({
+              data: {
                 block_number: user.latestBlockBeforeCutoff,
                 user_address: user.user_address,
+                points: bigIntToDecimal(bonusPoints),
+                // cummulative_points: bigIntToDecimal(bonusPoints),
                 type: UserPointsType.Early,
               },
-            },
-          });
+            });
 
-          if (existingBonus) {
-            console.warn(`Early user bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`);
-            continue; // skip if bonus already exists
-          }
-
-          // create bonus points record
-          await tx.user_points.create({
-            data: {
-              block_number: user.latestBlockBeforeCutoff,
-              user_address: user.user_address,
-              points: bigIntToDecimal(bonusPoints),
-              cummulative_points: bigIntToDecimal(bonusPoints),
-              type: UserPointsType.Early,
-            },
-          });
-
-          // update the aggregated points
-          await tx.points_aggregated.update({
-            where: {
-              user_address: user.user_address,
-            },
-            data: {
-              total_points: {
-                increment: bonusPoints,
+            // update the aggregated points
+            await tx.points_aggregated.update({
+              where: {
+                user_address: user.user_address,
               },
-            },
-          });
+              data: {
+                total_points: {
+                  increment: bonusPoints,
+                },
+              },
+            });
 
-          batchBonusAwarded += bonusPoints;
+            batchBonusAwarded += bonusPoints;
+          }
         }
-      }
 
-      return {
-        processed: users.length,
-        bonusAwarded: batchBonusAwarded,
-      };
-    }, { timeout: 300000 }); // 5 minutes timeout for the transaction
+        return {
+          processed: users.length,
+          bonusAwarded: batchBonusAwarded,
+        };
+      },
+      { timeout: 300000 },
+    ); // 5 minutes timeout for the transaction
   }
 
   private async processSixMonthBatch(
@@ -411,7 +425,7 @@ export class BonusService {
                 block_number: user.latestBlockNumber,
                 user_address: user.user_address,
                 points: bigIntToDecimal(bonusPoints),
-                cummulative_points: bigIntToDecimal(bonusPoints),
+                // cummulative_points: bigIntToDecimal(bonusPoints),
                 type: UserPointsType.Bonus,
               },
             });
