@@ -1,6 +1,7 @@
 {
   "scripts": {
     "test": "jest",
+    "test:weekly": "npm test src/tests/weekly-points.service.spec.ts",
     "format": "prettier --write .",
     "bonus-early:summary": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --summary-only",
     "bonus-early:dry": "tsx src/points-system/standalone-scripts/early-user-bonus-script.ts --dry-run",

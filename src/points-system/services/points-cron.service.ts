@@ -1,8 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { PointsSystemService } from './points-system.service';
+import { Cron } from '@nestjs/schedule';
+
 import { TryCatchAsync } from '../../common/utils';
-import { DexScoreService } from './dex-points.service';
 import { getDate } from '../utils';
+import { DexScoreService } from './dex-points.service';
+import { PointsSystemService } from './points-system.service';
+import { WeeklyPointsService } from './weekly-points.service';
 
 @Injectable()
 export class PointsCronService {
@@ -12,30 +15,42 @@ export class PointsCronService {
     @Inject(DexScoreService)
     private readonly dexScoreService: DexScoreService,
     @Inject(PointsSystemService)
-    private readonly pointsSystemService: PointsSystemService
+    private readonly pointsSystemService: PointsSystemService,
+    @Inject(WeeklyPointsService)
+    private readonly weeklyPointsService: WeeklyPointsService,
   ) {}
 
   // Run the same task on startup
   @TryCatchAsync()
   async onModuleInit() {
-    console.log('Running task on application start...');
+    this.logger.log('Running task on application start...');
 
-    // configure cron at 12am
+    // configure points system
     this.pointsSystemService.setConfig({
       startDate: getDate('2024-11-25'),
       endDate: getDate(),
     });
 
-    this.init();
+    await this.init();
+
+    // Set up timezone-based scheduled jobs
+    await this.weeklyPointsService.setupTimezoneGroups();
   }
 
   async init() {
     try {
       await this.dexScoreService.saveCurrentPrices();
       await this.pointsSystemService.fetchAndStoreHoldings();
-    } catch(error) {
+    } catch (error) {
       this.logger.error('Error during initialization:', error);
     }
-    // await this.dexScoreService.saveBonusPoints();
+  }
+
+  // Run weekly job at midnight UTC on Sunday and process all users according to their timezones
+  @Cron('0 0 * * 0')
+  @TryCatchAsync()
+  async processWeeklyPoints() {
+    this.logger.log('Running scheduled weekly points distribution job...');
+    await this.weeklyPointsService.processWeeklyPointsForAllTimezones();
   }
 }

@@ -1,7 +1,11 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
-import { Prisma, PrismaClient, user_balances, dex_positions } from '@prisma/client';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { dex_positions, Prisma, PrismaClient, user_balances } from '@prisma/client';
 import { DefaultArgs } from '@prisma/client/runtime/library';
+import assert from 'assert';
+import { writeFileSync } from 'fs';
 import pLimit from 'p-limit';
+import { Contract } from 'starknet';
+import { ABI as LSTAbi } from '../../../abis/LST';
 import { getNetwork, getProvider, logger, TryCatchAsync } from '../../common/utils';
 import {
   calculatePoints,
@@ -12,11 +16,7 @@ import {
   prisma,
   sleep,
 } from '../utils';
-import { DexScoreService, DexScore } from './dex-points.service';
-import { writeFileSync } from 'fs';
-import { Contract } from 'starknet';
-import { ABI as LSTAbi } from "../../../abis/LST";
-import assert from 'assert';
+import { DexScore, DexScoreService } from './dex-points.service';
 
 const DB_BATCH_SIZE = 100; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
@@ -49,6 +49,7 @@ export interface IPointsSystemService {
   loadBlocks(): Promise<void>;
   sanityBlocks(): Promise<void>;
   fetchAndStoreHoldings(): Promise<void>;
+  getWeeklyPoints(): Promise<Record<string, string>>;
 }
 
 @Injectable()
@@ -64,8 +65,7 @@ export class PointsSystemService implements IPointsSystemService {
   constructor(
     @Inject(forwardRef(() => DexScoreService))
     private readonly dexPoints: DexScoreService,
-  ) {
-  }
+  ) {}
 
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
   async fetchHoldingsWithRetry(
@@ -167,7 +167,9 @@ export class PointsSystemService implements IPointsSystemService {
       if (userRecord && userRecord._max && userRecord._max.date) {
         this.userRecords[addr.user_address] = getDate(userRecord._max.date);
       } else {
-        this.userRecords[addr.user_address] = getDate(getDateString(new Date(addr.timestamp * 1000))); // convert timestamp to Date
+        this.userRecords[addr.user_address] = getDate(
+          getDateString(new Date(addr.timestamp * 1000)),
+        ); // convert timestamp to Date
       }
     });
   }
@@ -195,7 +197,7 @@ export class PointsSystemService implements IPointsSystemService {
       where: {
         user_address: {
           notIn: EXCLUSION_LIST, // exclude users/smart contracts in the exclusion list
-        }
+        },
       },
       select: {
         user_address: true,
@@ -243,8 +245,8 @@ export class PointsSystemService implements IPointsSystemService {
     // // sort by dates
     // const sortedTasks = Array.from(uniqueDates).sort();
     // for (let i = 0; i < Math.min(10, sortedTasks.length); i++) {
-    //   const count = allTasks.filter(task => task[1].toISOString().split('T')[0] === sortedTasks[i]).length;
-    //   logger.info(`Tasks by Date: ${sortedTasks[i]}, Tasks: ${count}`);
+    //   const count = allTasks.filter(task => task[1].toISOString().split('T')[0] === sortedSortedTasks[i]).length;
+    //   logger.info(`Tasks by Date: ${sortedSortedTasks[i]}, Tasks: ${count}`);
     // }
 
     logger.info(`Total tasks to process: ${allTasks.length}`);
@@ -253,7 +255,10 @@ export class PointsSystemService implements IPointsSystemService {
 
   async processTaskBatch(tasks: [string, Date][]) {
     const now = new Date();
-    console.log(`Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`, now.getTime());
+    console.log(
+      `Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`,
+      now.getTime(),
+    );
     const minDate = tasks.reduce((min, task) => {
       return task[1] < min ? task[1] : min;
     }, getDate());
@@ -312,28 +317,31 @@ export class PointsSystemService implements IPointsSystemService {
         );
       }
     });
-    await prisma.$transaction(async (prismaTransaction) => {
-      // Step 1: Create user balances
-      await prismaTransaction.user_balances.createMany({
-        data: validResults,
-      });
+    await prisma.$transaction(
+      async (prismaTransaction) => {
+        // Step 1: Create user balances
+        await prismaTransaction.user_balances.createMany({
+          data: validResults,
+        });
 
-      // Step 2: Create dex positions
-      await prismaTransaction.dex_positions.createMany({
-        data: dexScoreResults,
-      });
+        // Step 2: Create dex positions
+        await prismaTransaction.dex_positions.createMany({
+          data: dexScoreResults,
+        });
 
-      // Step 3: Update points for each user
-      for (const userBalance of validResults) {
-        await this.updatePointsAggregated(userBalance, prismaTransaction);
-      }
-    }, { timeout: 300000 })
+        // Step 3: Update points for each user
+        for (const userBalance of validResults) {
+          await this.updatePointsAggregated(userBalance, prismaTransaction);
+        }
+      },
+      { timeout: 300000 },
+    );
     // .then(() => { // 30 seconds timeout for the transaction
-        const now3 = new Date();
-        console.log(
-          `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
-        );
-        return validResults.length;
+    const now3 = new Date();
+    console.log(
+      `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
+    );
+    return validResults.length;
     // }).catch((error) => {
     //   console.error(`Error processing batch: ${error.message}`, error);
     //   process.exit(1); // Exit the process on error
@@ -478,26 +486,26 @@ export class PointsSystemService implements IPointsSystemService {
     for (const date of uniqueDates) {
       await this.checkSanity(date);
     }
-    
+
     logger.info(`Data fetching and storage complete`);
   }
 
   async nostraXSTRKDebt(blockNumber: number) {
-    const dToken = '0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d'
+    const dToken = '0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d';
     const contract = new Contract(LSTAbi, dToken, getProvider());
     const debt: any = await contract.call('total_supply', [], {
-      blockIdentifier: blockNumber
-    })
+      blockIdentifier: blockNumber,
+    });
     console.log(`Nostra X STRK Debt at block ${blockNumber}:`, debt / BigInt(1e18));
     return Number(debt / BigInt(1e18));
   }
 
   async totalSupply(blockNumber: number) {
-    const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
+    const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a';
     const contract = new Contract(LSTAbi, lst, getProvider());
     const supply: any = await contract.call('total_supply', [], {
-      blockIdentifier: blockNumber
-    })
+      blockIdentifier: blockNumber,
+    });
     console.log(`Total supply at block ${blockNumber}:`, supply / BigInt(1e18));
     return Number(supply / BigInt(1e18));
   }
@@ -505,48 +513,212 @@ export class PointsSystemService implements IPointsSystemService {
   async checkSanity(date: string) {
     const blockInfo = await prisma.user_balances.findFirst({
       select: {
-        block_number: true
+        block_number: true,
       },
       where: {
-        date
-      }
+        date,
+      },
     });
     if (!blockInfo) {
       throw new Error(`No block info found for date: ${date}`);
     }
-  
+
     // await checkBalances(blockInfo.block_number);
-  
+
     const debt = await this.nostraXSTRKDebt(blockInfo?.block_number ?? 0);
     const xSTRKSupply = await this.totalSupply(blockInfo?.block_number ?? 0);
-  
+
     const data = await prisma.user_balances.findMany({
       where: {
         date,
         user_address: {
-          notIn: xSTRK_DAPPS
-        }
+          notIn: xSTRK_DAPPS,
+        },
       },
       select: {
         user_address: true,
-        total_amount: true
-      }
-    })
-  
+        total_amount: true,
+      },
+    });
+
     // sort by total_amount descending
     const sorted = data.sort((a, b) => Number(b.total_amount) - Number(a.total_amount));
-  
+
     const total = data.reduce((acc, curr) => acc + Number(curr.total_amount), 0);
     console.log(`Total amount for ${date}: ${total}`);
-  
+
     const effectiveCalc = total - debt;
     console.log(`Effective calculation for ${date}: ${effectiveCalc}`);
     console.log(`Total xSTRK supply for ${date}: ${xSTRKSupply}`);
-  
+
     const diff = effectiveCalc - xSTRKSupply;
-    console.log(`Difference between effective calculation and xSTRK supply: date: ${date} - diff ${diff}`);
-  
-    assert(Math.abs(diff) < 0.015 * xSTRKSupply, `Data sanity check failed for date ${date}. Difference is too high: ${diff}`);
+    console.log(
+      `Difference between effective calculation and xSTRK supply: date: ${date} - diff ${diff}`,
+    );
+
+    assert(
+      Math.abs(diff) < 0.015 * xSTRKSupply,
+      `Data sanity check failed for date ${date}. Difference is too high: ${diff}`,
+    );
+  }
+
+  /**
+   * Calculates and returns the weekly points for all user addresses
+   * Points are calculated based on what the user has gained since the previous week
+   * @returns Object mapping user addresses to their weekly points
+   */
+  @TryCatchAsync()
+  async getWeeklyPoints(): Promise<Record<string, string>> {
+    logger.info('Calculating weekly points for all users...');
+
+    try {
+      // Get the current week's start date and previous week's start date
+      const now = new Date();
+      const currentWeekStart = new Date(now);
+      currentWeekStart.setDate(now.getDate() - 7); // Go back 7 days
+
+      const previousWeekStart = new Date(currentWeekStart);
+      previousWeekStart.setDate(currentWeekStart.getDate() - 7); // Go back another 7 days
+
+      logger.info(
+        `Calculating points delta between periods: ${previousWeekStart.toISOString()} to ${currentWeekStart.toISOString()}`,
+      );
+
+      // Convert dates to timestamps for database queries
+      const currentWeekTimestamp = Math.floor(currentWeekStart.getTime() / 1000);
+      const previousWeekTimestamp = Math.floor(previousWeekStart.getTime() / 1000);
+
+      // Get current points snapshot
+      const currentPointsSnapshot = await this.prisma.points_aggregated.findMany({
+        where: {
+          timestamp: {
+            gte: currentWeekTimestamp,
+          },
+          user_address: {
+            notIn: EXCLUSION_LIST,
+          },
+        },
+        select: {
+          user_address: true,
+          total_points: true,
+        },
+      });
+
+      // Get previous points snapshot
+      const previousPointsSnapshot = await this.prisma.points_aggregated.findMany({
+        where: {
+          timestamp: {
+            gte: previousWeekTimestamp,
+            lt: currentWeekTimestamp,
+          },
+          user_address: {
+            notIn: EXCLUSION_LIST,
+          },
+        },
+        select: {
+          user_address: true,
+          total_points: true,
+        },
+      });
+
+      // Create maps for easier lookup
+      const currentPointsMap: Record<string, bigint> = {};
+      currentPointsSnapshot.forEach((p) => {
+        currentPointsMap[p.user_address] = p.total_points;
+      });
+
+      const previousPointsMap: Record<string, bigint> = {};
+      previousPointsSnapshot.forEach((p) => {
+        previousPointsMap[p.user_address] = p.total_points;
+      });
+
+      // Calculate weekly delta for each user
+      const weeklyPoints: Record<string, string> = {};
+
+      // Process all addresses from both current and previous snapshots
+      const allAddresses = new Set([
+        ...currentPointsSnapshot.map((p) => p.user_address),
+        ...previousPointsSnapshot.map((p) => p.user_address),
+      ]);
+
+      for (const address of allAddresses) {
+        const currentPoints = currentPointsMap[address] || BigInt(0);
+        const previousPoints = previousPointsMap[address] || BigInt(0);
+
+        // Calculate the weekly delta (points earned this week)
+        const pointsDelta = currentPoints - previousPoints;
+
+        // Only include positive deltas
+        if (pointsDelta > BigInt(0)) {
+          // Convert BigInt to string for the API
+          weeklyPoints[address] = pointsDelta.toString();
+        } else {
+          // Default to 0 for addresses with no points or negative delta
+          weeklyPoints[address] = '0';
+        }
+      }
+
+      // Also include any bonus points from the user_points table for this week
+      const bonusPoints = await this.prisma.user_points.findMany({
+        where: {
+          // Filter to get only points awarded in the current week
+          block_number: {
+            // We would need to join with blocks to get the timestamp
+            // For now, we'll assume recent blocks are within the current week
+          },
+          user_address: {
+            notIn: EXCLUSION_LIST,
+          },
+        },
+        select: {
+          user_address: true,
+          points: true,
+        },
+      });
+
+      // Add bonus points to weekly totals
+      for (const bonus of bonusPoints) {
+        if (!weeklyPoints[bonus.user_address]) {
+          weeklyPoints[bonus.user_address] = '0';
+        }
+
+        const currentTotal = BigInt(parseInt(weeklyPoints[bonus.user_address]));
+        const bonusAmount = BigInt(Math.round(Number(bonus.points) * 100)); // Convert to BigInt with 2 decimal precision
+
+        weeklyPoints[bonus.user_address] = (currentTotal + bonusAmount).toString();
+      }
+
+      // Format all point values to have 2 decimal places
+      for (const address in weeklyPoints) {
+        const pointsValue = BigInt(weeklyPoints[address]);
+        // Convert to string with 2 decimal places
+        weeklyPoints[address] = (Number(pointsValue) / 100).toFixed(2);
+      }
+
+      logger.info(`Weekly points calculated for ${Object.keys(weeklyPoints).length} addresses`);
+      return weeklyPoints;
+    } catch (error) {
+      logger.error(
+        'Error calculating weekly points:',
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate base points from user holdings
+   */
+  private calculateBasePoints(holdings: any[]): number {
+    return holdings.reduce((total, holding) => {
+      // Calculate points based on token value, amount, etc.
+      const holdingValue = holding.amount * (holding.price || 0);
+
+      // Example formula: 1 point per 10 units of token value
+      const holdingPoints = holdingValue / 10;
+
+      return total + holdingPoints;
+    }, 0);
   }
 }
 
@@ -561,6 +733,7 @@ export const xSTRK_DAPPS = [
   '0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b', // STRKFarm xSTRK Sensei
   '0x4a3e7dffd8e74a706be9abe6474e07fbbcf41e1be71387514c4977d54dbc428', // Opus
 ];
+
 // contracts excluded from points system
 export const EXCLUSION_LIST = [
   ...xSTRK_DAPPS,

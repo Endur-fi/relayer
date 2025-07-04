@@ -29,8 +29,8 @@ if (!process.env.DATABASE_URL?.includes('test')) {
 const prisma = new PrismaClient();
 
 // mock constants for faster test execution
-jest.mock('../points-system/points-system.service', () => {
-  const original = jest.requireActual('../points-system/points-system.service');
+jest.mock('../points-system/services/points-system.service', () => {
+  const original = jest.requireActual('../points-system/services/points-system.service');
 
   return {
     ...(original as object),
