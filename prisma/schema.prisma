@@ -247,3 +247,41 @@ model dex_positions {
 
   @@unique(name: "id", fields: [user_address, pool_key, timestamp])
 }
+
+model ekubo_positions {
+  pool_fee String
+  pool_tick_spacing String
+  extension String
+  position_id String
+  user_address String?
+
+  block_number Int
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+  timestamp    Int
+  txHash String
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([pool_fee, pool_tick_spacing, extension, position_id])
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model ekubo_nfts {
+  block_number Int
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  timestamp    Int
+  txHash       String
+
+  from_address   String
+  to_address     String
+  nft_id String
+  cursor BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
