@@ -1,30 +1,35 @@
+import { Module } from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import '@nestjs/platform-express';
+import { ScheduleModule } from '@nestjs/schedule';
+
 import * as dotenv from 'dotenv';
 dotenv.config();
-import { NestFactory } from "@nestjs/core";
-import { Module } from "@nestjs/common";
-import "@nestjs/platform-express";
-import { StatusController } from "./controllers/status.controller";
-import { PrismaService } from "./services/prismaService";
-import { PrismaController } from "./controllers/prisma.controller";
-import { LstController } from "./controllers/lst.controller";
-import { LSTService } from "./services/lstService";
-import { ConfigService } from "./services/configService";
-import { WqController } from "./controllers/wq.controller";
-import { WithdrawalQueueService } from "./services/withdrawalQueueService";
-import { ScheduleModule } from '@nestjs/schedule';
-import { CronService } from "./cron.service";
-import { NotifService } from "./services/notifService";
+
+import { BotService } from '../common/services/bot.service';
+import { LstController } from './controllers/lst.controller';
+import { PrismaController } from './controllers/prisma.controller';
+import { StatusController } from './controllers/status.controller';
+import { WqController } from './controllers/wq.controller';
+import { CronService } from './cron.service';
+import { ConfigService } from './services/configService';
 import { DelegatorService } from './services/delegatorService';
+import { LSTService } from './services/lstService';
+import { NotifService } from './services/notifService';
+import { PrismaService } from './services/prismaService';
+import { WithdrawalQueueService } from './services/withdrawalQueueService';
 
 @Module({
   imports: [ScheduleModule.forRoot()],
   providers: [
-    PrismaService, 
-    ConfigService, LSTService, 
-    WithdrawalQueueService, 
+    PrismaService,
+    ConfigService,
+    LSTService,
+    WithdrawalQueueService,
     DelegatorService,
-    NotifService, 
-    CronService
+    NotifService,
+    BotService,
+    CronService,
   ],
   controllers: [
     StatusController,

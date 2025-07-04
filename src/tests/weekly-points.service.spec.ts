@@ -1,17 +1,22 @@
-import { Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import axios from 'axios';
 
+import { BotService } from '../common/services/bot.service';
 import { PointsSystemService } from '../points-system/services/points-system.service';
 import { WeeklyPointsService } from '../points-system/services/weekly-points.service';
-
-// Mock axios
-jest.mock('axios');
-const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Create a mock for PointsSystemService
 const mockPointsSystemService = {
   getWeeklyPoints: jest.fn(),
+};
+
+// Create a mock for BotService
+const mockBotService = {
+  getAllUsers: jest.fn(),
+  sendWeeklyPointsEvent: jest.fn(),
+  sendWebhookEvent: jest.fn(),
+  getUserByAddress: jest.fn(),
+  sendUnstakeInitiationEvent: jest.fn(),
+  sendUnstakeCompletionEvent: jest.fn(),
 };
 
 describe('WeeklyPointsService', () => {
@@ -24,6 +29,7 @@ describe('WeeklyPointsService', () => {
       providers: [
         WeeklyPointsService,
         { provide: PointsSystemService, useValue: mockPointsSystemService },
+        { provide: BotService, useValue: mockBotService },
       ],
     }).compile();
 
@@ -62,21 +68,12 @@ describe('WeeklyPointsService', () => {
         },
       ];
 
-      mockedAxios.get.mockResolvedValueOnce({
-        data: { users: mockUsers, total: mockUsers.length, limit: 100, offset: 0 },
-      });
+      mockBotService.getAllUsers.mockResolvedValueOnce(mockUsers);
 
       await service.setupTimezoneGroups();
 
-      // Verify axios was called correctly with headers
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/users?limit=100&offset=0'),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
-        }),
-      );
+      // Verify BotService was called
+      expect(mockBotService.getAllUsers).toHaveBeenCalledTimes(1);
 
       // Access private property for testing
       const timezoneGroups = (service as any).timezoneGroups;
@@ -107,9 +104,7 @@ describe('WeeklyPointsService', () => {
         },
       ];
 
-      mockedAxios.get.mockResolvedValueOnce({
-        data: { users: mockUsers, total: mockUsers.length, limit: 100, offset: 0 },
-      });
+      mockBotService.getAllUsers.mockResolvedValueOnce(mockUsers);
 
       await service.setupTimezoneGroups();
 
@@ -123,9 +118,7 @@ describe('WeeklyPointsService', () => {
     });
 
     it('should handle empty user list', async () => {
-      mockedAxios.get.mockResolvedValueOnce({
-        data: { users: [], total: 0, limit: 100, offset: 0 },
-      });
+      mockBotService.getAllUsers.mockResolvedValueOnce([]);
 
       await service.setupTimezoneGroups();
 
@@ -216,9 +209,6 @@ describe('WeeklyPointsService', () => {
       // Clear timezone groups
       (service as any).timezoneGroups = new Map();
 
-      // Mock logger to avoid errors
-      const loggerErrorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
-
       // Mock setupTimezoneGroups
       const setupSpy = jest
         .spyOn(service, 'setupTimezoneGroups')
@@ -227,9 +217,6 @@ describe('WeeklyPointsService', () => {
       await service.processWeeklyPointsForAllTimezones();
 
       expect(setupSpy).toHaveBeenCalled();
-
-      // Restore mocks
-      loggerErrorSpy.mockRestore();
     });
   });
 
@@ -250,68 +237,50 @@ describe('WeeklyPointsService', () => {
         { id: 2, username: 'user2', telegramId: 456, timezone: 'UTC', addresses: ['0x2'] },
       ];
 
-      // Mock axios post for webhook calls
-      mockedAxios.post.mockResolvedValue({ status: 200 });
+      // Mock BotService sendWeeklyPointsEvent
+      mockBotService.sendWeeklyPointsEvent.mockResolvedValue(undefined);
 
       // Execute the method
       await (service as any).processUsersInTimezone(mockUsers, 'UTC');
 
-      // Verify webhook was called for each address
-      expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+      // Verify BotService was called for each address
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledTimes(3);
 
-      // Check specific calls with headers
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/webhook'),
+      // Check specific calls with updated signature
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledWith(
+        '0x1',
+        '10.50',
+        'points',
         expect.objectContaining({
-          eventType: 'endur_points_earned_weekly',
-          starknetAddress: '0x1',
-          amount: '10.50',
           timezone: 'UTC',
-          tokenName: 'xSTRK',
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
+          lastProcessedAt: expect.any(String),
         }),
       );
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/webhook'),
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledWith(
+        '0x2',
+        '25.75',
+        'points',
         expect.objectContaining({
-          eventType: 'endur_points_earned_weekly',
-          starknetAddress: '0x2',
-          amount: '25.75',
           timezone: 'UTC',
-          tokenName: 'xSTRK',
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
+          lastProcessedAt: expect.any(String),
         }),
       );
 
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/webhook'),
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledWith(
+        '0x3',
+        '0.00',
+        'points',
         expect.objectContaining({
-          eventType: 'endur_points_earned_weekly',
-          starknetAddress: '0x3',
-          amount: '0.00',
           timezone: 'UTC',
-          tokenName: 'xSTRK',
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
+          lastProcessedAt: expect.any(String),
         }),
       );
     });
   });
 
   describe('processUserPoints', () => {
-    it('should send points to the webhook and track last processed date', async () => {
+    it('should send points to the bot service and track last processed date', async () => {
       // Setup
       const user = {
         id: 1,
@@ -325,24 +294,19 @@ describe('WeeklyPointsService', () => {
       const results = { success: 0, failed: 0 };
       const maxRetries = 3;
 
-      mockedAxios.post.mockResolvedValueOnce({ status: 200 });
+      mockBotService.sendWeeklyPointsEvent.mockResolvedValueOnce(undefined);
 
       // Execute
       await (service as any).processUserPoints(user, address, weeklyPoints, results, maxRetries);
 
-      // Verify with headers
-      expect(mockedAxios.post).toHaveBeenCalledWith(
-        expect.stringContaining('/webhook'),
+      // Verify BotService was called with updated signature
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledWith(
+        '0x1',
+        '15.00',
+        'points',
         expect.objectContaining({
-          eventType: 'endur_points_earned_weekly',
-          starknetAddress: '0x1',
-          amount: '15.00',
-          tokenName: 'xSTRK',
-        }),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
+          timezone: 'UTC',
+          lastProcessedAt: expect.any(String),
         }),
       );
 
@@ -355,7 +319,7 @@ describe('WeeklyPointsService', () => {
       expect(results.failed).toBe(0);
     });
 
-    it('should retry on failure and eventually succeed', async () => {
+    it('should handle failure and update failed count', async () => {
       // Setup
       const user = {
         id: 1,
@@ -369,138 +333,22 @@ describe('WeeklyPointsService', () => {
       const results = { success: 0, failed: 0 };
       const maxRetries = 3;
 
-      // First call fails, second succeeds
-      mockedAxios.post
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ status: 200 });
-
-      // Mock setTimeout to execute immediately
-      const originalSetTimeout = global.setTimeout;
-      (global.setTimeout as any) = jest.fn((callback: () => void) => {
-        callback();
-        return {} as NodeJS.Timeout;
-      });
+      // Mock BotService to throw error
+      mockBotService.sendWeeklyPointsEvent.mockRejectedValueOnce(new Error('Network error'));
 
       // Execute
       await (service as any).processUserPoints(user, address, weeklyPoints, results, maxRetries);
 
       // Verify
-      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
-      expect(results.success).toBe(1);
-      expect(results.failed).toBe(0);
-
-      // Restore setTimeout
-      global.setTimeout = originalSetTimeout;
-    });
-
-    it('should fail after max retries', async () => {
-      // Setup
-      const user = {
-        id: 1,
-        username: 'user1',
-        telegramId: 123,
-        timezone: 'UTC',
-        addresses: ['0x1'],
-      };
-      const address = '0x1';
-      const weeklyPoints = { '0x1': '15.00' };
-      const results = { success: 0, failed: 0 };
-      const maxRetries = 2;
-
-      // All calls fail
-      mockedAxios.post
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockRejectedValueOnce(new Error('Network error'));
-
-      // Mock setTimeout to execute immediately
-      const originalSetTimeout = global.setTimeout;
-      (global.setTimeout as any) = jest.fn((callback: () => void) => {
-        callback();
-        return {} as NodeJS.Timeout;
-      });
-
-      // Execute
-      await (service as any).processUserPoints(user, address, weeklyPoints, results, maxRetries);
-
-      // Verify
-      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+      expect(mockBotService.sendWeeklyPointsEvent).toHaveBeenCalledTimes(1);
       expect(results.success).toBe(0);
       expect(results.failed).toBe(1);
-
-      // Restore setTimeout
-      global.setTimeout = originalSetTimeout;
     });
   });
 
-  describe('fetchAllUsers', () => {
-    it('should fetch users from the API with pagination', async () => {
-      // Mock response for the first page (full page to trigger pagination)
-      const mockUsers1 = Array.from({ length: 100 }, (_, i) => ({
-        id: i + 1,
-        username: `user${i + 1}`,
-        telegramId: 1000 + i,
-        timezone: 'UTC',
-        addresses: [`0x${i + 1}`],
-      }));
-
-      // Mock response for the second page (partial page to end pagination)
-      const mockUsers2 = [
-        {
-          id: 101,
-          username: 'user101',
-          telegramId: 1101,
-          timezone: 'Asia/Tokyo',
-          addresses: ['0x101'],
-        },
-        {
-          id: 102,
-          username: 'user102',
-          telegramId: 1102,
-          timezone: 'Europe/London',
-          addresses: ['0x102'],
-        },
-      ];
-
-      // Mock API responses for pagination - first call returns full page, second returns partial
-      mockedAxios.get
-        .mockResolvedValueOnce({
-          data: { users: mockUsers1, total: 102, limit: 100, offset: 0 },
-        })
-        .mockResolvedValueOnce({
-          data: { users: mockUsers2, total: 102, limit: 100, offset: 100 },
-        });
-
-      // Call the method
-      const result = await (service as any).fetchAllUsers();
-
-      // Verify correct API calls for pagination with headers
-      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
-      expect(mockedAxios.get).toHaveBeenNthCalledWith(
-        1,
-        expect.stringContaining('/api/users?limit=100&offset=0'),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
-        }),
-      );
-      expect(mockedAxios.get).toHaveBeenNthCalledWith(
-        2,
-        expect.stringContaining('/api/users?limit=100&offset=100'),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
-        }),
-      );
-
-      // Verify combined results
-      expect(result).toHaveLength(102);
-      expect(result).toEqual([...mockUsers1, ...mockUsers2]);
-    });
-
-    it('should handle single page response', async () => {
-      // Mock response with fewer users than the limit (no pagination needed)
+  describe('BotService integration', () => {
+    it('should use BotService for fetching users', async () => {
+      // Mock response
       const mockUsers = [
         { id: 1, username: 'user1', telegramId: 123, timezone: 'UTC', addresses: ['0x1'] },
         {
@@ -512,50 +360,52 @@ describe('WeeklyPointsService', () => {
         },
       ];
 
-      mockedAxios.get.mockResolvedValueOnce({
-        data: { users: mockUsers, total: 2, limit: 100, offset: 0 },
-      });
+      mockBotService.getAllUsers.mockResolvedValueOnce(mockUsers);
 
-      // Call the method
-      const result = await (service as any).fetchAllUsers();
+      // Call setupTimezoneGroups which uses BotService internally
+      await service.setupTimezoneGroups();
 
-      // Should only call API once since we got fewer users than the limit
-      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        expect.stringContaining('/api/users?limit=100&offset=0'),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'x-secret-key': expect.any(String),
-          }),
-        }),
-      );
-      expect(result).toHaveLength(2);
-      expect(result).toEqual(mockUsers);
+      // Verify BotService was called
+      expect(mockBotService.getAllUsers).toHaveBeenCalledTimes(1);
+
+      // Access private property for testing
+      const timezoneGroups = (service as any).timezoneGroups;
+      expect(timezoneGroups.size).toBe(2); // UTC, America/New_York
     });
 
+    it('should handle BotService errors gracefully', async () => {
+      // Mock BotService to return an error
+      mockBotService.getAllUsers.mockRejectedValueOnce(new Error('Bot API is unavailable'));
+
+      // Should throw error when BotService is unavailable
+      await expect(service.setupTimezoneGroups()).rejects.toThrow();
+    });
+  });
+
+  describe('real API integration', () => {
     it('should use real API when environment variable is set', async () => {
-      // This test will be skipped unless USE_REAL_API is set
-      if (!process.env.USE_REAL_API) {
-        console.log('Skipping real API test. Set USE_REAL_API=true to run it.');
+      // This test will be skipped unless USE_BOT_API_FOR_TESTING is set
+      if (!process.env.USE_BOT_API_FOR_TESTING) {
+        console.log('Skipping real API test. Set USE_BOT_API_FOR_TESTING=true to run it.');
         return;
       }
 
-      // Temporarily unmock axios for real API call
-      jest.unmock('axios');
+      // Create a new service instance with real BotService
+      const realBotService = new BotService();
 
-      // Create a new instance without mocking
       const moduleRef = await Test.createTestingModule({
         providers: [
           WeeklyPointsService,
           { provide: PointsSystemService, useValue: mockPointsSystemService },
+          { provide: BotService, useValue: realBotService },
         ],
       }).compile();
 
       const serviceWithRealAPI = moduleRef.get<WeeklyPointsService>(WeeklyPointsService);
 
       try {
-        // Use the service's own fetchAllUsers method which includes proper headers
-        const users = await (serviceWithRealAPI as any).fetchAllUsers();
+        // Test fetching users from real API
+        const users = await realBotService.getAllUsers();
 
         // Basic validation of response from real API
         expect(Array.isArray(users)).toBe(true);
@@ -605,29 +455,7 @@ describe('WeeklyPointsService', () => {
 
         // Don't fail the test if API is not running, but log the error for debugging
         expect(error).toBeInstanceOf(Error);
-      } finally {
-        // Restore the mock for other tests
-        jest.mock('axios');
       }
-    });
-
-    it('should handle API errors gracefully', async () => {
-      // Mock API to return an error
-      mockedAxios.get.mockRejectedValueOnce(new Error('API is unavailable'));
-
-      // Create a new service instance
-      const moduleRef = await Test.createTestingModule({
-        providers: [
-          WeeklyPointsService,
-          { provide: PointsSystemService, useValue: mockPointsSystemService },
-        ],
-      }).compile();
-
-      const serviceInstance = moduleRef.get<WeeklyPointsService>(WeeklyPointsService);
-
-      // Should throw error when API is unavailable
-      // The @TryCatchAsync decorator changes the error message to include "Max retries reached"
-      await expect((serviceInstance as any).fetchAllUsers()).rejects.toThrow('Max retries reached');
     });
   });
 });

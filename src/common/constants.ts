@@ -96,3 +96,18 @@ export const REFERRERS_WITH_CODE = [
   '26CE6',
   'DC322',
 ];
+
+export const SUPPORTED_TIMEZONES = new Set([
+  'America/Los_Angeles',
+  'America/New_York',
+  'America/Mexico_City',
+  'America/Sao_Paulo',
+  'Europe/London',
+  'Europe/Kiev',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+  'Pacific/Honolulu',
+  'UTC', // Default fallback
+]);

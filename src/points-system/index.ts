@@ -6,13 +6,13 @@ import { NestFactory } from '@nestjs/core';
 import '@nestjs/platform-express';
 import { ScheduleModule } from '@nestjs/schedule';
 
+import { BotService } from '../common/services/bot.service';
 import { BonusController } from './controllers/user-bonus.controller';
 import { DexScoreService } from './services/dex-points.service';
 import { PointsCronService } from './services/points-cron.service';
 import { PointsSystemService } from './services/points-system.service';
 import { BonusService } from './services/user-bonus.service';
 import { WeeklyPointsService } from './services/weekly-points.service';
-
 @Module({
   imports: [ScheduleModule.forRoot()],
   providers: [
@@ -21,6 +21,7 @@ import { WeeklyPointsService } from './services/weekly-points.service';
     BonusService,
     PointsCronService,
     WeeklyPointsService,
+    BotService,
   ],
   controllers: [BonusController],
 })
