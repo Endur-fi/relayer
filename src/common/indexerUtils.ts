@@ -1,7 +1,7 @@
 import { Account, num, RpcProvider } from "https://esm.sh/starknet@6.16.0";
 import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { config } from "https://deno.land/x/dotenv/mod.ts";
-import { Network } from "./constants.ts";
+// import { Network } from "./constants.ts";
 
 export function getProvider(): RpcProvider {
   assert(Deno.env.has("RPC_URL"), "RPC URL not set in .env");
@@ -50,15 +50,15 @@ export function standariseAddress(address: string | bigint) {
   return a;
 }
 
-export function getNetwork(): 'mainnet' | 'sepolia' {
-  assert(Deno.env.has("NETWORK"), "Network not configured in .env");
+// export function getNetwork(): 'mainnet' | 'sepolia' {
+//   assert(Deno.env.has("NETWORK"), "Network not configured in .env");
 
-  const network = Deno.env.get("NETWORK") as string;
-  if (network == Network.sepolia) {
-    return 'sepolia';
-  } else if (network == Network.mainnet) {
-    return 'mainnet';
-  } else {
-    throw new Error("Incorrect network configured, check .env file");
-  }
-}
+//   const network = Deno.env.get("NETWORK") as string;
+//   if (network == Network.sepolia) {
+//     return 'sepolia';
+//   } else if (network == Network.mainnet) {
+//     return 'mainnet';
+//   } else {
+//     throw new Error("Incorrect network configured, check .env file");
+//   }
+// }
