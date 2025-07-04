@@ -75,6 +75,12 @@ async function main() {
   console.log('Merkle proofs generated and stored for all users.');
 }
 
+async function generateProofToWithdrawFunds() {
+  const allocations = [{
+    address: BigInt('0x51368126012a878e215fc3598f4db9e3286d6047ddf6239fd9074be601c68fe'),
+  }]
+}
+
 main()
   .catch((e) => {
     console.error(e);

@@ -253,7 +253,6 @@ model ekubo_positions {
   pool_tick_spacing String
   extension String
   position_id String
-  user_address String?
 
   block_number Int
   tx_index     Int @default(0)
@@ -261,11 +260,13 @@ model ekubo_positions {
   timestamp    Int
   txHash String
 
+  lower_bound Int
+  upper_bound Int
+
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   cursor       BigInt? @map("_cursor")
 
-  @@unique([pool_fee, pool_tick_spacing, extension, position_id])
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
 }

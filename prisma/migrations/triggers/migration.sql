@@ -26,6 +26,8 @@ BEGIN
       event_index,
       timestamp,
       "txHash",
+      lower_bound,
+      upper_bound,
       created_at,
       updated_at
     ) VALUES (
@@ -39,6 +41,8 @@ BEGIN
       NEW.event_index,
       NEW.timestamp,
       NEW."txHash",
+      0,
+      0,
       now(),
       now()
     );
@@ -67,20 +71,23 @@ BEGIN
   
   INSERT INTO ekubo_positions (
     pool_fee, pool_tick_spacing, extension, position_id, user_address,
-    block_number, tx_index, event_index, timestamp, "txHash", _cursor, created_at, updated_at
+    block_number, tx_index, event_index, timestamp, "txHash", _cursor, created_at, updated_at,
+	lower_bound, upper_bound
   )
   VALUES (
     NEW.pool_fee, NEW.pool_tick_spacing, NEW.extension, NEW.position_id, NEW.user_address,
-    NEW.block_number, NEW.tx_index, NEW.event_index, NEW.timestamp, NEW."txHash", NEW._cursor, now(), now()
+    NEW.block_number, NEW.tx_index, NEW.event_index, NEW.timestamp, NEW."txHash", NEW._cursor, now(), now(),
+	NEW.lower_bound, NEW.upper_bound
   )
   ON CONFLICT (pool_fee, pool_tick_spacing, extension, position_id)
   DO UPDATE SET
-    user_address = EXCLUDED.user_address,
     block_number = EXCLUDED.block_number,
     tx_index = EXCLUDED.tx_index,
     event_index = EXCLUDED.event_index,
     timestamp = EXCLUDED.timestamp,
     "txHash" = EXCLUDED."txHash",
+	lower_bound = EXCLUDED.lower_bound,
+	upper_bound = EXCLUDED.upper_bound,
     updated_at = now(),
     _cursor = EXCLUDED._cursor;
 

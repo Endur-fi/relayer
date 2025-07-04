@@ -32,7 +32,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkType: 'postgres',
   sinkOptions: {
     connectionString: Deno.env.get('DATABASE_URL'),
-    tableName: 'ekubo_positions_view', // look for ekubo_positions_view in triggers/migraitons.sql to understand this table
+    tableName: 'ekubo_positions', // look for ekubo_positions_view in triggers/migraitons.sql to understand this table
     noTls: true, // true for private urls, false for public urls
   },
 };
@@ -62,6 +62,8 @@ export default function transform({ header, events }: Block) {
     const tick_spacing = event?.data?.[4];
     const extension = event?.data?.[5];
     const position_id = Number(event?.data?.[6]);
+    const lower_bound = Number(event?.data?.[7]) * (Number(event?.data?.[8]) == 0 ? 1 : -1);
+    const upper_bound = Number(event?.data?.[9]) * (Number(event?.data?.[10]) == 0 ? 1 : -1);
 
     const transactionHash = res.receipt.transactionHash;
     const transferData = {
@@ -75,6 +77,8 @@ export default function transform({ header, events }: Block) {
       pool_tick_spacing: tick_spacing,
       extension,
       position_id,
+      lower_bound,
+      upper_bound,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
