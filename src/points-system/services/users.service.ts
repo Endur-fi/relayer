@@ -686,31 +686,73 @@ export class UsersService {
     try {
       const userAddr = standariseAddress(userAddress);
       const provider = getProvider();
-      await this.prisma.users.upsert({
+      const blockNumber = await provider.getBlockNumber();
+      const exists = await this.prisma.users.findUnique({
         where: {
-          user_address: standariseAddress(userAddr),
-        },
-        update: {
-          email: email,
-        },
-        create: {
           user_address: userAddr,
-          email: email,
-          block_number: await provider.getBlockNumber(),
-          timestamp: Math.floor(Date.now() / 1000),
-          tx_hash: 'email-sub'
         },
       });
+      if (exists && exists.email && exists.email.trim() !== '') {
+        return {
+          success: true,
+          message: 'Email already exists for this user',
+        };
+      } else if (exists && !(exists.email && exists.email.trim() === '')) {
+        // if email is empty, update it
+        console.log(`Updating email for user ${userAddr}`);
+        await this.prisma.users.update({
+          where: {
+            user_address: userAddr,
+          },
+          data: {
+            email: email,
+          },
+        });
+      } else {
+        console.log(`Creating new user with email ${email} for address ${userAddr}`);
+        await this.prisma.users.create({
+          data: {
+            user_address: standariseAddress(userAddr),
+            email: email,
+            block_number: blockNumber,
+            timestamp: Math.floor(Date.now() / 1000),
+            tx_hash: 'email-sub',
+            tx_index: 0,
+            event_index: 0,
+            cursor: blockNumber - 1000, // placeholder cursor
+          },
+        });
+      }
 
       return {
         success: true,
         message: 'Email saved successfully',
       };
     } catch (error) {
+      console.error('Error saving email:', error);
       return {
         success: false,
         message: 'Error saving email',
       };
+    }
+  }
+
+  async hasEmailSaved(userAddress: string): Promise<boolean> {
+    try {
+      const userAddr = standariseAddress(userAddress);
+      const user = await this.prisma.users.findUnique({
+        where: {
+          user_address: userAddr,
+        },
+        select: {
+          email: true,
+        },
+      });
+
+      return !!(user?.email && user.email.trim() !== '');
+    } catch (error) {
+      console.error('Error checking if user has email saved:', error);
+      return false;
     }
   }
 

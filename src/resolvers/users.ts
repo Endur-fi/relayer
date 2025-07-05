@@ -340,6 +340,14 @@ class AddPointsResult {
   newTotalPoints!: string;
 }
 
+@ObjectType()
+class SaveEmailResult {
+  @Field(() => Boolean)
+  success!: boolean;
+  @Field(() => String)
+  message!: string;
+}
+
 @Resolver()
 export class UsersResolver {
   private usersService!: UsersService;
@@ -477,6 +485,12 @@ export class UsersResolver {
     return result;
   }
 
+  @Query(() => Boolean)
+  async hasEmailSaved(@Arg('userAddress', () => String) userAddress: string): Promise<boolean> {
+    const result = await this.usersService.hasEmailSaved(userAddress);
+    return result;
+  }
+
   @Mutation(() => AddPointsResult)
   async addPointsToUser(
     @Arg('input', () => AddPointsInput) input: AddPointsInput,
@@ -502,13 +516,12 @@ export class UsersResolver {
     }
   }
 
-  @Mutation(() => AddPointsResult)
+  @Mutation(() => SaveEmailResult)
   async saveEmail(
     @Arg('input', () => SaveEmailInput) input: SaveEmailInput,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<SaveEmailResult> {
     try {
       const result = await this.usersService.saveEmail(input.userAddress, input.email);
-
       return {
         success: result.success,
         message: result.message,
