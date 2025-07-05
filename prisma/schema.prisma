@@ -151,6 +151,7 @@ model users {
   event_index  Int     @default(0)
   tx_hash      String
   user_address String  @unique
+  email        String?
   timestamp    Int
   cursor       BigInt? @map("_cursor")
 }

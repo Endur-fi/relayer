@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { num } from 'starknet';
+import { Contract, num, RpcProvider } from 'starknet';
 
 import { MerkleTree } from '../../merkle/lib';
 import { Web3Number } from '@strkfarm/sdk';
@@ -77,11 +77,40 @@ async function main() {
 
 async function generateProofToWithdrawFunds() {
   const allocations = [{
-    address: BigInt('0x51368126012a878e215fc3598f4db9e3286d6047ddf6239fd9074be601c68fe'),
+    address: BigInt(num.getDecimalString('0x0055741fd3ec832F7b9500E24A885B8729F213357BE4A8E209c4bCa1F3b909Ae')),
+    cumulative_amount: BigInt('14851100000000000000'), // 1 ETH
   }]
+
+  const tree = new MerkleTree(allocations);
+  const merkleRoot = '0x' + tree.root.value.toString(16);
+  console.log('Merkle Root:', merkleRoot);
+
+  const proof = tree.address_calldata(
+    BigInt('0x0055741fd3ec832F7b9500E24A885B8729F213357BE4A8E209c4bCa1F3b909Ae'),
+  );
+  console.log('Merkle Proof:', proof.proof);
 }
 
-main()
+async function getRoot() {
+  const addr = '0x02cb0c045ca7c0ef8c1622c964310224e529fb24cb6d2c080052aec3deaad2fc';
+  const provider = new RpcProvider({
+    nodeUrl: 'https://starknet-mainnet.public.blastapi.io',
+  });
+  const cls = await provider.getClassAt(addr);
+  const contract = new Contract(cls.abi, addr, provider);
+  const res: any = await contract.call('get_root_for', [
+    '0x0055741fd3ec832F7b9500E24A885B8729F213357BE4A8E209c4bCa1F3b909Ae',
+    '4192100000000000000', // 1 ETH
+    [
+      '0x3efa59f8987021f1c86b53fdad3b22a9a4b3c444aac9071447f5be2aec2064'
+    ],
+  ]);
+  console.log('Computed Root:', num.getHexString(res));
+}
+
+// main()
+generateProofToWithdrawFunds()
+// getRoot()
   .catch((e) => {
     console.error(e);
     process.exit(1);

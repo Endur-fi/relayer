@@ -26,6 +26,14 @@ class AddPointsInput {
   points!: string;
 }
 
+@InputType()
+class SaveEmailInput {
+  @Field(() => String)
+  userAddress!: string;
+  @Field(() => String)
+  email!: string;
+}
+
 @ObjectType()
 class UserSummary {
   @Field(() => String)
@@ -474,13 +482,13 @@ export class UsersResolver {
     @Arg('input', () => AddPointsInput) input: AddPointsInput,
   ): Promise<AddPointsResult> {
     try {
-      const result = await this.usersService.addPointsToUser(input.userAddress, input.points);
+      const result = await this.usersService.addPointsToUser(input.userAddress, "1000");
 
       return {
         success: result.success,
         message: result.message,
         userAddress: input.userAddress,
-        pointsAdded: result.success ? input.points : '0',
+        pointsAdded: result.success ? "1000" : '0',
         newTotalPoints: result?.data?.newTotalPoints?.toString() ?? '0',
       };
     } catch (error) {
@@ -490,6 +498,25 @@ export class UsersResolver {
         userAddress: input.userAddress,
         pointsAdded: '0',
         newTotalPoints: '0',
+      };
+    }
+  }
+
+  @Mutation(() => AddPointsResult)
+  async saveEmail(
+    @Arg('input', () => SaveEmailInput) input: SaveEmailInput,
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const result = await this.usersService.saveEmail(input.userAddress, input.email);
+
+      return {
+        success: result.success,
+        message: result.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to save email',
       };
     }
   }

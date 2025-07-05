@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { UserPointsType } from '@prisma/client';
 
-import { safeToBigInt, standariseAddress } from '../../common/utils';
+import { getProvider, safeToBigInt, standariseAddress } from '../../common/utils';
 import { calculatePoints, prisma } from '../utils';
 
 const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z');
@@ -680,6 +680,38 @@ export class UsersService {
     return {
       early_adopter: !!earlyAdopterPoints,
     };
+  }
+
+  async saveEmail(userAddress: string, email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const userAddr = standariseAddress(userAddress);
+      const provider = getProvider();
+      await this.prisma.users.upsert({
+        where: {
+          user_address: standariseAddress(userAddr),
+        },
+        update: {
+          email: email,
+        },
+        create: {
+          user_address: userAddr,
+          email: email,
+          block_number: await provider.getBlockNumber(),
+          timestamp: Math.floor(Date.now() / 1000),
+          tx_hash: 'email-sub'
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Email saved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error saving email',
+      };
+    }
   }
 
   async addPointsToUser(
