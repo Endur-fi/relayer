@@ -1,7 +1,7 @@
 import { Account, num, RpcProvider } from "https://esm.sh/starknet@6.16.0";
 import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { config } from "https://deno.land/x/dotenv/mod.ts";
-import { Network } from "./constants";
+import { Network } from "./constants.ts";
 
 export function getProvider(): RpcProvider {
   assert(Deno.env.has("RPC_URL"), "RPC URL not set in .env");
