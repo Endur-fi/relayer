@@ -1,9 +1,6 @@
 const dotenv = require('dotenv');
 dotenv.config();
 const express = require('express');
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 const app = express();
 const port = process.env.PORT || 4010;
 const redis = require('redis');
