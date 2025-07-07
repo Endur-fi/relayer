@@ -34,7 +34,7 @@ RUN chmod +x sink-postgres-x86_64-linux
 RUN /root/.local/share/apibara/bin/apibara plugins install --file sink-postgres-x86_64-linux
 
 # Add NodeSource repository for the desired Node.js version (e.g., 18.x)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 
 # Install Node.js
 RUN apt-get install -y nodejs
@@ -46,8 +46,6 @@ RUN node -v && npm -v
 RUN npm install -g yarn
 RUN yarn install
 RUN npx prisma db push
-
-#home/teja9999/.nvm/versions/node/v18.20.1/bin/node
 
 # create run.sh to run multiple indexers at once
 RUN chmod +x run.sh

@@ -26,6 +26,14 @@ class AddPointsInput {
   points!: string;
 }
 
+@InputType()
+class SaveEmailInput {
+  @Field(() => String)
+  userAddress!: string;
+  @Field(() => String)
+  email!: string;
+}
+
 @ObjectType()
 class UserSummary {
   @Field(() => String)
@@ -332,6 +340,14 @@ class AddPointsResult {
   newTotalPoints!: string;
 }
 
+@ObjectType()
+class SaveEmailResult {
+  @Field(() => Boolean)
+  success!: boolean;
+  @Field(() => String)
+  message!: string;
+}
+
 @Resolver()
 export class UsersResolver {
   private usersService!: UsersService;
@@ -469,18 +485,24 @@ export class UsersResolver {
     return result;
   }
 
+  @Query(() => Boolean)
+  async hasEmailSaved(@Arg('userAddress', () => String) userAddress: string): Promise<boolean> {
+    const result = await this.usersService.hasEmailSaved(userAddress);
+    return result;
+  }
+
   @Mutation(() => AddPointsResult)
   async addPointsToUser(
     @Arg('input', () => AddPointsInput) input: AddPointsInput,
   ): Promise<AddPointsResult> {
     try {
-      const result = await this.usersService.addPointsToUser(input.userAddress, input.points);
+      const result = await this.usersService.addPointsToUser(input.userAddress, "1000");
 
       return {
         success: result.success,
         message: result.message,
         userAddress: input.userAddress,
-        pointsAdded: result.success ? input.points : '0',
+        pointsAdded: result.success ? "1000" : '0',
         newTotalPoints: result?.data?.newTotalPoints?.toString() ?? '0',
       };
     } catch (error) {
@@ -490,6 +512,24 @@ export class UsersResolver {
         userAddress: input.userAddress,
         pointsAdded: '0',
         newTotalPoints: '0',
+      };
+    }
+  }
+
+  @Mutation(() => SaveEmailResult)
+  async saveEmail(
+    @Arg('input', () => SaveEmailInput) input: SaveEmailInput,
+  ): Promise<SaveEmailResult> {
+    try {
+      const result = await this.usersService.saveEmail(input.userAddress, input.email);
+      return {
+        success: result.success,
+        message: result.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to save email',
       };
     }
   }

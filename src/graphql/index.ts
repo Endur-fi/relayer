@@ -10,12 +10,13 @@ import { PrismaClient } from '@prisma/client';
 import { buildSchema } from 'type-graphql';
 
 import { UsersResolver } from '../resolvers/users';
+import { EkuboResolver } from '../resolvers/ekubo';
 
 const prisma = new PrismaClient();
 
 async function main() {
   const schema = await buildSchema({
-    resolvers: [FindFirstWithdraw_queueResolver, FindManyWithdraw_queueResolver, UsersResolver],
+    resolvers: [FindFirstWithdraw_queueResolver, FindManyWithdraw_queueResolver, UsersResolver, EkuboResolver],
     validate: false,
   });
 

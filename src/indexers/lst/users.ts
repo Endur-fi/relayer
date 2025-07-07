@@ -11,9 +11,6 @@ import { getAddresses } from "../../common/constants.ts";
 import {
   getNetwork,
   standariseAddress,
-  toBigInt,
-  toBoolean,
-  toNumber,
 } from "../../common/indexerUtils.ts";
 
 export const config: Config<Starknet, Postgres> = {

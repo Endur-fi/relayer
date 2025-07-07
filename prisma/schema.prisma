@@ -154,6 +154,7 @@ model users {
   event_index  Int     @default(0)
   tx_hash      String
   user_address String  @unique
+  email        String?
   timestamp    Int
   cursor       BigInt? @map("_cursor")
 }
@@ -249,4 +250,43 @@ model dex_positions {
   timestamp    Int
 
   @@unique(name: "id", fields: [user_address, pool_key, timestamp])
+}
+
+model ekubo_positions {
+  pool_fee String
+  pool_tick_spacing String
+  extension String
+  position_id String
+
+  block_number Int
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+  timestamp    Int
+  txHash String
+
+  lower_bound Int
+  upper_bound Int
+
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  cursor       BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+}
+
+model ekubo_nfts {
+  block_number Int
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  timestamp    Int
+  txHash       String
+
+  from_address   String
+  to_address     String
+  nft_id String
+  cursor BigInt? @map("_cursor")
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
 }
