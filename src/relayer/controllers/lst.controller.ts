@@ -1,6 +1,7 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { LSTService } from "../services/lstService";
 import { Web3Number } from "@strkfarm/sdk";
+
+import { LSTService } from "../services/lstService";
 
 @Controller("lst")
 export class LstController {
@@ -24,7 +25,7 @@ export class LstController {
   @Post("stake")
   async stake(
     @Body("delegator") delegator: string,
-    @Body("amount") amount: bigint,
+    @Body("amount") amount: bigint
   ) {
     console.log("Received a stake request");
     try {

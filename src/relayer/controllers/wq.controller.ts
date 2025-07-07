@@ -1,10 +1,10 @@
 import { Body, Controller, Post } from "@nestjs/common";
+
 import { WithdrawalQueueService } from "../services/withdrawalQueueService";
 
 @Controller("wq")
 export class WqController {
-  constructor(private wq: WithdrawalQueueService) {
-  }
+  constructor(private wq: WithdrawalQueueService) {}
 
   @Post("claim-withdrawal")
   claimWithdrawal(@Body("request_id") request_id: number) {
@@ -21,7 +21,7 @@ export class WqController {
   @Post("claim-withdrawal-range")
   claimWithdrawalInRange(
     @Body("request_id_from") from: number,
-    @Body("request_id_to") to: number,
+    @Body("request_id_to") to: number
   ) {
     try {
       this.wq.claimWithdrawalInRange(from, to);

@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { withdraw_queue } from '@prisma/client';
-import { Web3Number } from '@strkfarm/sdk';
-import { deposits, prisma, PrismaClient } from '../../../prisma/client';
+import { Injectable, Logger } from "@nestjs/common";
+import { withdraw_queue } from "@prisma/client";
+import { Web3Number } from "@strkfarm/sdk";
+
+import { deposits, prisma, PrismaClient } from "../../../prisma/client";
 
 interface IPrismaService {
   getDepositsLastDay(): Promise<bigint>;
@@ -49,9 +50,12 @@ export class PrismaService implements IPrismaService {
       },
     });
 
-    const totalWithdrawals = withdrawals.reduce((sum: bigint, e: withdraw_queue) => {
-      return sum + BigInt(e.amount_strk);
-    }, BigInt(0));
+    const totalWithdrawals = withdrawals.reduce(
+      (sum: bigint, e: withdraw_queue) => {
+        return sum + BigInt(e.amount_strk);
+      },
+      BigInt(0)
+    );
 
     // return BigInt(2);
     return totalWithdrawals;
@@ -67,9 +71,17 @@ export class PrismaService implements IPrismaService {
       },
     });
 
-    deposits?.forEach((_e: (typeof deposits)[0], index: number, depositsArray: typeof deposits) => {
-      depositsArray[index].cursor = BigInt(depositsArray[index].cursor?.toString() ?? 0);
-    });
+    deposits?.forEach(
+      (
+        _e: (typeof deposits)[0],
+        index: number,
+        depositsArray: typeof deposits
+      ) => {
+        depositsArray[index].cursor = BigInt(
+          depositsArray[index].cursor?.toString() ?? 0
+        );
+      }
+    );
     return deposits;
   }
 
@@ -84,18 +96,27 @@ export class PrismaService implements IPrismaService {
     });
 
     withdraws?.forEach(
-      (_e: (typeof withdraws)[0], index: number, withdrawsArray: typeof withdraws) => {
-        withdrawsArray[index].cursor = BigInt(withdrawsArray[index].cursor?.toString() ?? 0);
-      },
+      (
+        _e: (typeof withdraws)[0],
+        index: number,
+        withdrawsArray: typeof withdraws
+      ) => {
+        withdrawsArray[index].cursor = BigInt(
+          withdrawsArray[index].cursor?.toString() ?? 0
+        );
+      }
     );
     return withdraws;
   }
 
   async getTotalWithdraws(from: number, to: number) {
     const withdraws = await this.getWithdraws(from, to);
-    const totalWithdrawals = withdraws?.reduce((sum: bigint, e: (typeof withdraws)[0]) => {
-      return sum + BigInt(e.amount_kstrk);
-    }, BigInt(0));
+    const totalWithdrawals = withdraws?.reduce(
+      (sum: bigint, e: (typeof withdraws)[0]) => {
+        return sum + BigInt(e.amount_kstrk);
+      },
+      BigInt(0)
+    );
     return totalWithdrawals;
   }
 
@@ -114,7 +135,7 @@ export class PrismaService implements IPrismaService {
   > {
     const pendingWithdraws = await this.prisma.withdraw_queue.findMany({
       orderBy: {
-        request_id: 'asc',
+        request_id: "asc",
       },
       where: {
         is_claimed: false,
@@ -150,7 +171,7 @@ export class PrismaService implements IPrismaService {
 
     // filter out withdrawals that are less than minAmount
     // also isolate the rejected ones and mark them as rejected
-    let rejected_ids: bigint[] = [];
+    const rejected_ids: bigint[] = [];
     const filteredWithdraws = pendingWithdraws.filter((withdraw: any) => {
       const amount = Web3Number.fromWei(withdraw.amount_strk, 18);
       if (amount.lt(minAmount)) {
@@ -179,9 +200,12 @@ export class PrismaService implements IPrismaService {
 
   async getTotalDeposits(from: number, to: number) {
     const deposits = await this.getDeposits(from, to);
-    const totalDeposits = deposits?.reduce((sum: bigint, e: (typeof deposits)[0]) => {
-      return sum + BigInt(e.assets);
-    }, BigInt(0));
+    const totalDeposits = deposits?.reduce(
+      (sum: bigint, e: (typeof deposits)[0]) => {
+        return sum + BigInt(e.assets);
+      },
+      BigInt(0)
+    );
 
     return totalDeposits;
   }

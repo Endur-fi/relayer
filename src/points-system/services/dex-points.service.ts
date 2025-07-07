@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { dex_positions, Prisma, PrismaClient, UserPointsType } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+import { Injectable } from "@nestjs/common";
+import {
+  dex_positions,
+  Prisma,
+  PrismaClient,
+  UserPointsType,
+} from "@prisma/client";
+import { Decimal } from "@prisma/client/runtime/library";
 import {
   EkuboCLVault,
   EkuboCLVaultStrategies,
@@ -9,19 +14,26 @@ import {
   logger,
   Pricer,
   PricerFromApi,
-} from '@strkfarm/sdk';
-import axios from 'axios';
-import { BlockIdentifier, Contract, num, RpcProvider, uint256 } from 'starknet';
-import EkuboAbi from '../../common/abi/ekubo.abi.json';
-import ekuboPositionAbi from '../../common/abi/ekubo.position.abi.json';
-import STRKFarmEkuboAbi from '../../common/abi/strkfarm.ekubo.json';
-import { getAddresses } from '../../common/constants';
-import MyNumber from '../../common/MyNumber';
-import { getNetwork, getProvider, standariseAddress, TryCatchAsync } from '../../common/utils';
-import { findClosestBlockInfo, getDate, getDateString, prisma } from '../utils';
+} from "@strkfarm/sdk";
+import axios from "axios";
+import { BlockIdentifier, Contract, num, RpcProvider, uint256 } from "starknet";
+
+import EkuboAbi from "../../common/abi/ekubo.abi.json";
+import ekuboPositionAbi from "../../common/abi/ekubo.position.abi.json";
+import STRKFarmEkuboAbi from "../../common/abi/strkfarm.ekubo.json";
+import { getAddresses } from "../../common/constants";
+import MyNumber from "../../common/MyNumber";
+import {
+  getNetwork,
+  getProvider,
+  standariseAddress,
+  TryCatchAsync,
+} from "../../common/utils";
+import { findClosestBlockInfo, getDate, getDateString, prisma } from "../utils";
 
 const DEX_INCENTIVE_SCORING_EXPONENT = 5;
-const EKUBO_POSITION_ADDRESS = '0x02e0af29598b407c8716b17f6d2795eca1b471413fa03fb145a5e33722184067';
+const EKUBO_POSITION_ADDRESS =
+  "0x02e0af29598b407c8716b17f6d2795eca1b471413fa03fb145a5e33722184067";
 const XSTRK_ADDRESS = getAddresses(getNetwork()).LST;
 const STRK_DECIMALS = 18;
 const MULTIPLIER = 0.7; // dex points multiplier
@@ -37,12 +49,12 @@ export interface IDexScoreService {
     address: string,
     blockNumber: number,
     date: Date,
-    nostraDEXStrkAmount: number,
+    nostraDEXStrkAmount: number
   ): Promise<DexScore>;
   calculateEkuboBonusScore(
     strkBalance: number,
     currentPrice: number,
-    rangeMinPrice: number,
+    rangeMinPrice: number
   ): number;
   calculateNostraBonusScore(strkBalance: number): number;
   getEkuboHoldings(
@@ -50,7 +62,7 @@ export interface IDexScoreService {
     provider: RpcProvider,
     blockNumber: BlockIdentifier,
     truePrice: number,
-    date: Date,
+    date: Date
   ): Promise<dex_positions[]>;
   getTruePrice(blockNumber: number, pricer: PricerFromApi): Promise<number>;
   saveBonusPoints(): Promise<void>;
@@ -76,7 +88,9 @@ export class DexScoreService implements IDexScoreService {
       };
     };
   } = {};
-  bonusPointsPerScore: { [date: string]: { totalScore: number; totalPoints: number } } = {};
+  bonusPointsPerScore: {
+    [date: string]: { totalScore: number; totalPoints: number };
+  } = {};
 
   constructor() {}
 
@@ -86,15 +100,15 @@ export class DexScoreService implements IDexScoreService {
   }
 
   async saveCurrentPrices() {
-    const startDate = getDate('2025-05-25');
+    const startDate = getDate("2025-05-25");
     const endDate = getDate();
     console.log(
-      `Saving current prices from: ${getDateString(startDate)} to ${getDateString(endDate)}`,
+      `Saving current prices from: ${getDateString(startDate)} to ${getDateString(endDate)}`
     );
 
     const latestStoredDate = await prisma.price_info.findFirst({
       orderBy: {
-        block_number: 'desc',
+        block_number: "desc",
       },
     });
 
@@ -107,7 +121,7 @@ export class DexScoreService implements IDexScoreService {
     // set to 00:00:00 of the day
     processStartDate.setDate(processStartDate.getDate() + 1);
     logger.info(
-      `Starting to save current prices from: ${processStartDate.toISOString()} to ${endDate.toISOString()}`,
+      `Starting to save current prices from: ${processStartDate.toISOString()} to ${endDate.toISOString()}`
     );
 
     // to get true price
@@ -116,30 +130,42 @@ export class DexScoreService implements IDexScoreService {
 
     while (processStartDate < endDate) {
       // increment date by one day
-      logger.info(`saveCurrentPrices: Processing date: ${getDateString(processStartDate)}`);
+      logger.info(
+        `saveCurrentPrices: Processing date: ${getDateString(processStartDate)}`
+      );
       const blockInfo = await findClosestBlockInfo(processStartDate);
       if (!blockInfo || !blockInfo.block_number) {
-        logger.warn(`No block found for date: ${getDateString(processStartDate)}`);
+        logger.warn(
+          `No block found for date: ${getDateString(processStartDate)}`
+        );
         processStartDate.setDate(processStartDate.getDate() + 1);
-        throw new Error(`No block found for date: ${getDateString(processStartDate)}`);
+        throw new Error(
+          `No block found for date: ${getDateString(processStartDate)}`
+        );
       }
 
       logger.info(
-        `Saving current prices: ${getDateString(processStartDate)}, block: ${blockInfo.block_number}`,
+        `Saving current prices: ${getDateString(processStartDate)}, block: ${blockInfo.block_number}`
       );
       try {
         // const currentPrice = await this.getCurrentPrice(blockInfo.block_number);
-        const truePrice = await this.getTruePrice(blockInfo.block_number, pricer);
+        const truePrice = await this.getTruePrice(
+          blockInfo.block_number,
+          pricer
+        );
         await prisma.price_info.create({
           data: {
             block_number: blockInfo.block_number,
-            dex_price: '0',
+            dex_price: "0",
             true_price: truePrice.toString(),
             timestamp: Math.round(processStartDate.getTime() / 1000), // convert to seconds
           },
         });
       } catch (error) {
-        logger.error(`Error fetching current price for block ${blockInfo.block_number}`, error);
+        logger.error(
+          `Error fetching current price for block ${blockInfo.block_number}`,
+          error
+        );
       }
 
       processStartDate.setDate(processStartDate.getDate() + 1);
@@ -153,7 +179,7 @@ export class DexScoreService implements IDexScoreService {
     const ekuboVaultMod = new EkuboCLVault(
       getMainnetConfig(process.env.RPC_URL!, blockNumber),
       pricer,
-      EkuboCLVaultStrategies[0],
+      EkuboCLVaultStrategies[0]
     );
     const truePrice = await ekuboVaultMod.truePrice();
     logger.info(`True price for block ${blockNumber}: ${truePrice}`);
@@ -170,7 +196,7 @@ export class DexScoreService implements IDexScoreService {
     const poolKey = {
       token0: getAddresses(getNetwork()).LST,
       token1: getAddresses(getNetwork()).Strk,
-      fee: '34028236692093847977029636859101184',
+      fee: "34028236692093847977029636859101184",
       tick_spacing: 200,
       extension: 0,
     };
@@ -178,7 +204,7 @@ export class DexScoreService implements IDexScoreService {
     // 0.05%, 1000 tick spacing pool
     const poolKey2 = {
       ...poolKey,
-      fee: '170141183460469235273462165868118016',
+      fee: "170141183460469235273462165868118016",
       tick_spacing: 1000,
     };
 
@@ -190,9 +216,9 @@ export class DexScoreService implements IDexScoreService {
     for (let i = 0; i < poolKeys.length; i++) {
       for (let j = 0; j < blocks.length; j++) {
         proms.push(
-          contract.call('get_pool_price', [poolKeys[i]], {
+          contract.call("get_pool_price", [poolKeys[i]], {
             blockIdentifier: blocks[j],
-          }),
+          })
         );
       }
     }
@@ -201,7 +227,9 @@ export class DexScoreService implements IDexScoreService {
     // average the prices
     const avgPrice =
       prices.reduce((acc, priceInfo) => {
-        const sqrtRatio = EkuboCLVault.div2Power128(BigInt(priceInfo.sqrt_ratio.toString()));
+        const sqrtRatio = EkuboCLVault.div2Power128(
+          BigInt(priceInfo.sqrt_ratio.toString())
+        );
         const price = sqrtRatio * sqrtRatio;
         return acc + price;
       }, 0) / prices.length;
@@ -209,12 +237,17 @@ export class DexScoreService implements IDexScoreService {
     return avgPrice;
   }
 
-  calculateEkuboBonusScore(strkBalance: number, currentPrice: number, rangeMinPrice: number) {
+  calculateEkuboBonusScore(
+    strkBalance: number,
+    currentPrice: number,
+    rangeMinPrice: number
+  ) {
     // S = X₁·(1 + 49·(pₐ/p)ⁿ)
     if (rangeMinPrice > currentPrice) {
       return 0; // if the range min price is greater than current price, no bonus
     }
-    const factor = 1 + 49 * (rangeMinPrice / currentPrice) ** DEX_INCENTIVE_SCORING_EXPONENT;
+    const factor =
+      1 + 49 * (rangeMinPrice / currentPrice) ** DEX_INCENTIVE_SCORING_EXPONENT;
     const score = strkBalance * factor;
     return score;
   }
@@ -228,9 +261,9 @@ export class DexScoreService implements IDexScoreService {
     address: string,
     blockNumber: number,
     date: Date,
-    nostraDEXStrkAmount: number,
+    nostraDEXStrkAmount: number
   ): Promise<DexScore> {
-    const START_DATE = getDate('2025-06-01');
+    const START_DATE = getDate("2025-06-01");
     if (date < START_DATE) {
       // points on DEXes havent started yet
       return {
@@ -254,12 +287,12 @@ export class DexScoreService implements IDexScoreService {
 
     const nostraScore: dex_positions[] = [
       {
-        pool_key: 'nostra',
+        pool_key: "nostra",
         strk_amount: nostraDEXStrkAmount.toString(),
         score: new Decimal(this.calculateNostraBonusScore(nostraDEXStrkAmount)),
         block_number: blockNumber,
         user_address: address,
-        additional_info: '{}',
+        additional_info: "{}",
         is_points_settled: false,
         timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
       },
@@ -270,13 +303,13 @@ export class DexScoreService implements IDexScoreService {
       getProvider(),
       blockNumber,
       Number(currentPrice.true_price),
-      date,
+      date
     );
     const strkfarmEkuboScoreProm = this.getSTRKFarmEkuboHoldings(
       address,
       blockNumber,
       Number(currentPrice.true_price),
-      date,
+      date
     );
 
     const [ekuboPositionDetails, strkfarmEkuboScore] = await Promise.all([
@@ -294,20 +327,21 @@ export class DexScoreService implements IDexScoreService {
     userAddress: string,
     blockNumber: number,
     truePrice: number,
-    date: Date,
+    date: Date
   ): Promise<dex_positions[]> {
     const provider = getProvider();
-    const addr = '0x01f083b98674bc21effee29ef443a00c7b9a500fd92cf30341a3da12c73f2324';
+    const addr =
+      "0x01f083b98674bc21effee29ef443a00c7b9a500fd92cf30341a3da12c73f2324";
     const contract = new Contract(STRKFarmEkuboAbi, addr, provider);
 
-    const bal = await contract.call('balance_of', [userAddress], {
+    const bal = await contract.call("balance_of", [userAddress], {
       blockIdentifier: blockNumber,
     });
 
     const dexPosition: dex_positions = {
       score: new Decimal(0),
-      pool_key: 'strkfarmEkubo',
-      strk_amount: '0',
+      pool_key: "strkfarmEkubo",
+      strk_amount: "0",
       additional_info: JSON.stringify({}),
       block_number: blockNumber,
       user_address: userAddress,
@@ -320,7 +354,7 @@ export class DexScoreService implements IDexScoreService {
 
     const totalSupply: any =
       this.strkfarmEkuboCache[blockNumber]?.total_supply ||
-      (await contract.call('total_supply', [], {
+      (await contract.call("total_supply", [], {
         blockIdentifier: blockNumber,
       }));
 
@@ -330,14 +364,18 @@ export class DexScoreService implements IDexScoreService {
       amount1: bigint;
     } = this.strkfarmEkuboCache[blockNumber]
       ? this.strkfarmEkuboCache[blockNumber].positionInfo
-      : ((await contract.call('convert_to_assets', [uint256.bnToUint256(totalSupply.toString())], {
-          blockIdentifier: blockNumber,
-        })) as any);
+      : ((await contract.call(
+          "convert_to_assets",
+          [uint256.bnToUint256(totalSupply.toString())],
+          {
+            blockIdentifier: blockNumber,
+          }
+        )) as any);
 
     const bounds =
       this.strkfarmEkuboCache[blockNumber]?.bounds ||
       (
-        (await contract.call('get_position_key', [], {
+        (await contract.call("get_position_key", [], {
           blockIdentifier: blockNumber,
         })) as any
       ).bounds;
@@ -352,7 +390,7 @@ export class DexScoreService implements IDexScoreService {
     const ekuboScore = this.calculateEkuboBonusScore(
       Number(positionInfo.amount1.toString()) / 10 ** STRK_DECIMALS,
       truePrice,
-      EkuboCLVault.tickToPrice(EkuboCLVault.i129ToNumber(bounds.lower as any)),
+      EkuboCLVault.tickToPrice(EkuboCLVault.i129ToNumber(bounds.lower as any))
     );
     const score = ekuboScore * (Number(bal) / Number(totalSupply));
     return [
@@ -364,8 +402,12 @@ export class DexScoreService implements IDexScoreService {
           (Number(bal) / Number(totalSupply))
         ).toString(),
         additional_info: JSON.stringify({
-          lower_price: EkuboCLVault.tickToPrice(EkuboCLVault.i129ToNumber(bounds.lower as any)),
-          upper_price: EkuboCLVault.tickToPrice(EkuboCLVault.i129ToNumber(bounds.upper as any)),
+          lower_price: EkuboCLVault.tickToPrice(
+            EkuboCLVault.i129ToNumber(bounds.lower as any)
+          ),
+          upper_price: EkuboCLVault.tickToPrice(
+            EkuboCLVault.i129ToNumber(bounds.upper as any)
+          ),
           balance: bal.toString(),
           total_supply: totalSupply.toString(),
           total_strk_amount: positionInfo.amount1.toString(),
@@ -379,23 +421,27 @@ export class DexScoreService implements IDexScoreService {
     provider: RpcProvider,
     blockNumber: number,
     truePrice: number,
-    date: Date,
+    date: Date
   ) => {
-    let xSTRKAmount = MyNumber.fromEther('0', 18);
-    let STRKAmount = MyNumber.fromEther('0', 18);
+    const xSTRKAmount = MyNumber.fromEther("0", 18);
+    const STRKAmount = MyNumber.fromEther("0", 18);
 
     const resp = await axios.get(
       `https://mainnet-api.ekubo.org/positions/${address}?showClosed=true`,
       {
         headers: {
-          Host: 'mainnet-api.ekubo.org',
+          Host: "mainnet-api.ekubo.org",
         },
-      },
+      }
       // `https://mainnet-api.ekubo.org/positions/0x067138f4b11ac7757e39ee65814d7a714841586e2aa714ce4ececf38874af245`,
     );
     const res = resp.data;
 
-    const positionContract = new Contract(ekuboPositionAbi, EKUBO_POSITION_ADDRESS, provider);
+    const positionContract = new Contract(
+      ekuboPositionAbi,
+      EKUBO_POSITION_ADDRESS,
+      provider
+    );
 
     const positionsInfo: dex_positions[] = [];
 
@@ -405,7 +451,7 @@ export class DexScoreService implements IDexScoreService {
           standariseAddress(position.pool_key.token0) ===
             standariseAddress(getAddresses(getNetwork()).LST) ||
           standariseAddress(position.pool_key.token1) ===
-            standariseAddress(getAddresses(getNetwork()).LST),
+            standariseAddress(getAddresses(getNetwork()).LST)
       );
 
       if (filteredData) {
@@ -414,7 +460,7 @@ export class DexScoreService implements IDexScoreService {
           if (!position.id) continue;
           try {
             const result: any = await positionContract.call(
-              'get_token_info',
+              "get_token_info",
               [
                 position?.id,
                 position.pool_key,
@@ -430,19 +476,21 @@ export class DexScoreService implements IDexScoreService {
                 },
               ],
               {
-                blockIdentifier: blockNumber ?? 'pending',
-              },
+                blockIdentifier: blockNumber ?? "pending",
+              }
             );
 
             const score = this.calculateEkuboBonusScore(
               Number(result.amount1.toString()) / 1e18,
               Number(truePrice),
-              Number(EkuboCLVault.tickToPrice(position.bounds.lower)),
+              Number(EkuboCLVault.tickToPrice(position.bounds.lower))
             );
 
             const positionInfo: dex_positions = {
               pool_key: `ekubo_${num.getDecimalString(position.pool_key.fee)}_${num.getDecimalString(position.pool_key.tick_spacing)}_${position.id}`,
-              strk_amount: (Number(result.amount1.toString()) / 1e18).toString(),
+              strk_amount: (
+                Number(result.amount1.toString()) / 1e18
+              ).toString(),
               score: new Decimal(score), // will be calculated later
               block_number: blockNumber,
               user_address: address,
@@ -455,7 +503,7 @@ export class DexScoreService implements IDexScoreService {
             };
             positionsInfo.push(positionInfo);
           } catch (error: any) {
-            if (error.message.includes('NOT_INITIALIZED')) {
+            if (error.message.includes("NOT_INITIALIZED")) {
               // do nothing
               continue;
             }
@@ -472,7 +520,7 @@ export class DexScoreService implements IDexScoreService {
     // get all users
     const dexPositions = await prisma.dex_positions.findMany({
       orderBy: {
-        timestamp: 'asc',
+        timestamp: "asc",
       },
       where: {
         is_points_settled: false,
@@ -483,20 +531,28 @@ export class DexScoreService implements IDexScoreService {
     logger.info(`Saved bonus points for ${dexPositions.length} dex positions.`);
   }
 
-  async computeBonusPointsPerScore(date: Date): Promise<{ dexPositions: dex_positions[] }> {
-    if (this.bonusPointsPerScore[date.toISOString().split('T')[0]]) {
-      console.log(`Bonus points already computed for date: ${date.toISOString().split('T')[0]}`);
+  async computeBonusPointsPerScore(
+    date: Date
+  ): Promise<{ dexPositions: dex_positions[] }> {
+    if (this.bonusPointsPerScore[date.toISOString().split("T")[0]]) {
+      console.log(
+        `Bonus points already computed for date: ${date.toISOString().split("T")[0]}`
+      );
       return { dexPositions: [] };
     }
 
-    console.log(`Computing bonus points for date: ${date.toISOString().split('T')[0]}`);
+    console.log(
+      `Computing bonus points for date: ${date.toISOString().split("T")[0]}`
+    );
     const dex_positions: dex_positions[] = await prisma.dex_positions.findMany({
       where: {
         timestamp: Math.round(date.getTime() / 1000), // convert to seconds
       },
     });
     if (dex_positions.length === 0) {
-      throw new Error(`No dex positions found for date: ${date.toISOString().split('T')[0]}`);
+      throw new Error(
+        `No dex positions found for date: ${date.toISOString().split("T")[0]}`
+      );
     }
 
     const totalSTRK = dex_positions.reduce((acc, pos) => {
@@ -504,19 +560,23 @@ export class DexScoreService implements IDexScoreService {
       return acc + strkAmount;
     }, 0);
 
-    console.log(`Total STRK for date ${date.toISOString().split('T')[0]}: ${totalSTRK}`);
+    console.log(
+      `Total STRK for date ${date.toISOString().split("T")[0]}: ${totalSTRK}`
+    );
 
     const totalBonusPoints = totalSTRK * MULTIPLIER;
     const totalScore = dex_positions.reduce((acc, pos) => {
       const score = pos.score ? parseFloat(pos.score.toString()) : 0;
       return acc + score;
     }, 0);
-    console.log(`Total score for date ${date.toISOString().split('T')[0]}: ${totalScore}`);
     console.log(
-      `Total bonus points for date ${date.toISOString().split('T')[0]}: ${totalBonusPoints}`,
+      `Total score for date ${date.toISOString().split("T")[0]}: ${totalScore}`
+    );
+    console.log(
+      `Total bonus points for date ${date.toISOString().split("T")[0]}: ${totalBonusPoints}`
     );
 
-    this.bonusPointsPerScore[date.toISOString().split('T')[0]] = {
+    this.bonusPointsPerScore[date.toISOString().split("T")[0]] = {
       totalScore: totalScore,
       totalPoints: totalBonusPoints,
     };
@@ -526,20 +586,28 @@ export class DexScoreService implements IDexScoreService {
     };
   }
 
-  async processDexPosition(dexPosition: dex_positions, tx: Prisma.TransactionClient) {
+  async processDexPosition(
+    dexPosition: dex_positions,
+    tx: Prisma.TransactionClient
+  ) {
     // compute bonus points for the date
     const date = new Date(dexPosition.timestamp * 1000); // convert timestamp to Date
-    let totalBonusPointsInfo = this.bonusPointsPerScore[date.toISOString().split('T')[0]];
+    let totalBonusPointsInfo =
+      this.bonusPointsPerScore[date.toISOString().split("T")[0]];
     if (!totalBonusPointsInfo) {
       const res = await this.computeBonusPointsPerScore(date);
-      totalBonusPointsInfo = this.bonusPointsPerScore[date.toISOString().split('T')[0]];
+      totalBonusPointsInfo =
+        this.bonusPointsPerScore[date.toISOString().split("T")[0]];
     }
     const totalBonusPoints = totalBonusPointsInfo.totalPoints;
     const totalScore = totalBonusPointsInfo.totalScore;
     const pos = dexPosition;
     // add user points
     const points = Math.round(
-      new Decimal(pos.score.toString()).mul(totalBonusPoints).div(totalScore).toNumber(),
+      new Decimal(pos.score.toString())
+        .mul(totalBonusPoints)
+        .div(totalScore)
+        .toNumber()
     );
     await tx.user_points.upsert({
       where: {
@@ -563,7 +631,7 @@ export class DexScoreService implements IDexScoreService {
         type: UserPointsType.Bonus,
         points: points,
         // cummulative_points: points,
-        remarks: 'dex_bonus',
+        remarks: "dex_bonus",
       },
     });
 
@@ -601,7 +669,7 @@ export class DexScoreService implements IDexScoreService {
       const batch = dexPositions.slice(i, i + BATCH_SIZE);
       const CURRENT_BATCH = Math.ceil(i / BATCH_SIZE) + 1;
       logger.verbose(
-        `Processing batch ${CURRENT_BATCH} of ${TOTAL_BATCHES} for date: ${new Date(batch[0].timestamp * 1000).toISOString().split('T')[0]}`,
+        `Processing batch ${CURRENT_BATCH} of ${TOTAL_BATCHES} for date: ${new Date(batch[0].timestamp * 1000).toISOString().split("T")[0]}`
       );
       await prisma.$transaction(
         async (tx) => {
@@ -610,17 +678,17 @@ export class DexScoreService implements IDexScoreService {
               await this.processDexPosition(dexPosition, tx);
             } catch (error) {
               console.error(
-                `Error processing dex position for user ${dexPosition.user_address} on date ${new Date(dexPosition.timestamp * 1000).toISOString().split('T')[0]}:`,
-                error,
+                `Error processing dex position for user ${dexPosition.user_address} on date ${new Date(dexPosition.timestamp * 1000).toISOString().split("T")[0]}:`,
+                error
               );
               throw error; // rethrow to trigger retry
             }
           }
         },
-        { timeout: 300000 },
+        { timeout: 300000 }
       );
       logger.verbose(
-        `Processed batch of ${batch.length} dex positions for date: ${new Date(batch[0].timestamp * 1000).toISOString().split('T')[0]}`,
+        `Processed batch of ${batch.length} dex positions for date: ${new Date(batch[0].timestamp * 1000).toISOString().split("T")[0]}`
       );
     }
   }

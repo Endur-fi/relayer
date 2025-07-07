@@ -1,7 +1,13 @@
+import { Injectable } from "@nestjs/common";
+
 import { Network } from "../../common/constants";
 import { NetworkConfig } from "../../common/types";
-import { getAccount, getNetwork, getProvider, getTGToken } from "../../common/utils";
-import { Injectable } from "@nestjs/common";
+import {
+  getAccount,
+  getNetwork,
+  getProvider,
+  getTGToken,
+} from "../../common/utils";
 
 @Injectable()
 export class ConfigService {

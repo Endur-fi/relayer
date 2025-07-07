@@ -1,7 +1,11 @@
-import type { Config } from 'npm:@apibara/indexer';
-import type { Block, FieldElement, Starknet } from 'npm:@apibara/indexer@0.4.1/starknet';
-import type { Postgres } from 'npm:@apibara/indexer@0.4.1/sink/postgres';
-import { hash, num } from 'https://esm.sh/starknet@6.16.0';
+import { hash, num } from "https://esm.sh/starknet@6.16.0";
+import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
+import type {
+  Block,
+  FieldElement,
+  Starknet,
+} from "npm:@apibara/indexer@0.4.1/starknet";
 
 function standariseAddress(address: string | bigint) {
   let _a = address;
@@ -13,25 +17,26 @@ function standariseAddress(address: string | bigint) {
 }
 
 export const config: Config<Starknet, Postgres> = {
-  streamUrl: Deno.env.get('STREAM_URL'),
-  startingBlock: Number(Deno.env.get('STARTING_BLOCK')),
+  streamUrl: Deno.env.get("STREAM_URL"),
+  startingBlock: Number(Deno.env.get("STARTING_BLOCK")),
 
-  finality: 'DATA_STATUS_ACCEPTED', // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_ACCEPTED"?
-  network: 'starknet',
+  finality: "DATA_STATUS_ACCEPTED", // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_ACCEPTED"?
+  network: "starknet",
   filter: {
     header: { weak: true },
     events: [
       {
-        fromAddress: "0x07b696af58c967c1b14c9dde0ace001720635a660a8e90c565ea459345318b30" as FieldElement,
+        fromAddress:
+          "0x07b696af58c967c1b14c9dde0ace001720635a660a8e90c565ea459345318b30" as FieldElement,
         includeTransaction: false,
-        keys: [hash.getSelectorFromName('Transfer') as FieldElement],
+        keys: [hash.getSelectorFromName("Transfer") as FieldElement],
       },
     ],
   },
-  sinkType: 'postgres',
+  sinkType: "postgres",
   sinkOptions: {
-    connectionString: Deno.env.get('DATABASE_URL'),
-    tableName: 'ekubo_nfts',
+    connectionString: Deno.env.get("DATABASE_URL"),
+    tableName: "ekubo_nfts",
     noTls: true, // true for private urls, false for public urls
   },
 };
@@ -50,7 +55,7 @@ export default function transform({ header, events }: Block) {
   const { blockNumber, timestamp } = header;
   // Convert timestamp to unix timestamp
   const timestamp_unix = Math.floor(
-    new Date(timestamp as string).getTime() / 1000,
+    new Date(timestamp as string).getTime() / 1000
   );
 
   return (events || []).map(({ event, receipt }) => {

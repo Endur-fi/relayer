@@ -1,5 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import { TelegramNotif } from '@strkfarm/sdk';
+import { TelegramNotif } from "@strkfarm/sdk";
+
 import { ConfigService } from "./configService";
 
 interface INotifService {

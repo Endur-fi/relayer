@@ -1,24 +1,27 @@
-import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query } from "@nestjs/common";
 
-import { logger } from '../../common/utils';
-import { UsersService } from '../services/users.service';
+import { logger } from "../../common/utils";
+import { UsersService } from "../services/users.service";
 
-@Controller('users')
+@Controller("users")
 export class UsersController {
   constructor(
     @Inject(UsersService)
-    private readonly usersService: UsersService,
+    private readonly usersService: UsersService
   ) {
-    console.log('UsersController constructor - usersService:', !!this.usersService);
+    console.log(
+      "UsersController constructor - usersService:",
+      !!this.usersService
+    );
   }
 
   // get all users with their complete details
   @Get()
   async getAllUsers(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '50',
-    @Query('sortBy') sortBy: string = 'total_points',
-    @Query('sortOrder') sortOrder: string = 'desc',
+    @Query("page") page = "1",
+    @Query("limit") limit = "50",
+    @Query("sortBy") sortBy = "total_points",
+    @Query("sortOrder") sortOrder = "desc"
   ) {
     try {
       const pageNum = parseInt(page, 10);
@@ -27,15 +30,16 @@ export class UsersController {
       if (pageNum < 1 || limitNum < 1 || limitNum > 1000) {
         return {
           success: false,
-          message: 'Invalid pagination parameters. Page must be >= 1, limit must be between 1-1000',
+          message:
+            "Invalid pagination parameters. Page must be >= 1, limit must be between 1-1000",
         };
       }
 
       const result = await this.usersService.getAllUsersWithDetails({
         page: pageNum,
         limit: limitNum,
-        sortBy: sortBy as 'total_points' | 'user_address' | 'created_on',
-        sortOrder: sortOrder as 'asc' | 'desc',
+        sortBy: sortBy as "total_points" | "user_address" | "created_on",
+        sortOrder: sortOrder as "asc" | "desc",
       });
 
       return {
@@ -51,30 +55,32 @@ export class UsersController {
           pagination: result.pagination,
           summary: {
             ...result.summary,
-            total_points_all_users: result.summary.total_points_all_users.toString(),
+            total_points_all_users:
+              result.summary.total_points_all_users.toString(),
           },
         },
       };
     } catch (error) {
-      logger.error('Error getting all users:', error);
+      logger.error("Error getting all users:", error);
       return {
         success: false,
-        message: 'Error retrieving users',
+        message: "Error retrieving users",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get specific user details by address
-  @Get(':address')
-  async getUserDetails(@Param('address') address: string) {
+  @Get(":address")
+  async getUserDetails(@Param("address") address: string) {
     try {
-      const userDetails = await this.usersService.getUserCompleteDetails(address);
+      const userDetails =
+        await this.usersService.getUserCompleteDetails(address);
 
       if (!userDetails) {
         return {
           success: false,
-          message: 'User not found',
+          message: "User not found",
         };
       }
 
@@ -95,16 +101,20 @@ export class UsersController {
               ...userDetails.eligibility.early_user_bonus,
               points_before_cutoff:
                 userDetails.eligibility.early_user_bonus.points_before_cutoff?.toString(),
-              bonus_awarded: userDetails.eligibility.early_user_bonus.bonus_awarded?.toString(),
+              bonus_awarded:
+                userDetails.eligibility.early_user_bonus.bonus_awarded?.toString(),
             },
             six_month_bonus: {
               ...userDetails.eligibility.six_month_bonus,
-              minimum_amount: userDetails.eligibility.six_month_bonus.minimum_amount?.toString(),
-              bonus_awarded: userDetails.eligibility.six_month_bonus.bonus_awarded?.toString(),
+              minimum_amount:
+                userDetails.eligibility.six_month_bonus.minimum_amount?.toString(),
+              bonus_awarded:
+                userDetails.eligibility.six_month_bonus.bonus_awarded?.toString(),
             },
             referral_bonus: {
               ...userDetails.eligibility.referral_bonus,
-              bonus_awarded: userDetails.eligibility.referral_bonus.bonus_awarded?.toString(),
+              bonus_awarded:
+                userDetails.eligibility.referral_bonus.bonus_awarded?.toString(),
             },
           },
         },
@@ -113,17 +123,18 @@ export class UsersController {
       logger.error(`Error getting user details for ${address}:`, error);
       return {
         success: false,
-        message: 'Error retrieving user details',
+        message: "Error retrieving user details",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get user points breakdown
-  @Get(':address/points')
-  async getUserPointsBreakdown(@Param('address') address: string) {
+  @Get(":address/points")
+  async getUserPointsBreakdown(@Param("address") address: string) {
     try {
-      const pointsBreakdown = await this.usersService.getUserPointsBreakdown(address);
+      const pointsBreakdown =
+        await this.usersService.getUserPointsBreakdown(address);
 
       return {
         success: true,
@@ -147,17 +158,18 @@ export class UsersController {
       logger.error(`Error getting points breakdown for ${address}:`, error);
       return {
         success: false,
-        message: 'Error retrieving points breakdown',
+        message: "Error retrieving points breakdown",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get user eligibility details
-  @Get(':address/eligibility')
-  async getUserEligibility(@Param('address') address: string) {
+  @Get(":address/eligibility")
+  async getUserEligibility(@Param("address") address: string) {
     try {
-      const eligibility = await this.usersService.getUserEligibilityDetails(address);
+      const eligibility =
+        await this.usersService.getUserEligibilityDetails(address);
 
       return {
         success: true,
@@ -165,13 +177,17 @@ export class UsersController {
           ...eligibility,
           early_user_bonus: {
             ...eligibility.early_user_bonus,
-            points_before_cutoff: eligibility.early_user_bonus.points_before_cutoff?.toString(),
-            bonus_awarded: eligibility.early_user_bonus.bonus_awarded?.toString(),
+            points_before_cutoff:
+              eligibility.early_user_bonus.points_before_cutoff?.toString(),
+            bonus_awarded:
+              eligibility.early_user_bonus.bonus_awarded?.toString(),
           },
           six_month_bonus: {
             ...eligibility.six_month_bonus,
-            minimum_amount: eligibility.six_month_bonus.minimum_amount?.toString(),
-            bonus_awarded: eligibility.six_month_bonus.bonus_awarded?.toString(),
+            minimum_amount:
+              eligibility.six_month_bonus.minimum_amount?.toString(),
+            bonus_awarded:
+              eligibility.six_month_bonus.bonus_awarded?.toString(),
           },
           referral_bonus: {
             ...eligibility.referral_bonus,
@@ -183,28 +199,31 @@ export class UsersController {
       logger.error(`Error getting eligibility for ${address}:`, error);
       return {
         success: false,
-        message: 'Error retrieving eligibility details',
+        message: "Error retrieving eligibility details",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get user balance history
-  @Get(':address/balances')
+  @Get(":address/balances")
   async getUserBalanceHistory(
-    @Param('address') address: string,
-    @Query('days') days: string = '30',
+    @Param("address") address: string,
+    @Query("days") days = "30"
   ) {
     try {
       const daysNum = parseInt(days, 10);
       if (daysNum < 1 || daysNum > 365) {
         return {
           success: false,
-          message: 'Days parameter must be between 1 and 365',
+          message: "Days parameter must be between 1 and 365",
         };
       }
 
-      const balanceHistory = await this.usersService.getUserBalanceHistory(address, daysNum);
+      const balanceHistory = await this.usersService.getUserBalanceHistory(
+        address,
+        daysNum
+      );
 
       return {
         success: true,
@@ -214,14 +233,14 @@ export class UsersController {
       logger.error(`Error getting balance history for ${address}:`, error);
       return {
         success: false,
-        message: 'Error retrieving balance history',
+        message: "Error retrieving balance history",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get users statistics
-  @Get('stats/overview')
+  @Get("stats/overview")
   async getUsersStats() {
     try {
       const stats = await this.usersService.getUsersStatistics();
@@ -239,10 +258,10 @@ export class UsersController {
         },
       };
     } catch (error) {
-      logger.error('Error getting users statistics:', error);
+      logger.error("Error getting users statistics:", error);
       return {
         success: false,
-        message: 'Error retrieving statistics',
+        message: "Error retrieving statistics",
         error: error instanceof Error ? error.message : String(error),
       };
     }

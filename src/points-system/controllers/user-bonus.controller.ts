@@ -1,34 +1,34 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param, Post } from "@nestjs/common";
 
-import { logger } from '../../common/utils';
-import { BonusService } from '../services/user-bonus.service';
+import { logger } from "../../common/utils";
+import { BonusService } from "../services/user-bonus.service";
 
-@Controller('bonus')
+@Controller("bonus")
 export class BonusController {
   constructor(private readonly bonusService: BonusService) {}
 
   // execute the early user bonus calculation
-  @Post('early-user/execute')
+  @Post("early-user/execute")
   async executeEarlyUserBonus() {
     try {
-      logger.info('Starting Early User Bonus execution via API...');
+      logger.info("Starting Early User Bonus execution via API...");
       await this.bonusService.calculateAndAwardEarlyUserBonus();
       return {
         success: true,
-        message: 'Early user bonus calculation completed successfully',
+        message: "Early user bonus calculation completed successfully",
       };
     } catch (error) {
-      logger.error('Error executing early user bonus:', error);
+      logger.error("Error executing early user bonus:", error);
       return {
         success: false,
-        message: 'Error executing early user bonus',
+        message: "Error executing early user bonus",
         error: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
   // get a summary of early user bonus eligibility before executing
-  @Get('early-user/summary')
+  @Get("early-user/summary")
   async getEarlyUserBonusSummary() {
     try {
       const summary = await this.bonusService.getEarlyUserBonusSummary();
@@ -42,10 +42,10 @@ export class BonusController {
         },
       };
     } catch (error) {
-      logger.error('Error getting early user bonus summary:', error);
+      logger.error("Error getting early user bonus summary:", error);
       return {
         success: false,
-        message: 'Error getting early user bonus summary',
+        message: "Error getting early user bonus summary",
         error: error instanceof Error ? error.message : String(error),
       };
     }
@@ -79,7 +79,7 @@ export class BonusController {
   //   }
   // }
 
-  @Get('six-month/summary')
+  @Get("six-month/summary")
   async getSixMonthBonusSummary() {
     try {
       const summary = await this.bonusService.getSixMonthBonusSummary();
@@ -98,13 +98,13 @@ export class BonusController {
     }
   }
 
-  @Post('six-month/execute')
+  @Post("six-month/execute")
   async executeSixMonthBonus() {
     try {
       await this.bonusService.calculateAndAwardSixMonthBonus();
       return {
         success: true,
-        message: 'Six month bonus calculation executed successfully',
+        message: "Six month bonus calculation executed successfully",
       };
     } catch (error) {
       return {
@@ -114,10 +114,11 @@ export class BonusController {
     }
   }
 
-  @Get('six-month/validate')
+  @Get("six-month/validate")
   async validateSixMonthBonus() {
     try {
-      const validation = await this.bonusService.validateSixMonthBonusCalculation();
+      const validation =
+        await this.bonusService.validateSixMonthBonusCalculation();
       return {
         success: true,
         data: {
@@ -138,15 +139,16 @@ export class BonusController {
     }
   }
 
-  @Get('six-month/user/:address')
-  async getUserSixMonthBonusBreakdown(@Param('address') address: string) {
+  @Get("six-month/user/:address")
+  async getUserSixMonthBonusBreakdown(@Param("address") address: string) {
     try {
-      const breakdown = await this.bonusService.getUserSixMonthBonusBreakdown(address);
+      const breakdown =
+        await this.bonusService.getUserSixMonthBonusBreakdown(address);
 
       if (!breakdown) {
         return {
           success: false,
-          message: 'No data found for this user in the last 6 months',
+          message: "No data found for this user in the last 6 months",
         };
       }
 

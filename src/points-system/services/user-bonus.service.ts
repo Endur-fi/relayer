@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { UserPointsType } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { UserPointsType } from "@prisma/client";
 
-import { logger } from '../../common/utils';
-import { bigIntToDecimal, calculatePoints, prisma } from '../utils';
+import { logger } from "../../common/utils";
+import { bigIntToDecimal, calculatePoints, prisma } from "../utils";
 
 // ! Update these constants as needed
 export const EARLY_USER_BONUS_PERCENTAGE = 20; // 20% bonus
-const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z'); // May 26th, 2025 eod
+const EARLY_USER_CUTOFF_DATE = new Date("2025-05-25T23:59:59.999Z"); // May 26th, 2025 eod
 
 const SIX_MONTHS_DAYS = 180; // 6 months
 const SIX_MONTH_BONUS_MULTIPLIER = 0.2; // 20% bonus
@@ -20,7 +20,7 @@ export class BonusService {
 
   // calculate and award early user bonus points
   async calculateAndAwardEarlyUserBonus(): Promise<void> {
-    logger.info('Starting Early User Early calculation...');
+    logger.info("Starting Early User Early calculation...");
     logger.info(`Cutoff date: ${EARLY_USER_CUTOFF_DATE.toISOString()}`);
     logger.info(`Early percentage: ${EARLY_USER_BONUS_PERCENTAGE}%`);
 
@@ -34,11 +34,11 @@ export class BonusService {
 
       if (existingBonuses > 0) {
         logger.warn(
-          `Found ${existingBonuses} existing bonus records. Early user bonus may have already been processed.`,
+          `Found ${existingBonuses} existing bonus records. Early user bonus may have already been processed.`
         );
         const proceed = await this.confirmProceed();
         if (!proceed) {
-          logger.info('Early user bonus calculation cancelled by user.');
+          logger.info("Early user bonus calculation cancelled by user.");
           return;
         }
       }
@@ -47,11 +47,13 @@ export class BonusService {
       const usersWithPoints = await this.getUsersWithPointsBeforeCutoff();
 
       if (usersWithPoints.length === 0) {
-        logger.info('No users found with points before the cutoff date.');
+        logger.info("No users found with points before the cutoff date.");
         return;
       }
 
-      logger.info(`Found ${usersWithPoints.length} users eligible for early user bonus`);
+      logger.info(
+        `Found ${usersWithPoints.length} users eligible for early user bonus`
+      );
 
       // process users in batches
       let totalProcessed = 0;
@@ -61,25 +63,25 @@ export class BonusService {
         const batch = usersWithPoints.slice(i, i + BATCH_SIZE);
         const batchResult = await this.processEarlyUserBatch(
           batch,
-          EARLY_USER_BONUS_PERCENTAGE / 100,
+          EARLY_USER_BONUS_PERCENTAGE / 100
         );
 
         totalProcessed += batchResult.processed;
         totalBonusAwarded += batchResult.bonusAwarded;
 
         logger.info(
-          `Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(usersWithPoints.length / BATCH_SIZE)}`,
+          `Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(usersWithPoints.length / BATCH_SIZE)}`
         );
         logger.info(
-          `Batch: ${batchResult.processed} users, ${batchResult.bonusAwarded} bonus points awarded`,
+          `Batch: ${batchResult.processed} users, ${batchResult.bonusAwarded} bonus points awarded`
         );
       }
 
-      logger.info('Early User Early calculation completed successfully!');
+      logger.info("Early User Early calculation completed successfully!");
       logger.info(`Total users processed: ${totalProcessed}`);
       logger.info(`Total bonus points awarded: ${totalBonusAwarded}`);
     } catch (error) {
-      logger.error('Error during Early User Early calculation:', error);
+      logger.error("Error during Early User Early calculation:", error);
       throw error;
     }
   }
@@ -90,24 +92,29 @@ export class BonusService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - SIX_MONTHS_DAYS);
 
-    logger.info('Starting Six Month Bonus calculation...');
+    logger.info("Starting Six Month Bonus calculation...");
     logger.info(
-      `Period: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`,
+      `Period: ${startDate.toISOString().split("T")[0]} to ${endDate.toISOString().split("T")[0]}`
     );
     logger.info(
-      `Bonus multiplier: ${SIX_MONTH_BONUS_MULTIPLIER} (${SIX_MONTH_BONUS_MULTIPLIER * 100}%)`,
+      `Bonus multiplier: ${SIX_MONTH_BONUS_MULTIPLIER} (${SIX_MONTH_BONUS_MULTIPLIER * 100}%)`
     );
 
     try {
       // get all users who have balances in the last 6 months
-      const usersWithMinimums = await this.getUsersWithMinimumHoldings(startDate, endDate);
+      const usersWithMinimums = await this.getUsersWithMinimumHoldings(
+        startDate,
+        endDate
+      );
 
       if (usersWithMinimums.length === 0) {
-        logger.info('No users found with holdings in the last 6 months.');
+        logger.info("No users found with holdings in the last 6 months.");
         return;
       }
 
-      logger.info(`Found ${usersWithMinimums.length} users eligible for six month bonus`);
+      logger.info(
+        `Found ${usersWithMinimums.length} users eligible for six month bonus`
+      );
 
       let totalProcessed = 0;
       let totalBonusAwarded = BigInt(0);
@@ -120,18 +127,18 @@ export class BonusService {
         totalBonusAwarded += batchResult.bonusAwarded;
 
         logger.info(
-          `Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(usersWithMinimums.length / BATCH_SIZE)}`,
+          `Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(usersWithMinimums.length / BATCH_SIZE)}`
         );
         logger.info(
-          `Batch: ${batchResult.processed} users, ${batchResult.bonusAwarded} bonus points awarded`,
+          `Batch: ${batchResult.processed} users, ${batchResult.bonusAwarded} bonus points awarded`
         );
       }
 
-      logger.info('Six Month Bonus calculation completed successfully!');
+      logger.info("Six Month Bonus calculation completed successfully!");
       logger.info(`Total users processed: ${totalProcessed}`);
       logger.info(`Total bonus points awarded: ${totalBonusAwarded}`);
     } catch (error) {
-      logger.error('Error during Six Month Bonus calculation:', error);
+      logger.error("Error during Six Month Bonus calculation:", error);
       throw error;
     }
   }
@@ -151,7 +158,7 @@ export class BonusService {
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        timestamp: "desc",
       },
     });
 
@@ -162,20 +169,20 @@ export class BonusService {
         },
       },
       orderBy: {
-        timestamp: 'asc',
+        timestamp: "asc",
       },
     });
 
     if (!cutoffBlock || !lowerCutoff) {
-      logger.warn('No blocks found for cutoff date');
+      logger.warn("No blocks found for cutoff date");
       return [];
     }
 
     logger.info(
-      `Using block ${cutoffBlock.block_number} as cutoff (timestamp: ${new Date(cutoffBlock.timestamp * 1000).toISOString()})`,
+      `Using block ${cutoffBlock.block_number} as cutoff (timestamp: ${new Date(cutoffBlock.timestamp * 1000).toISOString()})`
     );
     logger.info(
-      `Lower cutoff block ${lowerCutoff?.block_number} (timestamp: ${new Date(lowerCutoff?.timestamp * 1000).toISOString()})`,
+      `Lower cutoff block ${lowerCutoff?.block_number} (timestamp: ${new Date(lowerCutoff?.timestamp * 1000).toISOString()})`
     );
 
     // query user_balances to find all users who had balances before the cutoff
@@ -204,10 +211,10 @@ export class BonusService {
         userGroup.block_number < lowerCutoff.block_number
       ) {
         console.error(
-          `User ${userGroup.user_address} has points outside the cutoff range, block: ${userGroup.block_number}`,
+          `User ${userGroup.user_address} has points outside the cutoff range, block: ${userGroup.block_number}`
         );
         throw new Error(
-          `Points aggregation moved ahead, computing now will give incorrect results`,
+          `Points aggregation moved ahead, computing now will give incorrect results`
         );
       }
       // calculate points for this user's balance
@@ -227,7 +234,7 @@ export class BonusService {
 
   private async getUsersWithMinimumHoldings(
     startDate: Date,
-    endDate: Date,
+    endDate: Date
   ): Promise<
     Array<{
       user_address: string;
@@ -241,7 +248,7 @@ export class BonusService {
 
     // get all users who have balance records in the specified period
     const usersInPeriod = await this.prisma.user_balances.groupBy({
-      by: ['user_address'],
+      by: ["user_address"],
       where: {
         timestamp: {
           gte: startTimestamp,
@@ -277,7 +284,7 @@ export class BonusService {
           block_number: true,
         },
         orderBy: {
-          timestamp: 'asc',
+          timestamp: "asc",
         },
       });
 
@@ -309,7 +316,7 @@ export class BonusService {
       pointsBeforeCutoff: bigint;
       latestBlockBeforeCutoff: number;
     }>,
-    pointsMultiplier: number,
+    pointsMultiplier: number
   ): Promise<{ processed: number; bonusAwarded: bigint }> {
     return await this.prisma.$transaction(
       async (tx) => {
@@ -318,7 +325,8 @@ export class BonusService {
         for (const user of users) {
           // calculate bonus points (20% of points earned before cutoff)
           const bonusPoints =
-            (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) / BigInt(10000);
+            (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) /
+            BigInt(10000);
 
           if (bonusPoints > 0) {
             // check if bonus already exists for this user
@@ -334,7 +342,7 @@ export class BonusService {
 
             if (existingBonus) {
               console.warn(
-                `Early user bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`,
+                `Early user bonus already exists for user ${user.user_address} at block ${user.latestBlockBeforeCutoff}`
               );
               continue; // skip if bonus already exists
             }
@@ -371,7 +379,7 @@ export class BonusService {
           bonusAwarded: batchBonusAwarded,
         };
       },
-      { timeout: 300000 },
+      { timeout: 300000 }
     ); // 5 minutes timeout for the transaction
   }
 
@@ -381,7 +389,7 @@ export class BonusService {
       minimumAmount: string;
       latestBlockNumber: number;
     }>,
-    endDate: Date,
+    endDate: Date
   ): Promise<{ processed: number; bonusAwarded: bigint }> {
     return await this.prisma.$transaction(async (tx) => {
       let batchBonusAwarded = BigInt(0);
@@ -399,7 +407,7 @@ export class BonusService {
         if (bonusPoints > 0) {
           // check if six month bonus already exists for this user and period
           // we use a unique identifier based on the user and the end date
-          const bonusIdentifier = `6m_${endDate.toISOString().split('T')[0]}`;
+          const bonusIdentifier = `6m_${endDate.toISOString().split("T")[0]}`;
 
           // check existing bonus records for this user
           const existingBonuses = await tx.user_points.findMany({
@@ -452,7 +460,7 @@ export class BonusService {
             batchBonusAwarded += bonusPoints;
           } else {
             logger.warn(
-              `Six month bonus already exists for user ${user.user_address} at block ${user.latestBlockNumber}`,
+              `Six month bonus already exists for user ${user.user_address} at block ${user.latestBlockNumber}`
             );
           }
         }
@@ -467,7 +475,7 @@ export class BonusService {
 
   // simple confirmation prompt
   private async confirmProceed(): Promise<boolean> {
-    logger.info('Existing bonus records found. Proceeding with caution...');
+    logger.info("Existing bonus records found. Proceeding with caution...");
     return true;
   }
 
@@ -482,11 +490,12 @@ export class BonusService {
 
     const totalPointsBeforeCutoff = eligibleUsers.reduce(
       (sum, user) => sum + user.pointsBeforeCutoff,
-      BigInt(0),
+      BigInt(0)
     );
 
     const totalBonusToBeAwarded =
-      (totalPointsBeforeCutoff * BigInt(EARLY_USER_BONUS_PERCENTAGE)) / BigInt(100);
+      (totalPointsBeforeCutoff * BigInt(EARLY_USER_BONUS_PERCENTAGE)) /
+      BigInt(100);
 
     return {
       totalEligibleUsers: eligibleUsers.length,
@@ -510,7 +519,10 @@ export class BonusService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - SIX_MONTHS_DAYS);
 
-    const eligibleUsers = await this.getUsersWithMinimumHoldings(startDate, endDate);
+    const eligibleUsers = await this.getUsersWithMinimumHoldings(
+      startDate,
+      endDate
+    );
 
     const totalBonusToBeAwarded = eligibleUsers.reduce((sum, user) => {
       const minimumAmountBigInt = BigInt(user.minimumAmount);
@@ -553,7 +565,8 @@ export class BonusService {
 
     for (const user of eligibleUsers) {
       const expectedBonus =
-        (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) / BigInt(10000);
+        (user.pointsBeforeCutoff * BigInt(pointsMultiplier * 10000)) /
+        BigInt(10000);
 
       const actualBonus = await this.prisma.user_points.findUnique({
         where: {
@@ -565,7 +578,9 @@ export class BonusService {
         },
       });
 
-      const actualBonusPoints = actualBonus ? BigInt(actualBonus.points.toString()) : BigInt(0);
+      const actualBonusPoints = actualBonus
+        ? BigInt(actualBonus.points.toString())
+        : BigInt(0);
 
       if (expectedBonus !== actualBonusPoints) {
         discrepancies.push({
@@ -598,7 +613,10 @@ export class BonusService {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - SIX_MONTHS_DAYS);
 
-    const eligibleUsers = await this.getUsersWithMinimumHoldings(startDate, endDate);
+    const eligibleUsers = await this.getUsersWithMinimumHoldings(
+      startDate,
+      endDate
+    );
     const discrepancies: Array<{
       user_address: string;
       minimumAmount: string;
@@ -689,7 +707,7 @@ export class BonusService {
         timestamp: true,
       },
       orderBy: {
-        timestamp: 'asc',
+        timestamp: "asc",
       },
     });
 

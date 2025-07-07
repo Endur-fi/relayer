@@ -1,10 +1,14 @@
-import { Injectable } from '@nestjs/common';
-import { UserPointsType } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { UserPointsType } from "@prisma/client";
 
-import { getProvider, safeToBigInt, standariseAddress } from '../../common/utils';
-import { calculatePoints, prisma } from '../utils';
+import {
+  getProvider,
+  safeToBigInt,
+  standariseAddress,
+} from "../../common/utils";
+import { calculatePoints, prisma } from "../utils";
 
-const EARLY_USER_CUTOFF_DATE = new Date('2025-05-25T23:59:59.999Z');
+const EARLY_USER_CUTOFF_DATE = new Date("2025-05-25T23:59:59.999Z");
 const SIX_MONTHS_DAYS = 180;
 const SIX_MONTH_BONUS_MULTIPLIER = 0.2;
 const POINTS_MULTIPLIER = 1;
@@ -17,8 +21,8 @@ interface UserSummary {
 interface PaginationOptions {
   page: number;
   limit: number;
-  sortBy: 'total_points' | 'user_address' | 'created_on';
-  sortOrder: 'asc' | 'desc';
+  sortBy: "total_points" | "user_address" | "created_on";
+  sortOrder: "asc" | "desc";
 }
 
 interface PaginatedUsersResult {
@@ -70,7 +74,9 @@ export class UsersService {
   };
   private readonly CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 
-  async getAllUsersWithDetails(options: PaginationOptions): Promise<PaginatedUsersResult> {
+  async getAllUsersWithDetails(
+    options: PaginationOptions
+  ): Promise<PaginatedUsersResult> {
     // check if cache is valid
     const now = Date.now();
     if (
@@ -115,7 +121,7 @@ export class UsersService {
   }
 
   private async fetchFreshLeaderboardData(
-    options: PaginationOptions,
+    options: PaginationOptions
   ): Promise<PaginatedUsersResult> {
     const offset = (options.page - 1) * options.limit;
 
@@ -125,17 +131,17 @@ export class UsersService {
     // build order by clause
     let orderBy: any;
     switch (options.sortBy) {
-      case 'total_points':
+      case "total_points":
         orderBy = { total_points: options.sortOrder };
         break;
-      case 'user_address':
+      case "user_address":
         orderBy = { user_address: options.sortOrder };
         break;
-      case 'created_on':
+      case "created_on":
         orderBy = { created_on: options.sortOrder };
         break;
       default:
-        orderBy = { total_points: 'desc' };
+        orderBy = { total_points: "desc" };
     }
 
     // get all users (not paginated) for cache
@@ -150,7 +156,7 @@ export class UsersService {
     // calculate summary
     const total_points_all_users = allAggregatedPoints.reduce(
       (sum, user) => sum + safeToBigInt(user.total_points),
-      BigInt(0),
+      BigInt(0)
     );
 
     return {
@@ -171,14 +177,19 @@ export class UsersService {
     };
   }
 
-  private getCachedDataWithPagination(options: PaginationOptions): PaginatedUsersResult {
+  private getCachedDataWithPagination(
+    options: PaginationOptions
+  ): PaginatedUsersResult {
     if (!this.leaderboardCache.data) {
-      throw new Error('Cache is empty');
+      throw new Error("Cache is empty");
     }
 
     const { page, limit } = options;
     const offset = (page - 1) * limit;
-    const paginatedUsers = this.leaderboardCache.data.users.slice(offset, offset + limit);
+    const paginatedUsers = this.leaderboardCache.data.users.slice(
+      offset,
+      offset + limit
+    );
 
     return {
       users: paginatedUsers,
@@ -186,13 +197,17 @@ export class UsersService {
         page,
         limit,
         total: this.leaderboardCache.data.pagination.total,
-        totalPages: Math.ceil(this.leaderboardCache.data.pagination.total / limit),
+        totalPages: Math.ceil(
+          this.leaderboardCache.data.pagination.total / limit
+        ),
       },
       summary: this.leaderboardCache.data.summary,
     };
   }
 
-  async getUserCompleteDetails(userAddress: string): Promise<UserCompleteDetails | null> {
+  async getUserCompleteDetails(
+    userAddress: string
+  ): Promise<UserCompleteDetails | null> {
     // check if user exists
     console.log(`getUserCompleteDetails`, userAddress);
     const userAddr = standariseAddress(userAddress);
@@ -225,7 +240,7 @@ export class UsersService {
         dex_bonus_points: BigInt(0),
         early_adopter_points: BigInt(0),
       },
-      allocation: aggregatedPoints.user_allocation?.allocation || '0',
+      allocation: aggregatedPoints.user_allocation?.allocation || "0",
       proof: aggregatedPoints.user_allocation?.proof || null,
       tags: tagsDetails,
     };
@@ -255,7 +270,7 @@ export class UsersService {
         user_address: userAddr,
       },
       orderBy: {
-        block_number: 'desc',
+        block_number: "desc",
       },
     });
 
@@ -264,7 +279,7 @@ export class UsersService {
         user_address: userAddr,
       },
       orderBy: {
-        block_number: 'desc',
+        block_number: "desc",
       },
       select: {
         total_points: true,
@@ -282,7 +297,7 @@ export class UsersService {
       },
     });
 
-    let total_points = safeToBigInt(result?.total_points || BigInt(0));
+    const total_points = safeToBigInt(result?.total_points || BigInt(0));
 
     // calculate summary
     const bonus_points = allPoints
@@ -298,11 +313,15 @@ export class UsersService {
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     const follow_bonus_points = allPoints
-      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'follow_bonus')
+      .filter(
+        (p) => p.type === UserPointsType.Bonus && p.remarks === "follow_bonus"
+      )
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     const dex_bonus_points = allPoints
-      .filter((p) => p.type === UserPointsType.Bonus && p.remarks === 'dex_bonus')
+      .filter(
+        (p) => p.type === UserPointsType.Bonus && p.remarks === "dex_bonus"
+      )
       .reduce((sum, p) => sum + safeToBigInt(p.points), BigInt(0));
 
     return {
@@ -356,8 +375,12 @@ export class UsersService {
     });
 
     return {
-      first_activity_date: firstActivity ? new Date(firstActivity.timestamp * 1000) : undefined,
-      last_activity_date: lastActivity ? new Date(lastActivity.updated_on) : undefined,
+      first_activity_date: firstActivity
+        ? new Date(firstActivity.timestamp * 1000)
+        : undefined,
+      last_activity_date: lastActivity
+        ? new Date(lastActivity.updated_on)
+        : undefined,
       total_deposits: depositsCount || 0,
       total_withdrawals: withdrawalsCount || 0,
     };
@@ -387,13 +410,16 @@ export class UsersService {
     };
   }> {
     // early user bonus eligibility
-    const earlyUserEligibility = await this.checkEarlyUserBonusEligibility(userAddress);
+    const earlyUserEligibility =
+      await this.checkEarlyUserBonusEligibility(userAddress);
 
     // six month bonus eligibility
-    const sixMonthEligibility = await this.checkSixMonthBonusEligibility(userAddress);
+    const sixMonthEligibility =
+      await this.checkSixMonthBonusEligibility(userAddress);
 
     // referral bonus eligibility
-    const referralEligibility = await this.checkReferralBonusEligibility(userAddress);
+    const referralEligibility =
+      await this.checkReferralBonusEligibility(userAddress);
 
     return {
       early_user_bonus: earlyUserEligibility,
@@ -412,7 +438,7 @@ export class UsersService {
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        timestamp: "desc",
       },
     });
 
@@ -432,7 +458,7 @@ export class UsersService {
         },
       },
       orderBy: {
-        block_number: 'desc',
+        block_number: "desc",
       },
     });
 
@@ -440,7 +466,7 @@ export class UsersService {
     if (balanceBeforeCutoff) {
       points_before_cutoff = calculatePoints(
         balanceBeforeCutoff.total_amount,
-        POINTS_MULTIPLIER,
+        POINTS_MULTIPLIER
       ) as bigint;
     }
 
@@ -456,9 +482,12 @@ export class UsersService {
     });
 
     return {
-      eligible: !!balanceBeforeCutoff && (points_before_cutoff || BigInt(0)) > 0,
+      eligible:
+        !!balanceBeforeCutoff && (points_before_cutoff || BigInt(0)) > 0,
       points_before_cutoff: points_before_cutoff || BigInt(0),
-      bonus_awarded: bonusAwarded ? safeToBigInt(bonusAwarded.points) : BigInt(0),
+      bonus_awarded: bonusAwarded
+        ? safeToBigInt(bonusAwarded.points)
+        : BigInt(0),
       cutoff_date: EARLY_USER_CUTOFF_DATE,
     };
   }
@@ -547,13 +576,15 @@ export class UsersService {
       eligible: !!referralRecord,
       is_referred_user: !!referralRecord,
       referrer_address: referralRecord?.referrer,
-      bonus_awarded: bonusAwarded ? safeToBigInt(bonusAwarded.points) : BigInt(0),
+      bonus_awarded: bonusAwarded
+        ? safeToBigInt(bonusAwarded.points)
+        : BigInt(0),
     };
   }
 
   async getUserBalanceHistory(
     userAddress: string,
-    days: number,
+    days: number
   ): Promise<
     Array<{
       date: string;
@@ -584,7 +615,7 @@ export class UsersService {
         },
       },
       orderBy: {
-        timestamp: 'desc',
+        timestamp: "desc",
       },
     });
 
@@ -632,21 +663,32 @@ export class UsersService {
 
     // points by type
     const pointsByType = await this.prisma.user_points.groupBy({
-      by: ['type'],
+      by: ["type"],
       _sum: {
         points: true,
       },
     });
 
-    const regular = pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
-    const bonus = pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points || 0;
-    const referrer = pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum.points || 0;
+    const regular =
+      pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points ||
+      0;
+    const bonus =
+      pointsByType.find((p) => p.type === UserPointsType.Bonus)?._sum.points ||
+      0;
+    const referrer =
+      pointsByType.find((p) => p.type === UserPointsType.Referrer)?._sum
+        .points || 0;
     const early_adopter =
-      pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points || 0;
+      pointsByType.find((p) => p.type === UserPointsType.Early)?._sum.points ||
+      0;
 
-    const totalPointsDistributed = safeToBigInt(totalPointsResult._sum.total_points);
+    const totalPointsDistributed = safeToBigInt(
+      totalPointsResult._sum.total_points
+    );
     const averagePointsPerUser =
-      usersWithPoints > 0 ? Number(totalPointsDistributed) / usersWithPoints : 0;
+      usersWithPoints > 0
+        ? Number(totalPointsDistributed) / usersWithPoints
+        : 0;
 
     return {
       total_users: totalUsers,
@@ -682,7 +724,10 @@ export class UsersService {
     };
   }
 
-  async saveEmail(userAddress: string, email: string): Promise<{ success: boolean; message: string }> {
+  async saveEmail(
+    userAddress: string,
+    email: string
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const userAddr = standariseAddress(userAddress);
       const provider = getProvider();
@@ -692,12 +737,12 @@ export class UsersService {
           user_address: userAddr,
         },
       });
-      if (exists && exists.email && exists.email.trim() !== '') {
+      if (exists && exists.email && exists.email.trim() !== "") {
         return {
           success: true,
-          message: 'Email already exists for this user',
+          message: "Email already exists for this user",
         };
-      } else if (exists && !(exists.email && exists.email.trim() === '')) {
+      } else if (exists && !(exists.email && exists.email.trim() === "")) {
         // if email is empty, update it
         console.log(`Updating email for user ${userAddr}`);
         await this.prisma.users.update({
@@ -709,14 +754,16 @@ export class UsersService {
           },
         });
       } else {
-        console.log(`Creating new user with email ${email} for address ${userAddr}`);
+        console.log(
+          `Creating new user with email ${email} for address ${userAddr}`
+        );
         await this.prisma.users.create({
           data: {
             user_address: standariseAddress(userAddr),
             email: email,
             block_number: blockNumber,
             timestamp: Math.floor(Date.now() / 1000),
-            tx_hash: 'email-sub',
+            tx_hash: "email-sub",
             tx_index: 0,
             event_index: 0,
             cursor: blockNumber - 1000, // placeholder cursor
@@ -726,13 +773,13 @@ export class UsersService {
 
       return {
         success: true,
-        message: 'Email saved successfully',
+        message: "Email saved successfully",
       };
     } catch (error) {
-      console.error('Error saving email:', error);
+      console.error("Error saving email:", error);
       return {
         success: false,
-        message: 'Error saving email',
+        message: "Error saving email",
       };
     }
   }
@@ -749,9 +796,9 @@ export class UsersService {
         },
       });
 
-      return !!(user?.email && user.email.trim() !== '');
+      return !!(user?.email && user.email.trim() !== "");
     } catch (error) {
-      console.error('Error checking if user has email saved:', error);
+      console.error("Error checking if user has email saved:", error);
       return false;
     }
   }
@@ -759,7 +806,7 @@ export class UsersService {
   async addPointsToUser(
     userAddress: string,
     points: string,
-    blockNumber?: number,
+    blockNumber?: number
   ): Promise<{ success: boolean; message: string; data?: any }> {
     try {
       const userAddr = standariseAddress(userAddress);
@@ -768,7 +815,7 @@ export class UsersService {
       if (pointsToAdd <= 0) {
         return {
           success: false,
-          message: 'Points must be greater than 0',
+          message: "Points must be greater than 0",
         };
       }
 
@@ -776,7 +823,7 @@ export class UsersService {
 
       if (!currentBlockNumber) {
         const latestBlock = await this.prisma.blocks.findFirst({
-          orderBy: { block_number: 'desc' },
+          orderBy: { block_number: "desc" },
         });
         currentBlockNumber = latestBlock ? latestBlock.block_number : 0;
       }
@@ -785,7 +832,7 @@ export class UsersService {
         where: {
           user_address: userAddr,
           type: UserPointsType.Bonus,
-          remarks: 'follow_bonus',
+          remarks: "follow_bonus",
         },
       });
 
@@ -803,7 +850,7 @@ export class UsersService {
             user_address: userAddr,
             points: pointsToAdd.toString(),
             type: UserPointsType.Bonus,
-            remarks: 'follow_bonus',
+            remarks: "follow_bonus",
           },
         });
 
@@ -834,7 +881,7 @@ export class UsersService {
             block_number: currentBlockNumber,
             user_address: userAddr,
             timestamp: Math.floor(Date.now() / 1000),
-            tx_hash: '0x0', // placeholder since this is a manual points addition
+            tx_hash: "0x0", // placeholder since this is a manual points addition
           },
         });
 
@@ -864,7 +911,7 @@ export class UsersService {
         },
       };
     } catch (error) {
-      console.error('Error adding points to user:', error);
+      console.error("Error adding points to user:", error);
       return {
         success: false,
         message: `Failed to add points: ${error instanceof Error ? error.message : String(error)}`,

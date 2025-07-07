@@ -8,10 +8,7 @@ import type {
 } from "npm:@apibara/indexer@0.4.1/starknet";
 
 import { getAddresses } from "../../common/constants.ts";
-import {
-  getNetwork,
-  standariseAddress,
-} from "../../common/indexerUtils.ts";
+import { getNetwork, standariseAddress } from "../../common/indexerUtils.ts";
 
 export const config: Config<Starknet, Postgres> = {
   streamUrl: Deno.env.get("STREAM_URL"),

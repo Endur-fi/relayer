@@ -1,14 +1,14 @@
+import { hash, num } from "https://esm.sh/starknet@6.16.0";
 import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 import type {
   Block,
   FieldElement,
   Starknet,
 } from "npm:@apibara/indexer@0.4.1/starknet";
-import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
 
 // import { ABI as LSTAbi } from "../../../abis/LST.ts"
 // import { getProvider } from "../../common/utils.ts";
-import { hash, num } from "https://esm.sh/starknet@6.16.0";
 
 import { getAddresses } from "../../common/constants.ts";
 import { getNetwork, toBigInt } from "../../common/indexerUtils.ts";
@@ -21,11 +21,13 @@ export const config: Config<Starknet, Postgres> = {
   network: "starknet",
   filter: {
     header: { weak: true },
-    events: [{
-      fromAddress: getAddresses(getNetwork()).LST as FieldElement,
-      includeTransaction: true,
-      keys: [hash.getSelectorFromName("Referral") as FieldElement],
-    }],
+    events: [
+      {
+        fromAddress: getAddresses(getNetwork()).LST as FieldElement,
+        includeTransaction: true,
+        keys: [hash.getSelectorFromName("Referral") as FieldElement],
+      },
+    ],
   },
   sinkType: "postgres",
   sinkOptions: {
@@ -50,7 +52,7 @@ export default function transform({ header, events }: Block) {
   const { blockNumber, timestamp } = header;
   // Convert timestamp to unix timestamp
   const timestamp_unix = Math.floor(
-    new Date(timestamp as string).getTime() / 1000,
+    new Date(timestamp as string).getTime() / 1000
   );
 
   return events.map(({ event, receipt }) => {
@@ -63,7 +65,7 @@ export default function transform({ header, events }: Block) {
       event.keys.length,
       event.data.length,
       event.keys,
-      event.data,
+      event.data
     );
 
     // let LST = new Contract(LSTAbi, getAddresses().LST, getProvider())
@@ -81,7 +83,9 @@ export default function transform({ header, events }: Block) {
       throw new Error("Referrer is required");
     }
 
-    const referrerParsed = num.toHexString(referrer).toString()
+    const referrerParsed = num
+      .toHexString(referrer)
+      .toString()
       .match(/.{1,2}/g)
       ?.reduce((acc, char) => acc + String.fromCharCode(parseInt(char, 16)), "")
       ?.replace(/\x00/g, ""); // Remove null bytes

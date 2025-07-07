@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { UserPointsType } from '@prisma/client';
+import { Injectable } from "@nestjs/common";
+import { UserPointsType } from "@prisma/client";
 
-import { logger, standariseAddress } from '../../common/utils';
-import { bigIntToDecimal, prisma } from '../utils';
+import { logger, standariseAddress } from "../../common/utils";
+import { bigIntToDecimal, prisma } from "../utils";
 
 const BATCH_SIZE = 100;
 
@@ -40,7 +40,9 @@ interface ValidationResult {
 export class PriorityBonusService {
   private prisma = prisma;
 
-  async getPriorityBonusSummary(ReferrsToConsider: string[]): Promise<PriorityBonusSummary> {
+  async getPriorityBonusSummary(
+    ReferrsToConsider: string[]
+  ): Promise<PriorityBonusSummary> {
     // get all eligible referees (users who were referred by valid referrers)
     const eligibleReferees = await this.prisma.deposits_with_referral.findMany({
       where: {
@@ -51,11 +53,15 @@ export class PriorityBonusService {
       select: {
         referee: true,
       },
-      distinct: ['referee'],
+      distinct: ["referee"],
     });
 
-    const refereeAddresses = eligibleReferees.map((r) => standariseAddress(r.referee));
-    console.log(`Found ${refereeAddresses.length} eligible referees for priority bonus`);
+    const refereeAddresses = eligibleReferees.map((r) =>
+      standariseAddress(r.referee)
+    );
+    console.log(
+      `Found ${refereeAddresses.length} eligible referees for priority bonus`
+    );
 
     if (refereeAddresses.length === 0) {
       return {
@@ -75,7 +81,9 @@ export class PriorityBonusService {
         },
       },
     });
-    console.log(`Found ${aggregatedPoints.length} users with aggregated points`);
+    console.log(
+      `Found ${aggregatedPoints.length} users with aggregated points`
+    );
 
     // check which users already have Priority bonus points
     const existingPriorityBonuses = await this.prisma.user_points.findMany({
@@ -88,11 +96,15 @@ export class PriorityBonusService {
       select: {
         user_address: true,
       },
-      distinct: ['user_address'],
+      distinct: ["user_address"],
     });
 
-    const usersWithExistingBonus = new Set(existingPriorityBonuses.map((p) => p.user_address));
-    console.log(`Found ${usersWithExistingBonus.size} users with existing Priority bonus`);
+    const usersWithExistingBonus = new Set(
+      existingPriorityBonuses.map((p) => p.user_address)
+    );
+    console.log(
+      `Found ${usersWithExistingBonus.size} users with existing Priority bonus`
+    );
 
     // filter out users who already have priority bonus
     const eligibleUsers = aggregatedPoints
@@ -106,11 +118,11 @@ export class PriorityBonusService {
 
     const totalCurrentPoints = eligibleUsers.reduce(
       (sum, user) => sum + user.total_points,
-      BigInt(0),
+      BigInt(0)
     );
     const totalBonusToBeAwarded = eligibleUsers.reduce(
       (sum, user) => sum + user.bonus_points,
-      BigInt(0),
+      BigInt(0)
     );
 
     return {
@@ -125,12 +137,12 @@ export class PriorityBonusService {
   //  calculate and award priority bonus points
   async calculateAndAwardPriorityBonus(
     summary: PriorityBonusSummary,
-    cutOffBlock: number,
+    cutOffBlock: number
   ): Promise<PriorityBonusResult> {
-    logger.info('Starting priority bonus calculation...');
+    logger.info("Starting priority bonus calculation...");
 
     if (summary.eligibleUsers.length === 0) {
-      logger.info('No eligible users found for priority bonus.');
+      logger.info("No eligible users found for priority bonus.");
       return {
         usersProcessed: 0,
         totalBonusAwarded: BigInt(0),
@@ -157,7 +169,9 @@ export class PriorityBonusService {
               });
 
               if (existingPriorityBonus) {
-                logger.warn(`User ${user.user_address} already has Priority bonus, skipping`);
+                logger.warn(
+                  `User ${user.user_address} already has Priority bonus, skipping`
+                );
                 usersSkipped++;
                 continue;
               }
@@ -187,19 +201,26 @@ export class PriorityBonusService {
               totalBonusAwarded += user.bonus_points;
 
               if (usersProcessed % 50 === 0) {
-                logger.info(`Processed ${usersProcessed}/${summary.eligibleUsers.length} users...`);
+                logger.info(
+                  `Processed ${usersProcessed}/${summary.eligibleUsers.length} users...`
+                );
               }
             } catch (error) {
-              logger.error(`Error processing user ${user.user_address}:`, error);
+              logger.error(
+                `Error processing user ${user.user_address}:`,
+                error
+              );
               throw error;
             }
           }
         },
-        { timeout: 300000 },
+        { timeout: 300000 }
       );
     }
 
-    logger.info(`Successfully processed ${usersProcessed} users for priority bonus`);
+    logger.info(
+      `Successfully processed ${usersProcessed} users for priority bonus`
+    );
 
     return {
       usersProcessed,
@@ -209,8 +230,10 @@ export class PriorityBonusService {
   }
 
   // validate that priority bonus calculation is correct
-  async validatePriorityBonusCalculation(summary: PriorityBonusSummary): Promise<ValidationResult> {
-    logger.info('Validating priority bonus calculation...');
+  async validatePriorityBonusCalculation(
+    summary: PriorityBonusSummary
+  ): Promise<ValidationResult> {
+    logger.info("Validating priority bonus calculation...");
 
     // get actual Priority bonus points from database
     const actualPriorityPoints = await this.prisma.user_points.findMany({
@@ -225,10 +248,13 @@ export class PriorityBonusService {
     const actualPointsMap = new Map<string, bigint>();
     actualPriorityPoints.forEach((point) => {
       const existing = actualPointsMap.get(point.user_address) || BigInt(0);
-      actualPointsMap.set(point.user_address, existing + BigInt(point.points.toString()));
+      actualPointsMap.set(
+        point.user_address,
+        existing + BigInt(point.points.toString())
+      );
     });
 
-    const discrepancies: ValidationResult['discrepancies'] = [];
+    const discrepancies: ValidationResult["discrepancies"] = [];
 
     for (const user of summary.eligibleUsers) {
       const expectedBonus = user.bonus_points;
@@ -246,8 +272,8 @@ export class PriorityBonusService {
 
     logger.info(
       discrepancies.length === 0
-        ? 'Priority bonus validation passed.'
-        : `Priority bonus validation found ${discrepancies.length} discrepancies.`,
+        ? "Priority bonus validation passed."
+        : `Priority bonus validation found ${discrepancies.length} discrepancies.`
     );
 
     return {

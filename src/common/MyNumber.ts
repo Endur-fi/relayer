@@ -15,7 +15,7 @@ export default class MyNumber {
     try {
       return new MyNumber(
         Number(ethers.parseUnits(num, decimals)).toFixed(6),
-        decimals,
+        decimals
       );
     } catch (e) {
       console.error("fromEther", e, num, decimals);
@@ -23,7 +23,7 @@ export default class MyNumber {
     }
   }
 
-  static fromZero(decimals: number = 0) {
+  static fromZero(decimals = 0) {
     return new MyNumber("0", decimals);
   }
 
@@ -60,7 +60,7 @@ export default class MyNumber {
    */
   compare(amountEther: string, command: "gte" | "gt" | "lt") {
     const fullNum = new BigNumber(
-      ethers.parseUnits(amountEther, this.decimals).toString(),
+      ethers.parseUnits(amountEther, this.decimals).toString()
     );
     return this.bigNumber[command](fullNum);
   }
@@ -87,7 +87,7 @@ export default class MyNumber {
     const bn = BigNumber.min(a.bigNumber, b.bigNumber);
     return new MyNumber(
       bn.toString(),
-      a.decimals > b.decimals ? a.decimals : b.decimals,
+      a.decimals > b.decimals ? a.decimals : b.decimals
     );
   }
 
@@ -103,7 +103,7 @@ export default class MyNumber {
     const bn = BigNumber.max(a.bigNumber, b.bigNumber);
     return new MyNumber(
       bn.toString(),
-      a.decimals > b.decimals ? a.decimals : b.decimals,
+      a.decimals > b.decimals ? a.decimals : b.decimals
     );
   }
 

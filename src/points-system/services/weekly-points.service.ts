@@ -1,9 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
-import { SUPPORTED_TIMEZONES } from '../../common/constants';
-import { BotService } from '../../common/services/bot.service';
-import { TryCatchAsync } from '../../common/utils';
-import { PointsSystemService } from './points-system.service';
+import { PointsSystemService } from "./points-system.service";
+
+import { SUPPORTED_TIMEZONES } from "../../common/constants";
+import { BotService } from "../../common/services/bot.service";
+import { TryCatchAsync } from "../../common/utils";
 
 interface UserWithTimezone {
   id: number;
@@ -24,7 +25,7 @@ export class WeeklyPointsService {
     @Inject(PointsSystemService)
     private readonly pointsSystemService: PointsSystemService,
     @Inject(BotService)
-    private readonly botService: BotService,
+    private readonly botService: BotService
   ) {}
 
   /**
@@ -32,14 +33,14 @@ export class WeeklyPointsService {
    */
   @TryCatchAsync()
   async processWeeklyPointsForAllTimezones(): Promise<void> {
-    this.logger.log('Running weekly points distribution job...');
+    this.logger.log("Running weekly points distribution job...");
 
     if (!this.timezoneGroups || this.timezoneGroups.size === 0) {
-      this.logger.warn('No timezone groups found, initializing...');
+      this.logger.warn("No timezone groups found, initializing...");
       await this.setupTimezoneGroups();
 
       if (!this.timezoneGroups || this.timezoneGroups.size === 0) {
-        this.logger.error('Failed to initialize timezone groups');
+        this.logger.error("Failed to initialize timezone groups");
         return;
       }
     }
@@ -49,21 +50,25 @@ export class WeeklyPointsService {
       try {
         // Check if it's Sunday in the user's timezone before processing
         const now = new Date();
-        const userTime = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+        const userTime = new Date(
+          now.toLocaleString("en-US", { timeZone: timezone })
+        );
 
         // Only process if it's Sunday (day 0) in the user's timezone
         if (userTime.getDay() === 0) {
-          this.logger.log(`Processing users in timezone: ${timezone} (${users.length} users)`);
+          this.logger.log(
+            `Processing users in timezone: ${timezone} (${users.length} users)`
+          );
           await this.processUsersInTimezone(users, timezone);
         } else {
           this.logger.log(
-            `Skipping users in timezone: ${timezone} as it's not Sunday there yet (day: ${userTime.getDay()})`,
+            `Skipping users in timezone: ${timezone} as it's not Sunday there yet (day: ${userTime.getDay()})`
           );
         }
       } catch (error) {
         this.logger.error(
           `Error processing timezone ${timezone}:`,
-          error instanceof Error ? error.message : String(error),
+          error instanceof Error ? error.message : String(error)
         );
         // Continue processing other timezones even if one fails
         continue;
@@ -75,8 +80,13 @@ export class WeeklyPointsService {
    * Processes weekly points for users in a specific timezone
    */
   @TryCatchAsync()
-  private async processUsersInTimezone(users: UserWithTimezone[], timezone: string): Promise<void> {
-    this.logger.log(`Processing weekly points for ${users.length} users in timezone: ${timezone}`);
+  private async processUsersInTimezone(
+    users: UserWithTimezone[],
+    timezone: string
+  ): Promise<void> {
+    this.logger.log(
+      `Processing weekly points for ${users.length} users in timezone: ${timezone}`
+    );
 
     try {
       // Get weekly points data ahead of time
@@ -105,18 +115,24 @@ export class WeeklyPointsService {
         const batchRequests = allRequests.slice(i, i + BATCH_SIZE);
         await Promise.all(
           batchRequests.map((req) =>
-            this.processUserPoints(req.user, req.address, weeklyPointsData, results, MAX_RETRIES),
-          ),
+            this.processUserPoints(
+              req.user,
+              req.address,
+              weeklyPointsData,
+              results,
+              MAX_RETRIES
+            )
+          )
         );
       }
 
       this.logger.log(
-        `Weekly points processing complete for timezone ${timezone}. Success: ${results.success}, Failed: ${results.failed}`,
+        `Weekly points processing complete for timezone ${timezone}. Success: ${results.success}, Failed: ${results.failed}`
       );
     } catch (error) {
       this.logger.error(
         `Error processing weekly points for timezone ${timezone}:`,
-        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error.message : String(error)
       );
     }
   }
@@ -126,13 +142,13 @@ export class WeeklyPointsService {
    */
   @TryCatchAsync()
   async setupTimezoneGroups(): Promise<void> {
-    this.logger.log('Setting up timezone groups...');
+    this.logger.log("Setting up timezone groups...");
 
     // Get all users and their timezones using BotService
     const users = await this.botService.getAllUsers();
 
     if (!users || users.length === 0) {
-      this.logger.warn('No users found for timezone groups');
+      this.logger.warn("No users found for timezone groups");
       return;
     }
 
@@ -141,14 +157,14 @@ export class WeeklyPointsService {
 
     for (const user of users) {
       // Validate and normalize timezone
-      let userTimezone = user.timezone || 'UTC';
+      let userTimezone = user.timezone || "UTC";
 
       // If the timezone is not supported, default to UTC
       if (!SUPPORTED_TIMEZONES.has(userTimezone)) {
         this.logger.warn(
-          `Unsupported timezone ${userTimezone} for user ${user.username}, defaulting to UTC`,
+          `Unsupported timezone ${userTimezone} for user ${user.username}, defaulting to UTC`
         );
-        userTimezone = 'UTC';
+        userTimezone = "UTC";
       }
 
       // Save user timezone for future reference
@@ -165,7 +181,9 @@ export class WeeklyPointsService {
       });
     }
 
-    this.logger.log(`Found ${timezoneGroups.size} different timezones among users`);
+    this.logger.log(
+      `Found ${timezoneGroups.size} different timezones among users`
+    );
 
     // Log timezone distribution for monitoring
     for (const [timezone, usersInTimezone] of timezoneGroups.entries()) {
@@ -184,34 +202,43 @@ export class WeeklyPointsService {
     address: string,
     weeklyPoints: Record<string, string>,
     results: { success: number; failed: number },
-    maxRetries: number,
+    maxRetries: number
   ): Promise<void> {
     try {
       // Find points for this address or assign default
-      const userPoints = weeklyPoints[address] || '0';
+      const userPoints = weeklyPoints[address] || "0";
 
       // Get user's last processed date or set to one week ago if not found
       const now = new Date();
       const lastProcessedDate =
-        this.lastProcessedDate.get(address) || new Date(now.setDate(now.getDate() - 7));
+        this.lastProcessedDate.get(address) ||
+        new Date(now.setDate(now.getDate() - 7));
 
       // Save current date as last processed for next time
       this.lastProcessedDate.set(address, new Date());
 
       // Send weekly points event using BotService
-      await this.botService.sendWeeklyPointsEvent(address, userPoints.toString(), 'points', {
-        timezone: user.timezone,
-        lastProcessedAt: lastProcessedDate.toISOString(),
-      });
+      await this.botService.sendWeeklyPointsEvent(
+        address,
+        userPoints.toString(),
+        "points",
+        {
+          timezone: user.timezone,
+          lastProcessedAt: lastProcessedDate.toISOString(),
+        }
+      );
 
       results.success++;
       this.logger.log(
-        `Points sent for ${user.username}:${address} in timezone ${user.timezone || 'UTC'}`,
+        `Points sent for ${user.username}:${address} in timezone ${user.timezone || "UTC"}`
       );
     } catch (error: unknown) {
       results.failed++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to send points for ${user.username}:${address}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to send points for ${user.username}:${address}: ${errorMessage}`
+      );
     }
   }
 }
