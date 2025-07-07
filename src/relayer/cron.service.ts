@@ -244,7 +244,7 @@ export class CronService {
   }
 
   /**
-   * @description A separate cron job to emit unstake initiation event to bot, which will only consider last 1 minute pending withdrawals
+   * @description A separate cron job to emit unstake initiation event to bot, which will only consider last 5 minutes pending withdrawals
    */
   @Cron(CronExpression.EVERY_MINUTE)
   @TryCatchAsync()
@@ -252,22 +252,37 @@ export class CronService {
     const [pending_withdrawals] = await this.prismaService.getPendingWithdraws(
       new Web3Number('0.0', 18),
     );
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+    const recentWithdrawals = pending_withdrawals.filter(
+      (w) => w.timestamp * 1000 > twoMinutesAgo && !w.is_notified,
+    );
 
-    const oneMinuteAgo = Date.now() - 60 * 1000;
-    const recentWithdrawals = pending_withdrawals.filter((w) => w.timestamp * 1000 > oneMinuteAgo);
+    this.logger.log(`Found ${recentWithdrawals.length} recent unnotified withdrawals`);
 
     for (const w of recentWithdrawals) {
-      await this.botService.sendUnstakeInitiationEvent(
-        w.receiver.toString(),
-        Web3Number.fromWei(w.amount_strk, 18).toString(), // amount
-        'STRK', // token name
-        {
-          // metadata
-          requestId: w.request_id.toString(),
-          timestamp: w.timestamp,
-          withdrawalQueueAddress: getAddresses(getNetwork()).WithdrawQueue,
-        },
-      );
+      try {
+        await this.botService.sendUnstakeInitiationEvent(
+          w.receiver.toString(),
+          Web3Number.fromWei(w.amount_strk, 18).toString(), // amount
+          'STRK', // token name
+          {
+            // metadata
+            requestId: w.request_id.toString(),
+            timestamp: w.timestamp,
+            withdrawalQueueAddress: getAddresses(getNetwork()).WithdrawQueue,
+          },
+        );
+
+        // Mark as notified after successful notification
+        await this.prismaService.markWithdrawalAsNotified(w.request_id);
+        this.logger.log(`Marked withdrawal ${w.request_id} as notified`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to send unstake initiation event for request ${w.request_id}:`,
+          error,
+        );
+        // Don't mark as notified if sending failed, so we can retry
+      }
     }
   }
 
@@ -292,22 +307,42 @@ export class CronService {
   }
 
   async withdrawToWQ() {
-    const wqState = await this.withdrawalQueueService.getWithdrawalQueueState();
+    try {
+      const wqState = await this.withdrawalQueueService.getWithdrawalQueueState();
 
-    const balanceAmount = await this.lstService.getSTRKBalance();
-    this.logger.log('LST Balance amount: ', balanceAmount.toString());
-    const requiredAmount = wqState.unprocessed_withdraw_queue_amount;
-    this.logger.log('WQ Required amount: ', requiredAmount.toString());
+      const balanceAmount = await this.lstService.getSTRKBalance();
+      this.logger.log('LST Balance amount: ', balanceAmount.toString());
+      const requiredAmount = wqState.unprocessed_withdraw_queue_amount;
+      this.logger.log('WQ Required amount: ', requiredAmount.toString());
 
-    if (balanceAmount.gt(0) && requiredAmount.gt(0)) {
-      const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
-      this.logger.log('transferAmount: ', transferAmount.toString());
-      await this.lstService.sendToWithdrawQueue(transferAmount);
-    } else {
-      if (balanceAmount.lte(0)) {
-        this.logger.log('No balance to send to WQ');
-      } else if (requiredAmount.lte(0)) {
-        this.logger.log('No required amount in WQ');
+      if (balanceAmount.gt(0) && requiredAmount.gt(0)) {
+        const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
+        this.logger.log('transferAmount: ', transferAmount.toString());
+        await this.lstService.sendToWithdrawQueue(transferAmount);
+      } else {
+        if (balanceAmount.lte(0)) {
+          this.logger.log('No balance to send to WQ');
+        } else if (requiredAmount.lte(0)) {
+          this.logger.log('No required amount in WQ');
+        }
+      }
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'message' in error &&
+        typeof (error as any).message === 'string' &&
+        (error as any).message.includes('Caller is missing role')
+      ) {
+        this.logger.warn(
+          'Account does not have permission to send funds to withdraw queue. Skipping this operation.',
+        );
+        this.notifService.sendMessage(
+          'Account missing role permissions for withdraw queue transfer',
+        );
+      } else {
+        this.logger.error('Error in withdrawToWQ:', error);
+        throw error; // Re-throw other errors
       }
     }
   }

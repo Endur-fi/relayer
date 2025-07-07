@@ -107,6 +107,7 @@ export class PrismaService implements IPrismaService {
         cumulative_requested_amount_snapshot: string;
         timestamp: number;
         receiver: string;
+        is_notified: boolean;
       }[],
       bigint[],
     ]
@@ -143,6 +144,7 @@ export class PrismaService implements IPrismaService {
         cumulative_requested_amount_snapshot: true,
         timestamp: true,
         receiver: true,
+        is_notified: true,
       },
     });
 
@@ -188,5 +190,16 @@ export class PrismaService implements IPrismaService {
     const deposits = await this.getDepositsLastDay();
     const withdrawals = await this.getWithdrawalsLastDay();
     return deposits - withdrawals;
+  }
+
+  async markWithdrawalAsNotified(requestId: bigint): Promise<void> {
+    await this.prisma.withdraw_queue.updateMany({
+      where: {
+        request_id: requestId,
+      },
+      data: {
+        is_notified: true,
+      },
+    });
   }
 }

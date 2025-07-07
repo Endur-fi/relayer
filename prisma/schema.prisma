@@ -77,6 +77,9 @@ model withdraw_queue {
   cumulative_requested_amount_snapshot String
   is_rejected                          Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
 
+  // tracks if unstake initiation event was sent to bot
+  is_notified Boolean @default(false)
+
   timestamp Int
   cursor    BigInt? @map("_cursor")
 
