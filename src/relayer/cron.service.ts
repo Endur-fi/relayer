@@ -12,6 +12,7 @@ import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/a
 import { getAddresses, getLSTDecimals, Network } from '../common/constants';
 const assert = require('assert');
 import { DelegatorService } from './services/delegatorService';
+import { populateEkuboTimeseries } from '../points-system/standalone-scripts/populate-ekubo-timeseries';
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -90,12 +91,13 @@ export class CronService {
     }
 
     // Run on init
-    await this.processWithdrawQueue();
-    await this.sendStats();
+    // await this.processWithdrawQueue();
+    // await this.sendStats();
     // await this.checkAndExecuteArbitrage();
 
     // Just for testing
     // await this.stakeFunds();
+    await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
     // await this.claimUnstakedFunds();
   }
@@ -433,5 +435,11 @@ export class CronService {
       console.error('Error in claimUnstakedFunds:', err);
       throw err;
     }
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync(3, 10000)
+  async updateEkuboPositionsTimeseries() {
+    await populateEkuboTimeseries(true);
   }
 }

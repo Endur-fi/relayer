@@ -47,7 +47,7 @@ export function getAccount(): Account {
     PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
   });
 
-  return store.getAccount(process.env.ACCOUNT_KEY);
+  return store.getAccount(process.env.ACCOUNT_KEY, '0x3');
 }
 
 export function getNetwork(): Network {
