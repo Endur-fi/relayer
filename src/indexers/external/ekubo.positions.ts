@@ -64,6 +64,9 @@ export default function transform({ header, events }: Block) {
     const position_id = Number(event?.data?.[6]);
     const lower_bound = Number(event?.data?.[7]) * (Number(event?.data?.[8]) == 0 ? 1 : -1);
     const upper_bound = Number(event?.data?.[9]) * (Number(event?.data?.[10]) == 0 ? 1 : -1);
+    const liquidity_delta = (Number(event?.data?.[12]) == 0 ? '' : '-') + num.getDecimalString(event?.data?.[11]);
+    const amount0_delta = (Number(event?.data?.[14]) == 0 ? '' : '-') + num.getDecimalString(event?.data?.[13]);
+    const amount1_delta = (Number(event?.data?.[16]) == 0 ? '' : '-') + num.getDecimalString(event?.data?.[15]);
 
     const transactionHash = res.receipt.transactionHash;
     const transferData = {
@@ -79,6 +82,9 @@ export default function transform({ header, events }: Block) {
       position_id,
       lower_bound,
       upper_bound,
+      liquidity_delta: liquidity_delta.toString(),
+      amount0_delta: amount0_delta.toString(),
+      amount1_delta: amount1_delta.toString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
