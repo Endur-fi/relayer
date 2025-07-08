@@ -1,11 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
-import { TryCatchAsync } from '../../common/utils';
-import { getDate } from '../utils';
 import { DexScoreService } from './dex-points.service';
-import { PointsSystemService } from './points-system.service';
+import { EXCLUSION_LIST, PointsSystemService } from './points-system.service';
 import { WeeklyPointsService } from './weekly-points.service';
+
+import { TryCatchAsync } from '../../common/utils';
+import { getDate, prisma } from '../utils';
 
 @Injectable()
 export class PointsCronService {

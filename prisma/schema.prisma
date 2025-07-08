@@ -253,23 +253,23 @@ model dex_positions {
 }
 
 model ekubo_positions {
-  pool_fee String
+  pool_fee          String
   pool_tick_spacing String
-  extension String
-  position_id String
+  extension         String
+  position_id       String
 
   block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
   timestamp    Int
-  txHash String
+  txHash       String
 
   lower_bound Int
   upper_bound Int
 
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  cursor       BigInt? @map("_cursor")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  cursor     BigInt?  @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
@@ -282,11 +282,25 @@ model ekubo_nfts {
   timestamp    Int
   txHash       String
 
-  from_address   String
-  to_address     String
-  nft_id String
-  cursor BigInt? @map("_cursor")
+  from_address String
+  to_address   String
+  nft_id       String
+  cursor       BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+}
+
+model cumulative_weekly_snapshot_points {
+  user_address      String
+  total_points      BigInt
+  week_start_date   DateTime // Start of the week (Sunday 00:00 UTC)
+  week_end_date     DateTime // End of the week (Saturday 23:59 UTC)
+  snapshot_taken_at DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@id([user_address, week_start_date])
+  @@index([week_start_date])
+  @@index([snapshot_taken_at])
 }

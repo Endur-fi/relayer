@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { SUPPORTED_TIMEZONES } from '../../common/constants';
 import { BotService } from '../../common/services/bot.service';
 import { TryCatchAsync } from '../../common/utils';
+import { prisma } from '../utils';
 import { PointsSystemService } from './points-system.service';
 
 interface UserWithTimezone {
@@ -16,8 +16,6 @@ interface UserWithTimezone {
 @Injectable()
 export class WeeklyPointsService {
   private readonly logger = new Logger(WeeklyPointsService.name);
-  private readonly userTimezones: Map<string, string> = new Map();
-  private readonly lastProcessedDate: Map<string, Date> = new Map();
   private timezoneGroups: Map<string, UserWithTimezone[]> = new Map();
 
   constructor(
@@ -79,17 +77,11 @@ export class WeeklyPointsService {
     this.logger.log(`Processing weekly points for ${users.length} users in timezone: ${timezone}`);
 
     try {
-      // Get weekly points data ahead of time
-      const weeklyPointsData = await this.pointsSystemService.getWeeklyPoints();
-
-      // Calculate start of previous week for this timezone
-      const now = new Date();
-      const lastWeekStart = new Date(now);
-      lastWeekStart.setDate(now.getDate() - 7);
+      // Get weekly points delta (current points - previous week snapshot)
+      const weeklyPointsData = await this.calculateWeeklyPointsDelta();
 
       // Track results
       const results = { success: 0, failed: 0 };
-      const MAX_RETRIES = 3;
       const BATCH_SIZE = 10;
 
       // Prepare all requests
@@ -105,7 +97,7 @@ export class WeeklyPointsService {
         const batchRequests = allRequests.slice(i, i + BATCH_SIZE);
         await Promise.all(
           batchRequests.map((req) =>
-            this.processUserPoints(req.user, req.address, weeklyPointsData, results, MAX_RETRIES),
+            this.processUserPoints(req.user, req.address, weeklyPointsData, results),
           ),
         );
       }
@@ -118,6 +110,90 @@ export class WeeklyPointsService {
         `Error processing weekly points for timezone ${timezone}:`,
         error instanceof Error ? error.message : String(error),
       );
+    }
+  }
+
+  /**
+   * Calculate weekly points delta by comparing current points with previous week's snapshot
+   */
+  @TryCatchAsync()
+  private async calculateWeeklyPointsDelta(): Promise<Record<string, string>> {
+    this.logger.log('Calculating weekly points delta...');
+
+    try {
+      // Get the most recent weekly snapshot (should be from previous week)
+      const latestSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
+        orderBy: {
+          week_start_date: 'desc',
+        },
+      });
+
+      if (!latestSnapshot) {
+        this.logger.warn('No previous week snapshot found, using current points as delta');
+        return await this.pointsSystemService.getWeeklyPoints();
+      }
+
+      // Get all snapshots from the latest week
+      const previousWeekSnapshots = await prisma.cumulative_weekly_snapshot_points.findMany({
+        where: {
+          week_start_date: latestSnapshot.week_start_date,
+        },
+        select: {
+          user_address: true,
+          total_points: true,
+        },
+      });
+
+      // Get current points for all users
+      const currentPoints = await prisma.points_aggregated.findMany({
+        select: {
+          user_address: true,
+          total_points: true,
+        },
+      });
+
+      // Create maps for easier lookup
+      const previousPointsMap: Record<string, bigint> = {};
+      previousWeekSnapshots.forEach((snapshot: { user_address: string; total_points: bigint }) => {
+        previousPointsMap[snapshot.user_address] = snapshot.total_points;
+      });
+
+      const currentPointsMap: Record<string, bigint> = {};
+      currentPoints.forEach((points) => {
+        currentPointsMap[points.user_address] = points.total_points;
+      });
+
+      // Calculate weekly delta for each user
+      const weeklyDelta: Record<string, string> = {};
+
+      // Get all unique addresses from both current and previous data
+      const allAddresses = new Set([
+        ...Object.keys(currentPointsMap),
+        ...Object.keys(previousPointsMap),
+      ]);
+
+      for (const address of allAddresses) {
+        const currentUserPoints = currentPointsMap[address] || BigInt(0);
+        const previousUserPoints = previousPointsMap[address] || BigInt(0);
+
+        // Calculate the delta (points gained this week)
+        const pointsDelta = currentUserPoints - previousUserPoints;
+
+        // Only include positive deltas (points gained)
+        if (pointsDelta > BigInt(0)) {
+          weeklyDelta[address] = pointsDelta.toString();
+        } else {
+          weeklyDelta[address] = '0';
+        }
+      }
+
+      this.logger.log(`Weekly delta calculated for ${Object.keys(weeklyDelta).length} addresses`);
+
+      return weeklyDelta;
+    } catch (error) {
+      this.logger.error('Error calculating weekly points delta:', error);
+      // Fallback to current points if snapshot calculation fails
+      return await this.pointsSystemService.getWeeklyPoints();
     }
   }
 
@@ -141,20 +217,7 @@ export class WeeklyPointsService {
 
     for (const user of users) {
       // Validate and normalize timezone
-      let userTimezone = user.timezone || 'UTC';
-
-      // If the timezone is not supported, default to UTC
-      if (!SUPPORTED_TIMEZONES.has(userTimezone)) {
-        this.logger.warn(
-          `Unsupported timezone ${userTimezone} for user ${user.username}, defaulting to UTC`,
-        );
-        userTimezone = 'UTC';
-      }
-
-      // Save user timezone for future reference
-      for (const address of user.addresses) {
-        this.userTimezones.set(address, userTimezone);
-      }
+      const userTimezone = user.timezone || 'UTC';
 
       if (!timezoneGroups.has(userTimezone)) {
         timezoneGroups.set(userTimezone, []);
@@ -177,36 +240,39 @@ export class WeeklyPointsService {
   }
 
   /**
-   * Process and send points for a single user address with retry logic
+   * Process and send points for a single user address
    */
   private async processUserPoints(
     user: UserWithTimezone,
     address: string,
     weeklyPoints: Record<string, string>,
     results: { success: number; failed: number },
-    maxRetries: number,
   ): Promise<void> {
     try {
       // Find points for this address or assign default
       const userPoints = weeklyPoints[address] || '0';
 
-      // Get user's last processed date or set to one week ago if not found
+      // Calculate week boundaries for metadata
       const now = new Date();
-      const lastProcessedDate =
-        this.lastProcessedDate.get(address) || new Date(now.setDate(now.getDate() - 7));
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - now.getDay() - 7); // Previous Sunday
+      weekStart.setHours(0, 0, 0, 0);
 
-      // Save current date as last processed for next time
-      this.lastProcessedDate.set(address, new Date());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6); // Previous Saturday
+      weekEnd.setHours(23, 59, 59, 999);
 
       // Send weekly points event using BotService
       await this.botService.sendWeeklyPointsEvent(address, userPoints.toString(), 'points', {
         timezone: user.timezone,
-        lastProcessedAt: lastProcessedDate.toISOString(),
+        weekStartDate: weekStart.toISOString(),
+        weekEndDate: weekEnd.toISOString(),
+        processedAt: now.toISOString(),
       });
 
       results.success++;
       this.logger.log(
-        `Points sent for ${user.username}:${address} in timezone ${user.timezone || 'UTC'}`,
+        `Points sent for ${user.username}:${address} in timezone ${user.timezone || 'UTC'} - ${userPoints} points`,
       );
     } catch (error: unknown) {
       results.failed++;

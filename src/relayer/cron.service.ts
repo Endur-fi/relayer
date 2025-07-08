@@ -1,3 +1,5 @@
+import assert from 'assert';
+
 import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -11,17 +13,17 @@ import {
   Uint256,
   uint256,
 } from 'starknet';
+
 import { getAddresses, getLSTDecimals, Network } from '../common/constants';
 import { BotService } from '../common/services/bot.service';
 import { getNetwork, TryCatchAsync } from '../common/utils';
+import { prisma } from '../points-system/utils';
 import { ConfigService } from './services/configService';
 import { DelegatorService } from './services/delegatorService';
 import { LSTService } from './services/lstService';
 import { NotifService } from './services/notifService';
 import { PrismaService } from './services/prismaService';
 import { WithdrawalQueueService } from './services/withdrawalQueueService';
-
-const assert = require('assert');
 
 function getCronSettings(action: 'process-withdraw-queue') {
   const config = new ConfigService();
@@ -153,7 +155,7 @@ export class CronService {
     this.logger.log(`Allowed limit: ${allowedLimit.toString()}`);
 
     const MAX_WITHDRAWALS_PER_DAY = 2_000_000; // 2M STRK
-    let processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
+    const processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
     let processedWithdrawalsInLast24HoursDecimalAdjusted = Number(
       processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals()),
     );
@@ -350,7 +352,7 @@ export class CronService {
   @Cron('0 30 */6 * * *')
   @TryCatchAsync()
   async stakeFunds() {
-    let amount = await this.lstService.bulkStake();
+    const amount = await this.lstService.bulkStake();
     if (amount) this.notifService.sendMessage(`Staked ${amount} STRK`);
     else this.notifService.sendMessage(`No STRK to stake`);
   }
@@ -364,8 +366,8 @@ export class CronService {
     // execute swap using avnu swap (so that more routes can be used)
     const strkBalanceLST = await this.lstService.getSTRKBalance();
     const account: Account = this.config.get('account');
-    let queueStats = await this.withdrawalQueueService.getWithdrawalQueueState();
-    let pendingAmount = queueStats.unprocessed_withdraw_queue_amount;
+    const queueStats = await this.withdrawalQueueService.getWithdrawalQueueState();
+    const pendingAmount = queueStats.unprocessed_withdraw_queue_amount;
     this.logger.log(`Pending amount: ${pendingAmount.toString()} STRK`);
 
     const availableAmount = strkBalanceLST.minus(pendingAmount.toString());
@@ -378,9 +380,9 @@ export class CronService {
 
     for (let i = 0; i < 9; i++) {
       if (availableAmountNum > 1000) {
-        let amount = Math.floor((availableAmountNum * (10 - i - 1)) / 10);
+        const amount = Math.floor((availableAmountNum * (10 - i - 1)) / 10);
         this.logger.log(`Checking arb for ${amount.toString()} STRK`);
-        let amount_str = new Web3Number(amount, 18).toWei();
+        const amount_str = new Web3Number(amount, 18).toWei();
         const params: QuoteRequest = {
           sellTokenAddress: ADDRESSES.Strk,
           buyTokenAddress: ADDRESSES.LST,
@@ -389,8 +391,8 @@ export class CronService {
           // excludeSources: ['Nostra', 'Haiko(Solvers)'], // cause only Ekubo is configured for now in the arb contract
         };
         const swapInfo = await this._fetchQuotes(params);
-        let amountOut = swapInfo.amountOut;
-        let equivalentAmount = Number(amountOut.toString()) * exchangeRate;
+        const amountOut = swapInfo.amountOut;
+        const equivalentAmount = Number(amountOut.toString()) * exchangeRate;
         this.logger.log(`Equivalent amount (STRK): ${equivalentAmount}`);
         const potentialProfit = equivalentAmount - amount;
         this.logger.log(`Potential profit: ${potentialProfit}`);
@@ -445,7 +447,7 @@ export class CronService {
     const calldata = await fetchBuildExecuteTransaction(quotes[0].quoteId);
     const call: Call = calldata.calls[1];
     const callData: string[] = call.calldata as string[];
-    const routesLen: number = Number(callData[11]);
+    const routesLen = Number(callData[11]);
     assert(routesLen > 0, 'No routes found');
     const routes: Route[] = [];
 
@@ -499,7 +501,10 @@ export class CronService {
       successStates: [TransactionExecutionStatus.SUCCEEDED],
     });
     this.logger.log('Arb tx confirmed');
-    let amount = Web3Number.fromWei(uint256.uint256ToBN(swapInfo.token_from_amount).toString(), 18);
+    const amount = Web3Number.fromWei(
+      uint256.uint256ToBN(swapInfo.token_from_amount).toString(),
+      18,
+    );
     this.notifService.sendMessage(
       `Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`,
     );
@@ -539,7 +544,7 @@ export class CronService {
           }
           return null;
         })
-        .filter((call) => call !== null);
+        .filter((call): call is Call => call !== null);
 
       if (calls.length == 0) {
         this.logger.log(`No unstake actions to perform`);
@@ -562,6 +567,99 @@ export class CronService {
     } catch (err) {
       console.error('Error in claimUnstakedFunds:', err);
       throw err;
+    }
+  }
+
+  @Cron('0 1 * * 0') // Every Sunday at 1 AM UTC (after points distribution)
+  @TryCatchAsync()
+  async weeklyPointsSnapshot() {
+    this.logger.log('Running weekly points snapshot');
+
+    try {
+      // Calculate PREVIOUS week boundaries (the completed week we're taking snapshot of)
+      const now = new Date();
+
+      // Get the start of current week (last Sunday at 00:00)
+      const currentWeekStart = new Date(now);
+      currentWeekStart.setDate(now.getDate() - now.getDay());
+      currentWeekStart.setHours(0, 0, 0, 0);
+
+      // Previous week end is current week start minus 1 millisecond
+      const previousWeekEnd = new Date(currentWeekStart.getTime() - 1);
+
+      // Previous week start is 7 days before current week start
+      const previousWeekStart = new Date(currentWeekStart);
+      previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+
+      this.logger.log(
+        `Taking snapshot for COMPLETED week: ${previousWeekStart.toISOString()} to ${previousWeekEnd.toISOString()}`,
+      );
+
+      // Get all users with points from points_aggregated table
+      const currentPointsSnapshot = await prisma.points_aggregated.findMany({
+        select: {
+          user_address: true,
+          total_points: true,
+        },
+      });
+
+      this.logger.log(`Found ${currentPointsSnapshot.length} users with points for snapshot`);
+
+      if (currentPointsSnapshot.length === 0) {
+        this.logger.warn('No users found with points, skipping snapshot');
+        return;
+      }
+
+      // Check if snapshot already exists for this week
+      const existingSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
+        where: {
+          week_start_date: previousWeekStart,
+        },
+      });
+
+      if (existingSnapshot) {
+        this.logger.warn(
+          `Snapshot already exists for week starting ${previousWeekStart.toISOString()}, skipping`,
+        );
+        return;
+      }
+
+      // Batch insert snapshots for all users
+      const snapshotRecords = currentPointsSnapshot.map((userPoints) => ({
+        user_address: userPoints.user_address,
+        total_points: userPoints.total_points,
+        week_start_date: previousWeekStart,
+        week_end_date: previousWeekEnd,
+        snapshot_taken_at: now,
+      }));
+
+      // Use createMany for better performance
+      const result = await prisma.cumulative_weekly_snapshot_points.createMany({
+        data: snapshotRecords,
+        skipDuplicates: true,
+      });
+
+      this.logger.log(`Weekly points snapshot completed. Created ${result.count} snapshots`);
+
+      // Send notification about the snapshot completion
+      this.notifService.sendMessage(
+        `📊 Weekly Points Snapshot Completed\n` +
+          `Week: ${previousWeekStart.toDateString()} - ${previousWeekEnd.toDateString()}\n` +
+          `✅ Snapshots created: ${result.count}\n` +
+          `📅 Taken at: ${now.toISOString()}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        'Error in weekly points snapshot:',
+        error instanceof Error ? error.message : String(error),
+      );
+
+      // Send error notification
+      this.notifService.sendMessage(
+        `🚨 Weekly Points Snapshot Failed\n` +
+          `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+          `Time: ${new Date().toISOString()}`,
+      );
     }
   }
 }
