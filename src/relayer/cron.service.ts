@@ -437,9 +437,9 @@ export class CronService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  @TryCatchAsync(3, 10000)
-  async updateEkuboPositionsTimeseries() {
-    await populateEkuboTimeseries(true);
-  }
+  // @Cron(CronExpression.EVERY_5_MINUTES)
+  // @TryCatchAsync(3, 10000)
+  // async updateEkuboPositionsTimeseries() {
+  //   await populateEkuboTimeseries(true);
+  // }
 }

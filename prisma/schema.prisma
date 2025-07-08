@@ -263,6 +263,9 @@ model ekubo_positions {
 
   lower_bound Int
   upper_bound Int
+  liquidity_delta BigInt
+  amount0_delta BigInt
+  amount1_delta BigInt
 
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
