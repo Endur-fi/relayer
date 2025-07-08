@@ -570,10 +570,12 @@ export class CronService {
     }
   }
 
-  @Cron('0 1 * * 0') // Every Sunday at 1 AM UTC (after points distribution)
+  @Cron('0 12 * * 1') // Every Monday at 12:00 UTC (after Sunday ends in UTC-12, the latest timezone)
   @TryCatchAsync()
   async weeklyPointsSnapshot() {
-    this.logger.log('Running weekly points snapshot');
+    this.logger.log(
+      'Running weekly points snapshot - Monday 12:00 UTC (after Sunday ends globally)',
+    );
 
     try {
       // Calculate PREVIOUS week boundaries (the completed week we're taking snapshot of)
