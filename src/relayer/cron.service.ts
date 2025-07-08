@@ -14,10 +14,11 @@ import {
   uint256,
 } from 'starknet';
 
+import { prisma } from '../../prisma/client';
 import { getAddresses, getLSTDecimals, Network } from '../common/constants';
 import { BotService } from '../common/services/bot.service';
 import { getNetwork, TryCatchAsync } from '../common/utils';
-import { prisma } from '../points-system/utils';
+import { populateEkuboTimeseries } from '../points-system/standalone-scripts/populate-ekubo-timeseries';
 import { ConfigService } from './services/configService';
 import { DelegatorService } from './services/delegatorService';
 import { LSTService } from './services/lstService';
@@ -112,6 +113,7 @@ export class CronService {
 
     // Just for testing
     // await this.stakeFunds();
+    // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
     // await this.claimUnstakedFunds();
   }
@@ -568,6 +570,12 @@ export class CronService {
       console.error('Error in claimUnstakedFunds:', err);
       throw err;
     }
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync(3, 10000)
+  async updateEkuboPositionsTimeseries() {
+    await populateEkuboTimeseries(true);
   }
 
   @Cron('0 12 * * 1') // Every Monday at 12:00 UTC (after Sunday ends in UTC-12, the latest timezone)
