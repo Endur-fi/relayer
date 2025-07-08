@@ -26,11 +26,13 @@ import { NotifService } from './services/notifService';
 import { PrismaService } from './services/prismaService';
 import { WithdrawalQueueService } from './services/withdrawalQueueService';
 
-function getCronSettings(action: 'process-withdraw-queue') {
+function getCronSettings(action: 'process-withdraw-queue' | 'weekly-points-snapshot') {
   const config = new ConfigService();
   switch (action) {
     case 'process-withdraw-queue':
       return config.isSepolia() ? CronExpression.EVERY_5_MINUTES : CronExpression.EVERY_HOUR;
+    case 'weekly-points-snapshot':
+      return '0 12 * * 1'; // Every Monday at 12:00 UTC (after Sunday ends globally in UTC-12)
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -578,7 +580,7 @@ export class CronService {
     await populateEkuboTimeseries(true);
   }
 
-  @Cron('0 12 * * 1') // Every Monday at 12:00 UTC (after Sunday ends in UTC-12, the latest timezone)
+  @Cron(getCronSettings('weekly-points-snapshot'))
   @TryCatchAsync()
   async weeklyPointsSnapshot() {
     this.logger.log(

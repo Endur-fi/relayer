@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 
 import { DexScoreService } from './dex-points.service';
-import { EXCLUSION_LIST, PointsSystemService } from './points-system.service';
+import { PointsSystemService } from './points-system.service';
 import { WeeklyPointsService } from './weekly-points.service';
 
 import { TryCatchAsync } from '../../common/utils';
@@ -33,9 +33,6 @@ export class PointsCronService {
     });
 
     await this.init();
-
-    // Set up timezone-based scheduled jobs
-    await this.weeklyPointsService.setupTimezoneGroups();
   }
 
   async init() {
@@ -52,6 +49,6 @@ export class PointsCronService {
   @TryCatchAsync()
   async processWeeklyPoints() {
     this.logger.log('Running scheduled weekly points distribution job...');
-    await this.weeklyPointsService.processWeeklyPointsForAllTimezones();
+    await this.weeklyPointsService.processWeeklyPointsForAllUsers();
   }
 }
