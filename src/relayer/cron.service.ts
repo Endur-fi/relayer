@@ -91,13 +91,13 @@ export class CronService {
     }
 
     // Run on init
-    // await this.processWithdrawQueue();
-    // await this.sendStats();
+    await this.processWithdrawQueue();
+    await this.sendStats();
     // await this.checkAndExecuteArbitrage();
 
     // Just for testing
     // await this.stakeFunds();
-    await this.updateEkuboPositionsTimeseries();
+    // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
     // await this.claimUnstakedFunds();
   }
