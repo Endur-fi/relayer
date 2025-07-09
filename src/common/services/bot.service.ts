@@ -27,7 +27,7 @@ export class BotService {
     maxRetries = 3
   ): Promise<void> {
     let retries = 0;
-
+    return;
     while (retries < maxRetries) {
       try {
         await axios.post(`${this.BOT_API_BASE_URL}/webhook`, eventData, {
