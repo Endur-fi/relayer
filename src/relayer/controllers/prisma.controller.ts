@@ -1,11 +1,10 @@
 import { Controller, Get, Query } from "@nestjs/common";
+
 import { PrismaService } from "../services/prismaService";
 
 @Controller("/data")
 export class PrismaController {
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   @Get("/get-deposits-last-day")
   async getDepositsLastDay() {
@@ -70,7 +69,7 @@ export class PrismaController {
   @Get("/get-total-withdraws")
   async getTotalWithdraws(
     @Query("from") from: number,
-    @Query("to") to: number,
+    @Query("to") to: number
   ) {
     try {
       return await this.prisma.getTotalWithdraws(from, to);

@@ -1,31 +1,35 @@
-import type { Config } from 'npm:@apibara/indexer';
-import type { Block, FieldElement, Starknet } from 'npm:@apibara/indexer@0.4.1/starknet';
-import type { Postgres } from 'npm:@apibara/indexer@0.4.1/sink/postgres';
-import { hash } from 'https://esm.sh/starknet@6.16.0';
+import { hash } from "https://esm.sh/starknet@6.16.0";
+import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
+import type {
+  Block,
+  FieldElement,
+  Starknet,
+} from "npm:@apibara/indexer@0.4.1/starknet";
 
-import { getAddresses } from '../../common/constants.ts';
-import { getNetwork, toBigInt } from '../../common/indexerUtils.ts';
+import { getAddresses } from "../../common/constants.ts";
+import { getNetwork, toBigInt } from "../../common/indexerUtils.ts";
 
 export const config: Config<Starknet, Postgres> = {
-  streamUrl: Deno.env.get('STREAM_URL'),
-  startingBlock: Number(Deno.env.get('STARTING_BLOCK')),
+  streamUrl: Deno.env.get("STREAM_URL"),
+  startingBlock: Number(Deno.env.get("STARTING_BLOCK")),
 
-  finality: 'DATA_STATUS_PENDING', // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
-  network: 'starknet',
+  finality: "DATA_STATUS_PENDING", // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
+  network: "starknet",
   filter: {
     header: { weak: true },
     events: [
       {
         fromAddress: getAddresses(getNetwork()).LST as FieldElement,
         includeTransaction: true,
-        keys: [hash.getSelectorFromName('Deposit') as FieldElement],
+        keys: [hash.getSelectorFromName("Deposit") as FieldElement],
       },
     ],
   },
-  sinkType: 'postgres',
+  sinkType: "postgres",
   sinkOptions: {
-    connectionString: Deno.env.get('DATABASE_URL'),
-    tableName: 'deposits',
+    connectionString: Deno.env.get("DATABASE_URL"),
+    tableName: "deposits",
     noTls: true, // true for private urls, false for public urls
   },
 };
@@ -45,14 +49,20 @@ export default function transform({ header, events }: Block) {
 
   const { blockNumber, timestamp } = header;
   // Convert timestamp to unix timestamp
-  const timestamp_unix = Math.floor(new Date(timestamp as string).getTime() / 1000);
+  const timestamp_unix = Math.floor(
+    new Date(timestamp as string).getTime() / 1000
+  );
 
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
-      throw new Error('deposits:Expected event with data');
+      throw new Error("deposits:Expected event with data");
     }
 
-    console.log('event keys and data length', event.keys.length, event.data.length);
+    console.log(
+      "event keys and data length",
+      event.keys.length,
+      event.data.length
+    );
 
     // The 0th key is the selector(name of the event)
     // The following are those that are indexed using #[key] macro
@@ -76,7 +86,7 @@ export default function transform({ header, events }: Block) {
       shares,
     };
 
-    console.log('event data', depositData);
+    console.log("event data", depositData);
     return depositData;
   });
 }

@@ -1,11 +1,12 @@
-import { Contract, Call } from "starknet";
-import { PrismaService } from "./prismaService";
-import { ConfigService } from "./configService";
-import { getAddresses } from "../../common/constants";
-import { ABI as WQAbi } from "../../../abis/WithdrawalQueue";
-import { ABI as StrkAbi } from "../../../abis/Strk";
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
+import { Contract, Call } from "starknet";
+
+import { ConfigService } from "./configService";
+import { PrismaService } from "./prismaService";
+import { ABI as StrkAbi } from "../../../abis/Strk";
+import { ABI as WQAbi } from "../../../abis/WithdrawalQueue";
+import { getAddresses } from "../../common/constants";
 import { getNetwork } from "../../common/utils";
 
 interface IWithdrawalQueueState {
@@ -33,19 +34,18 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
     @Inject(forwardRef(() => PrismaService))
-    prismaService: PrismaService,
+    prismaService: PrismaService
   ) {
     this.WQ = new Contract(
       WQAbi,
       getAddresses(getNetwork()).WithdrawQueue,
-      config.get("account"),
-    )
-      .typedv2(WQAbi);
+      config.get("account")
+    ).typedv2(WQAbi);
 
     this.Strk = new Contract(
       StrkAbi,
       getAddresses(getNetwork()).Strk,
-      config.get("account"),
+      config.get("account")
     ).typedv2(StrkAbi);
 
     this.prismaService = prismaService;
@@ -72,16 +72,15 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
         this.claimWithdrawal(i);
       }
     } catch (error) {
-      console.error(
-        `Failed to claim withdrawal in range for ${i}: `,
-        error,
-      );
+      console.error(`Failed to claim withdrawal in range for ${i}: `, error);
       throw error;
     }
   }
 
   async getSTRKBalance() {
-    const amount = await this.Strk.balanceOf(getAddresses(getNetwork()).WithdrawQueue);
+    const amount = await this.Strk.balanceOf(
+      getAddresses(getNetwork()).WithdrawQueue
+    );
     return Web3Number.fromWei(amount.toString(), 18);
   }
 
@@ -90,9 +89,15 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     console.log("WithdrawalQueueState", res);
     return {
       max_request_id: Number(res.max_request_id),
-      unprocessed_withdraw_queue_amount: Web3Number.fromWei(res.unprocessed_withdraw_queue_amount.toString(), 18),
+      unprocessed_withdraw_queue_amount: Web3Number.fromWei(
+        res.unprocessed_withdraw_queue_amount.toString(),
+        18
+      ),
       intransit_amount: Web3Number.fromWei(res.intransit_amount.toString(), 18),
-      cumulative_requested_amount: Web3Number.fromWei(res.cumulative_requested_amount.toString(), 18),
-    }
+      cumulative_requested_amount: Web3Number.fromWei(
+        res.cumulative_requested_amount.toString(),
+        18
+      ),
+    };
   }
 }

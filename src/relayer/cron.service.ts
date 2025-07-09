@@ -25,14 +25,13 @@ import { LSTService } from './services/lstService';
 import { NotifService } from './services/notifService';
 import { PrismaService } from './services/prismaService';
 import { WithdrawalQueueService } from './services/withdrawalQueueService';
+import { WeeklyPointsService } from '../points-system/services/weekly-points.service';
 
-function getCronSettings(action: 'process-withdraw-queue' | 'weekly-points-snapshot') {
+function getCronSettings(action: 'process-withdraw-queue' ) {
   const config = new ConfigService();
   switch (action) {
     case 'process-withdraw-queue':
       return config.isSepolia() ? CronExpression.EVERY_5_MINUTES : CronExpression.EVERY_HOUR;
-    case 'weekly-points-snapshot':
-      return '0 12 * * 1'; // Every Monday at 12:00 UTC (after Sunday ends globally in UTC-12)
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -68,6 +67,7 @@ export class CronService {
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
+  readonly weeklyPointsService: WeeklyPointsService;
   arbContract: Contract | null = null;
 
   constructor(
@@ -85,6 +85,8 @@ export class CronService {
     notifService: NotifService,
     @Inject(forwardRef(() => BotService))
     botService: BotService,
+    @Inject(forwardRef(() => WeeklyPointsService))
+    weeklyPointsService: WeeklyPointsService
   ) {
     this.config = config;
     this.withdrawalQueueService = withdrawalQueueService;
@@ -93,16 +95,17 @@ export class CronService {
     this.lstService = lstService;
     this.notifService = notifService;
     this.botService = botService;
+    this.weeklyPointsService = weeklyPointsService;
   }
 
   // Run the same task on startup
   @TryCatchAsync()
   async onModuleInit() {
-    console.log('Running task on application start...');
+    console.log("Running task on application start...");
 
     // set up arb contract
     if (getNetwork() == Network.mainnet) {
-      const provider = this.config.get('provider');
+      const provider = this.config.get("provider");
       const ARB_ADDR = getAddresses(getNetwork()).ARB_CONTRACT;
       const cls = await provider.getClassAt(ARB_ADDR);
       this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
@@ -120,17 +123,17 @@ export class CronService {
     // await this.claimUnstakedFunds();
   }
 
-  @Cron(getCronSettings('process-withdraw-queue'))
+  @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync()
   async processWithdrawQueue() {
-    this.logger.log('Running processWithdrawQueue task');
+    this.logger.log("Running processWithdrawQueue task");
 
     // todo do not process withdrawals less than 30min old
     // to avoid making any inflation attack profitable
 
     await this.withdrawToWQ();
     // note update this to 0.01 STRK later
-    const min_amount = new Web3Number('0.01', 18);
+    const min_amount = new Web3Number("0.01", 18);
 
     // get pending withdrawals
     const [pendingWithdrawals, rejected_ids] =
@@ -138,33 +141,34 @@ export class CronService {
     this.logger.debug(`Found ${pendingWithdrawals.length} pending withdrawals`);
 
     // load account
-    const account: Account = this.config.get('account');
-    const provider: RpcProvider = this.config.get('provider');
+    const account: Account = this.config.get("account");
+    const provider: RpcProvider = this.config.get("provider");
 
     let balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     this.logger.log(`Balance left: ${balanceLeft.toString()}`);
 
-    const withdrawQueueState = await this.withdrawalQueueService.getWithdrawalQueueState();
+    const withdrawQueueState =
+      await this.withdrawalQueueService.getWithdrawalQueueState();
     this.logger.log(
-      'cummulative amount: ',
-      withdrawQueueState.cumulative_requested_amount.toString(),
+      "cummulative amount: ",
+      withdrawQueueState.cumulative_requested_amount.toString()
     );
     this.logger.log(
-      'unprocessed amount: ',
-      withdrawQueueState.unprocessed_withdraw_queue_amount.toString(),
+      "unprocessed amount: ",
+      withdrawQueueState.unprocessed_withdraw_queue_amount.toString()
     );
     const allowedLimit = withdrawQueueState.cumulative_requested_amount.minus(
-      withdrawQueueState.unprocessed_withdraw_queue_amount.toString(),
+      withdrawQueueState.unprocessed_withdraw_queue_amount.toString()
     );
     this.logger.log(`Allowed limit: ${allowedLimit.toString()}`);
 
     const MAX_WITHDRAWALS_PER_DAY = 2_000_000; // 2M STRK
     const processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
     let processedWithdrawalsInLast24HoursDecimalAdjusted = Number(
-      processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals()),
+      processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals())
     );
     this.logger.log(
-      `Processed withdrawals in last 24 hours: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`,
+      `Processed withdrawals in last 24 hours: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`
     );
 
     // claim withdrawals
@@ -173,24 +177,35 @@ export class CronService {
     for (let i = 0; i < pendingWithdrawals.length; i += MAX_WITHDRAWALS) {
       const batch = pendingWithdrawals.slice(i, i + MAX_WITHDRAWALS);
       this.logger.log(
-        `Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS - 1}`,
+        `Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS - 1}`
       );
 
       // loop and generate SN Call objects
       const calls: Call[] = [];
       for (const w of batch) {
         const amount_strk = Web3Number.fromWei(w.amount_strk, 18);
-        const requestCum = Web3Number.fromWei(w.cumulative_requested_amount_snapshot, 18);
-        if (amount_strk.lte(balanceLeft) && requestCum.lessThanOrEqualTo(allowedLimit)) {
+        const requestCum = Web3Number.fromWei(
+          w.cumulative_requested_amount_snapshot,
+          18
+        );
+        if (
+          amount_strk.lte(balanceLeft) &&
+          requestCum.lessThanOrEqualTo(allowedLimit)
+        ) {
           this.logger.debug(
-            `Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`,
+            `Claiming withdrawal ID#${w.request_id} with amount ${amount_strk.toString()}`
           );
 
           // limit max automated withdrawals per day
-          processedWithdrawalsInLast24HoursDecimalAdjusted += Number(amount_strk.toString());
-          if (processedWithdrawalsInLast24HoursDecimalAdjusted > MAX_WITHDRAWALS_PER_DAY) {
+          processedWithdrawalsInLast24HoursDecimalAdjusted += Number(
+            amount_strk.toString()
+          );
+          if (
+            processedWithdrawalsInLast24HoursDecimalAdjusted >
+            MAX_WITHDRAWALS_PER_DAY
+          ) {
             this.notifService.sendMessage(
-              `Processed withdrawals in last 24 hours exceeded limit: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`,
+              `Processed withdrawals in last 24 hours exceeded limit: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`
             );
             break;
           }
@@ -198,48 +213,62 @@ export class CronService {
           await this.botService.sendUnstakeCompletionEvent(
             w.receiver.toString(),
             amount_strk.toString(), // amount
-            'STRK', // token name
+            "STRK", // token name
             {
               requestId: w.request_id.toString(),
               timestamp: w.timestamp,
               withdrawalQueueAddress: getAddresses(getNetwork()).WithdrawQueue,
-            },
+            }
           );
 
           // create call object
-          const call = this.withdrawalQueueService.getClaimWithdrawalCall(w.request_id);
+          const call = this.withdrawalQueueService.getClaimWithdrawalCall(
+            w.request_id
+          );
           calls.push(call);
           balanceLeft = balanceLeft.minus(amount_strk.toString());
         } else {
           // We skip the rest of the withdrawals if we don't have enough balance now
           this.logger.warn(
-            `Skipping withdrawal ID#${w.request_id} due to insufficient balance or not ready`,
+            `Skipping withdrawal ID#${w.request_id} due to insufficient balance or not ready`
           );
           this.logger.warn(
-            `request amount: ${amount_strk.toString()}, req time: ${new Date(w.timestamp * 1000).toLocaleString()}`,
+            `request amount: ${amount_strk.toString()}, req time: ${new Date(w.timestamp * 1000).toLocaleString()}`
           );
         }
       }
 
       // if no withdrawals to claim, break entire loop
-      if (calls.length === 0 || i + MAX_WITHDRAWALS >= pendingWithdrawals.length) {
+      if (
+        calls.length === 0 ||
+        i + MAX_WITHDRAWALS >= pendingWithdrawals.length
+      ) {
         this.logger.warn(`No withdrawals to claim`);
         break;
       }
 
       // send transactions to claim withdrawals
       // note: nonce is set to 'pending' to get the next nonce
-      const nonce = await account.getNonce('pending');
-      this.logger.debug(`Claiming ${calls.length} withdrawals with nonce ${nonce}`);
+      const nonce = await account.getNonce("pending");
+      this.logger.debug(
+        `Claiming ${calls.length} withdrawals with nonce ${nonce}`
+      );
       const res = await account.execute(calls, {
         nonce: nonce,
       });
-      this.notifService.sendMessage(`Claimed ${res.transaction_hash} withdrawals`);
+      this.notifService.sendMessage(
+        `Claimed ${res.transaction_hash} withdrawals`
+      );
       await provider.waitForTransaction(res.transaction_hash);
-      this.notifService.sendMessage(`Transaction ${res.transaction_hash} confirmed`);
+      this.notifService.sendMessage(
+        `Transaction ${res.transaction_hash} confirmed`
+      );
 
       // if less than MAX_WITHDRAWALS, break entire loop as there are no more withdrawals to claim
-      if (calls.length < MAX_WITHDRAWALS && i + MAX_WITHDRAWALS >= pendingWithdrawals.length) {
+      if (
+        calls.length < MAX_WITHDRAWALS &&
+        i + MAX_WITHDRAWALS >= pendingWithdrawals.length
+      ) {
         this.logger.warn(`No more withdrawals to claim`);
         break;
       }
@@ -256,27 +285,29 @@ export class CronService {
   @TryCatchAsync()
   async emitUnstakeInitiationEvent() {
     const [pending_withdrawals] = await this.prismaService.getPendingWithdraws(
-      new Web3Number('0.0', 18),
+      new Web3Number("0.0", 18)
     );
     const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
     const recentWithdrawals = pending_withdrawals.filter(
-      (w) => w.timestamp * 1000 > twoMinutesAgo && !w.is_notified,
+      (w) => w.timestamp * 1000 > twoMinutesAgo && !w.is_notified
     );
 
-    this.logger.log(`Found ${recentWithdrawals.length} recent unnotified withdrawals`);
+    this.logger.log(
+      `Found ${recentWithdrawals.length} recent unnotified withdrawals`
+    );
 
     for (const w of recentWithdrawals) {
       try {
         await this.botService.sendUnstakeInitiationEvent(
           w.receiver.toString(),
           Web3Number.fromWei(w.amount_strk, 18).toString(), // amount
-          'STRK', // token name
+          "STRK", // token name
           {
             // metadata
             requestId: w.request_id.toString(),
             timestamp: w.timestamp,
             withdrawalQueueAddress: getAddresses(getNetwork()).WithdrawQueue,
-          },
+          }
         );
 
         // Mark as notified after successful notification
@@ -285,7 +316,7 @@ export class CronService {
       } catch (error) {
         this.logger.error(
           `Failed to send unstake initiation event for request ${w.request_id}:`,
-          error,
+          error
         );
         // Don't mark as notified if sending failed, so we can retry
       }
@@ -295,15 +326,16 @@ export class CronService {
   @Cron(CronExpression.EVERY_6_HOURS)
   @TryCatchAsync()
   async sendStats() {
-    const [pending_withdrawals, rejected_ids] = await this.prismaService.getPendingWithdraws(
-      new Web3Number('0.0', 18),
-    );
+    const [pending_withdrawals, rejected_ids] =
+      await this.prismaService.getPendingWithdraws(new Web3Number("0.0", 18));
     const balanceLeft = await this.withdrawalQueueService.getSTRKBalance();
     const stats = await this.withdrawalQueueService.getWithdrawalQueueState();
     this.notifService.sendMessage(
-      `Pending Withdrawals: ${pending_withdrawals.length}, min ID: ${pending_withdrawals[0]?.request_id || 'N/A'}`,
+      `Pending Withdrawals: ${pending_withdrawals.length}, min ID: ${pending_withdrawals[0]?.request_id || "N/A"}`
     );
-    this.notifService.sendMessage(`Rejected ${rejected_ids.length} withdrawals`);
+    this.notifService.sendMessage(
+      `Rejected ${rejected_ids.length} withdrawals`
+    );
     this.notifService.sendMessage(`Balance left: ${balanceLeft.toString()}`);
     this.notifService.sendMessage(`Withdrawal Queue State: \n
       Max Request ID: ${stats.max_request_id}\n
@@ -314,46 +346,49 @@ export class CronService {
 
   async withdrawToWQ() {
     try {
-      const wqState = await this.withdrawalQueueService.getWithdrawalQueueState();
+      const wqState =
+        await this.withdrawalQueueService.getWithdrawalQueueState();
 
       const balanceAmount = await this.lstService.getSTRKBalance();
-      this.logger.log('LST Balance amount: ', balanceAmount.toString());
+      this.logger.log("LST Balance amount: ", balanceAmount.toString());
       const requiredAmount = wqState.unprocessed_withdraw_queue_amount;
-      this.logger.log('WQ Required amount: ', requiredAmount.toString());
+      this.logger.log("WQ Required amount: ", requiredAmount.toString());
 
       if (balanceAmount.gt(0) && requiredAmount.gt(0)) {
-        const transferAmount = balanceAmount.lt(requiredAmount) ? balanceAmount : requiredAmount;
-        this.logger.log('transferAmount: ', transferAmount.toString());
+        const transferAmount = balanceAmount.lt(requiredAmount)
+          ? balanceAmount
+          : requiredAmount;
+        this.logger.log("transferAmount: ", transferAmount.toString());
         await this.lstService.sendToWithdrawQueue(transferAmount);
       } else {
         if (balanceAmount.lte(0)) {
-          this.logger.log('No balance to send to WQ');
+          this.logger.log("No balance to send to WQ");
         } else if (requiredAmount.lte(0)) {
-          this.logger.log('No required amount in WQ');
+          this.logger.log("No required amount in WQ");
         }
       }
     } catch (error) {
       if (
-        typeof error === 'object' &&
+        typeof error === "object" &&
         error !== null &&
-        'message' in error &&
-        typeof (error as any).message === 'string' &&
-        (error as any).message.includes('Caller is missing role')
+        "message" in error &&
+        typeof (error as any).message === "string" &&
+        (error as any).message.includes("Caller is missing role")
       ) {
         this.logger.warn(
-          'Account does not have permission to send funds to withdraw queue. Skipping this operation.',
+          "Account does not have permission to send funds to withdraw queue. Skipping this operation."
         );
         this.notifService.sendMessage(
-          'Account missing role permissions for withdraw queue transfer',
+          "Account missing role permissions for withdraw queue transfer"
         );
       } else {
-        this.logger.error('Error in withdrawToWQ:', error);
+        this.logger.error("Error in withdrawToWQ:", error);
         throw error; // Re-throw other errors
       }
     }
   }
 
-  @Cron('0 30 */6 * * *')
+  @Cron("0 30 */6 * * *")
   @TryCatchAsync()
   async stakeFunds() {
     const amount = await this.lstService.bulkStake();
@@ -369,8 +404,8 @@ export class CronService {
     // todo modify arb contract to take flash loan from vesu and
     // execute swap using avnu swap (so that more routes can be used)
     const strkBalanceLST = await this.lstService.getSTRKBalance();
-    const account: Account = this.config.get('account');
-    const queueStats = await this.withdrawalQueueService.getWithdrawalQueueState();
+    const queueStats =
+      await this.withdrawalQueueService.getWithdrawalQueueState();
     const pendingAmount = queueStats.unprocessed_withdraw_queue_amount;
     this.logger.log(`Pending amount: ${pendingAmount.toString()} STRK`);
 
@@ -401,17 +436,20 @@ export class CronService {
         const potentialProfit = equivalentAmount - amount;
         this.logger.log(`Potential profit: ${potentialProfit}`);
 
-        const shouldExecuteCond1 = equivalentAmount > amount && potentialProfit > 5; // min profit 5 STRK
+        const shouldExecuteCond1 =
+          equivalentAmount > amount && potentialProfit > 5; // min profit 5 STRK
         const shouldExecuteCond2 = potentialProfit / amount > 0.002; // min profit % of 0.2%, avoid order matching large amounts for small arbitrage
         if (shouldExecuteCond1 && shouldExecuteCond2) {
           // min profit 5 STRK
           this.logger.log(`Executing swap for ${amount.toString()} STRK`);
           await this.executeArb(swapInfo.swapInfo);
-          this.notifService.sendMessage(`Potential profit: ${potentialProfit.toFixed(2)} STRK`);
+          this.notifService.sendMessage(
+            `Potential profit: ${potentialProfit.toFixed(2)} STRK`
+          );
           return;
         } else if (shouldExecuteCond1) {
           this.logger.log(
-            `Potential profit % is less than 0.2%: ${(potentialProfit / amount).toFixed(4)}, more info: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`,
+            `Potential profit % is less than 0.2%: ${(potentialProfit / amount).toFixed(4)}, more info: ${potentialProfit.toFixed(2)} / ${amount.toFixed(2)}}`
           );
         }
         //  else {
@@ -424,7 +462,7 @@ export class CronService {
 
   async _fetchQuotes(
     params: QuoteRequest,
-    retry = 0,
+    retry = 0
   ): Promise<{
     swapInfo: SwapInfo;
     amountOut: Web3Number;
@@ -440,19 +478,19 @@ export class CronService {
         await new Promise((resolve) => setTimeout(resolve, 5000));
         return this._fetchQuotes(params, retry + 1);
       } else {
-        throw new Error('No quotes found');
+        throw new Error("No quotes found");
       }
     }
 
     this.logger.log(
-      `Expected xSTRK to receive: ${Web3Number.fromWei(quotes[0].buyAmount.toString(), 18).toString()} xSTRK`,
+      `Expected xSTRK to receive: ${Web3Number.fromWei(quotes[0].buyAmount.toString(), 18).toString()} xSTRK`
     );
 
     const calldata = await fetchBuildExecuteTransaction(quotes[0].quoteId);
     const call: Call = calldata.calls[1];
     const callData: string[] = call.calldata as string[];
     const routesLen = Number(callData[11]);
-    assert(routesLen > 0, 'No routes found');
+    assert(routesLen > 0, "No routes found");
     const routes: Route[] = [];
 
     let startIndex = 12;
@@ -474,10 +512,12 @@ export class CronService {
 
     const swapInfo: SwapInfo = {
       token_from_address: getAddresses(getNetwork()).Strk,
-      token_from_amount: uint256.bnToUint256((params.sellAmount ?? 0).toString()),
+      token_from_amount: uint256.bnToUint256(
+        (params.sellAmount ?? 0).toString()
+      ),
       token_to_address: getAddresses(getNetwork()).LST,
-      token_to_amount: uint256.bnToUint256('0'),
-      token_to_min_amount: uint256.bnToUint256('1'), // bypass slippage check
+      token_to_amount: uint256.bnToUint256("0"),
+      token_to_min_amount: uint256.bnToUint256("1"), // bypass slippage check
       beneficiary: getAddresses(getNetwork()).ARB_CONTRACT,
       integrator_fee_amount_bps: 0,
       integrator_fee_recipient: getAddresses(getNetwork()).ARB_CONTRACT,
@@ -491,26 +531,27 @@ export class CronService {
 
   async executeArb(swapInfo: SwapInfo) {
     if (!this.arbContract) {
-      throw new Error('Arb contract is not initialized');
+      throw new Error("Arb contract is not initialized");
     }
-    const call = this.arbContract.populate('buy_xstrk', {
+    const call = this.arbContract.populate("buy_xstrk", {
       swap_params: swapInfo,
-      receiver: '0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45', // treasury arb (VT holds)
+      receiver:
+        "0x06bF0f343605525d3AeA70b55160e42505b0Ac567B04FD9FC3d2d42fdCd2eE45", // treasury arb (VT holds)
     });
-    const account = this.config.get('account');
-    const provider = this.config.get('provider');
+    const account = this.config.get("account");
+    const provider = this.config.get("provider");
     const tx = await account.execute([call]);
-    this.logger.log('Performing arb: tx', tx.transaction_hash);
+    this.logger.log("Performing arb: tx", tx.transaction_hash);
     await provider.waitForTransaction(tx.transaction_hash, {
       successStates: [TransactionExecutionStatus.SUCCEEDED],
     });
-    this.logger.log('Arb tx confirmed');
+    this.logger.log("Arb tx confirmed");
     const amount = Web3Number.fromWei(
       uint256.uint256ToBN(swapInfo.token_from_amount).toString(),
-      18,
+      18
     );
     this.notifService.sendMessage(
-      `Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`,
+      `Arb tx confirmed: ${tx.transaction_hash} with amount ${amount.toString()} STRK`
     );
   }
 
@@ -518,10 +559,14 @@ export class CronService {
   @TryCatchAsync(3, 100000)
   async claimRewards() {
     const unclaimedRewards = await this.lstService.unclaimedRewards();
-    this.logger.log(`Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`);
+    this.logger.log(
+      `Total unclaimed rewards: ${unclaimedRewards.toString()} STRK`
+    );
     if (unclaimedRewards.gt(0)) {
       await this.lstService.claimRewards();
-      this.notifService.sendMessage(`Claimed rewards: ${unclaimedRewards.toString()} STRK`);
+      this.notifService.sendMessage(
+        `Claimed rewards: ${unclaimedRewards.toString()} STRK`
+      );
     }
   }
 
@@ -531,20 +576,30 @@ export class CronService {
     try {
       const delegators = await this.delegatorService.getUnstakeAmounts();
       const now = new Date();
-      this.logger.log(`Checking unstaked funds for ${delegators.length} delegators`);
+      this.logger.log(
+        `Checking unstaked funds for ${delegators.length} delegators`
+      );
 
       let totalUnstakeAmount = 0;
       const calls = delegators
         .map((del) => {
           if (del.unPoolTime && del.unPoolTime <= now) {
-            this.logger.log(`Unstake time reached for ${del.delegator.address}`);
-            this.notifService.sendMessage(`Unstake time reached for ${del.delegator.address}`);
-            const call = del.delegator.populate('unstake_action', []);
+            this.logger.log(
+              `Unstake time reached for ${del.delegator.address}`
+            );
+            this.notifService.sendMessage(
+              `Unstake time reached for ${del.delegator.address}`
+            );
+            const call = del.delegator.populate("unstake_action", []);
             totalUnstakeAmount += Number(del.unPoolAmount.toString());
             return call;
           } else {
-            this.logger.log(`Unstake time not reached for ${del.delegator.address}`);
-            this.logger.log(`Unstake time: ${del.unPoolTime}, Current time: ${now}`);
+            this.logger.log(
+              `Unstake time not reached for ${del.delegator.address}`
+            );
+            this.logger.log(
+              `Unstake time: ${del.unPoolTime}, Current time: ${now}`
+            );
           }
           return null;
         })
@@ -557,121 +612,72 @@ export class CronService {
       }
 
       this.notifService.sendMessage(
-        `Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`,
+        `Unstake actions: ${calls.length}, TotalAmount: ${totalUnstakeAmount.toFixed(0)} STRK`
       );
-      const account = this.config.get('account');
-      const provider = this.config.get('provider');
+      const account = this.config.get("account");
+      const provider = this.config.get("provider");
       const tx = await account.execute(calls);
-      this.logger.log('Unstake tx: ', tx.transaction_hash);
+      this.logger.log("Unstake tx: ", tx.transaction_hash);
       await provider.waitForTransaction(tx.transaction_hash, {
         successStates: [TransactionExecutionStatus.SUCCEEDED],
       });
-      this.logger.log('Unstake tx confirmed');
-      this.notifService.sendMessage(`Unstake tx confirmed: ${tx.transaction_hash}`);
+      this.logger.log("Unstake tx confirmed");
+      this.notifService.sendMessage(
+        `Unstake tx confirmed: ${tx.transaction_hash}`
+      );
     } catch (err) {
-      console.error('Error in claimUnstakedFunds:', err);
+      console.error("Error in claimUnstakedFunds:", err);
       throw err;
     }
   }
 
-  @Cron(getCronSettings('weekly-points-snapshot'))
-  @TryCatchAsync()
-  async weeklyPointsSnapshot() {
-    this.logger.log(
-      'Running weekly points snapshot - Monday 12:00 UTC (after Sunday ends globally)',
-    );
+  // @Cron("0 1 * * 0") // Every Sunday at 01:00 UTC (1hr after weekly notifier)
+  // @TryCatchAsync()
+  // async weeklyPointsSnapshot() {
+  //   this.logger.log(
+  //     'Running weekly points snapshot - Monday 12:00 UTC (after Sunday ends globally)',
+  //   );
 
-    try {
-      // Calculate PREVIOUS week boundaries (the completed week we're taking snapshot of)
-      const now = new Date();
+  //   try {
+  //     const result = await this.weeklyPointsService.weeklyPointsSnapshot();
+  //     if (!result) {
+  //       this.logger.warn('No snapshots created this week');
+  //       return;
+  //     }
+  //     const { previousWeekStart, previousWeekEnd, snapshotCount, snapshotTakenAt } = result;
+  //     // Send notification about the snapshot completion
+  //     this.notifService.sendMessage(
+  //       `📊 Weekly Points Snapshot Completed\n` +
+  //         `Week: ${previousWeekStart.toDateString()} - ${previousWeekEnd.toDateString()}\n` +
+  //         `✅ Snapshots created: ${snapshotCount}\n` +
+  //         `📅 Taken at: ${snapshotTakenAt.toISOString()}`,
+  //     );
+  //   } catch (error) {
+  //     this.logger.error(
+  //       'Error in weekly points snapshot:',
+  //       error instanceof Error ? error.message : String(error),
+  //     );
 
-      // Get the start of current week (last Sunday at 00:00)
-      const currentWeekStart = new Date(now);
-      currentWeekStart.setDate(now.getDate() - now.getDay());
-      currentWeekStart.setHours(0, 0, 0, 0);
+  //     // Send error notification
+  //     this.notifService.sendMessage(
+  //       `🚨 Weekly Points Snapshot Failed\n` +
+  //         `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+  //         `Time: ${new Date().toISOString()}`,
+  //     );
+  //   }
+  // }
 
-      // Previous week end is current week start minus 1 millisecond
-      const previousWeekEnd = new Date(currentWeekStart.getTime() - 1);
-
-      // Previous week start is 7 days before current week start
-      const previousWeekStart = new Date(currentWeekStart);
-      previousWeekStart.setDate(currentWeekStart.getDate() - 7);
-
-      this.logger.log(
-        `Taking snapshot for COMPLETED week: ${previousWeekStart.toISOString()} to ${previousWeekEnd.toISOString()}`,
-      );
-
-      // Get all users with points from points_aggregated table
-      const currentPointsSnapshot = await prisma.points_aggregated.findMany({
-        select: {
-          user_address: true,
-          total_points: true,
-        },
-      });
-
-      this.logger.log(`Found ${currentPointsSnapshot.length} users with points for snapshot`);
-
-      if (currentPointsSnapshot.length === 0) {
-        this.logger.warn('No users found with points, skipping snapshot');
-        return;
-      }
-
-      // Check if snapshot already exists for this week
-      const existingSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
-        where: {
-          week_start_date: previousWeekStart,
-        },
-      });
-
-      if (existingSnapshot) {
-        this.logger.warn(
-          `Snapshot already exists for week starting ${previousWeekStart.toISOString()}, skipping`,
-        );
-        return;
-      }
-
-      // Batch insert snapshots for all users
-      const snapshotRecords = currentPointsSnapshot.map((userPoints) => ({
-        user_address: userPoints.user_address,
-        total_points: userPoints.total_points,
-        week_start_date: previousWeekStart,
-        week_end_date: previousWeekEnd,
-        snapshot_taken_at: now,
-      }));
-
-      // Use createMany for better performance
-      const result = await prisma.cumulative_weekly_snapshot_points.createMany({
-        data: snapshotRecords,
-        skipDuplicates: true,
-      });
-
-      this.logger.log(`Weekly points snapshot completed. Created ${result.count} snapshots`);
-
-      // Send notification about the snapshot completion
-      this.notifService.sendMessage(
-        `📊 Weekly Points Snapshot Completed\n` +
-          `Week: ${previousWeekStart.toDateString()} - ${previousWeekEnd.toDateString()}\n` +
-          `✅ Snapshots created: ${result.count}\n` +
-          `📅 Taken at: ${now.toISOString()}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        'Error in weekly points snapshot:',
-        error instanceof Error ? error.message : String(error),
-      );
-
-      // Send error notification
-      this.notifService.sendMessage(
-        `🚨 Weekly Points Snapshot Failed\n` +
-          `Error: ${error instanceof Error ? error.message : String(error)}\n` +
-          `Time: ${new Date().toISOString()}`,
-      );
-    }
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync(3, 10000)
+  async updateEkuboPositionsTimeseries() {
+    await populateEkuboTimeseries(true);
   }
 
-  // @Cron(CronExpression.EVERY_5_MINUTES)
-  // @TryCatchAsync(3, 10000)
-  // async updateEkuboPositionsTimeseries() {
-  //   await populateEkuboTimeseries(true);
+  // // Run weekly job at midnight UTC on Sunday and process all users according to their timezones
+  // @Cron("0 0 * * 0")
+  // @TryCatchAsync()
+  // async processWeeklyPoints() {
+  //   this.logger.log("Running scheduled weekly points distribution job...");
+  //   await this.weeklyPointsService.processWeeklyPointsForAllUsers();
   // }
 }

@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
+import { Injectable, Logger } from "@nestjs/common";
+import axios from "axios";
 
-import { TryCatchAsync } from '../utils';
+import { TryCatchAsync } from "../utils";
 
 interface WebhookEventData {
   eventType: string;
@@ -14,43 +14,52 @@ interface WebhookEventData {
 @Injectable()
 export class BotService {
   private readonly logger = new Logger(BotService.name);
-  private readonly BOT_API_BASE_URL = process.env.BOT_API_BASE_URL || 'http://localhost:3000';
-  private readonly BOT_SECRET_KEY = process.env.BOT_SECRET_KEY || '';
+  private readonly BOT_API_BASE_URL =
+    process.env.BOT_API_BASE_URL || "http://localhost:3000";
+  private readonly BOT_SECRET_KEY = process.env.BOT_SECRET_KEY || "";
 
   /**
    * Send webhook event to bot with retry logic
    */
   @TryCatchAsync()
-  async sendWebhookEvent(eventData: WebhookEventData, maxRetries: number = 3): Promise<void> {
+  async sendWebhookEvent(
+    eventData: WebhookEventData,
+    maxRetries = 3
+  ): Promise<void> {
     let retries = 0;
 
     while (retries < maxRetries) {
       try {
         await axios.post(`${this.BOT_API_BASE_URL}/webhook`, eventData, {
           headers: {
-            'x-secret-key': this.BOT_SECRET_KEY,
+            "x-secret-key": this.BOT_SECRET_KEY,
           },
         });
 
         this.logger.log(
-          `Webhook sent successfully: ${eventData.eventType} for ${eventData.starknetAddress}`,
+          `Webhook sent successfully: ${eventData.eventType} for ${eventData.starknetAddress}`
         );
         return;
       } catch (error: unknown) {
         retries++;
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
 
         if (retries >= maxRetries) {
           this.logger.error(
-            `Failed to send webhook ${eventData.eventType} after ${maxRetries} retries: ${errorMessage}`,
+            `Failed to send webhook ${eventData.eventType} after ${maxRetries} retries: ${errorMessage}`
           );
           throw error;
         }
 
-        this.logger.warn(`Retrying webhook (${retries}/${maxRetries}) for ${eventData.eventType}`);
+        this.logger.warn(
+          `Retrying webhook (${retries}/${maxRetries}) for ${eventData.eventType}`
+        );
 
         // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, 1000 * Math.pow(2, retries)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * Math.pow(2, retries))
+        );
       }
     }
   }
@@ -63,10 +72,10 @@ export class BotService {
     starknetAddress: string,
     amount: string,
     tokenName: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: 'xstrk_unstake_initiated',
+      eventType: "xstrk_unstake_initiated",
       starknetAddress,
       amount,
       tokenName,
@@ -82,10 +91,10 @@ export class BotService {
     starknetAddress: string,
     amount: string,
     tokenName: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: 'xstrk_unstake_completed',
+      eventType: "xstrk_unstake_completed",
       starknetAddress,
       amount,
       tokenName,
@@ -101,10 +110,10 @@ export class BotService {
     starknetAddress: string,
     amount: string,
     tokenName: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: 'endur_points_earned_weekly',
+      eventType: "endur_points_earned_weekly",
       starknetAddress,
       amount,
       tokenName,
@@ -122,9 +131,9 @@ export class BotService {
         `${this.BOT_API_BASE_URL}/api/users/by-address/${starknetAddress}`,
         {
           headers: {
-            'x-secret-key': this.BOT_SECRET_KEY,
+            "x-secret-key": this.BOT_SECRET_KEY,
           },
-        },
+        }
       );
       return response.data;
     } catch (error) {
@@ -149,9 +158,9 @@ export class BotService {
           `${this.BOT_API_BASE_URL}/api/users?limit=${limit}&offset=${offset}`,
           {
             headers: {
-              'x-secret-key': this.BOT_SECRET_KEY,
+              "x-secret-key": this.BOT_SECRET_KEY,
             },
-          },
+          }
         );
 
         const users = response.data.users;
@@ -169,8 +178,8 @@ export class BotService {
         }
       } catch (error) {
         this.logger.error(
-          'Error fetching users:',
-          error instanceof Error ? error.message : String(error),
+          "Error fetching users:",
+          error instanceof Error ? error.message : String(error)
         );
         throw error;
       }

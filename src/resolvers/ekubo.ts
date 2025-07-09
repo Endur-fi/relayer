@@ -1,7 +1,17 @@
-import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from 'type-graphql';
-import { prisma} from '../../prisma/client';
-import { ContractAddr } from '@strkfarm/sdk';
-import { ekubo_position_timeseries as PrismaPositionTimeseries } from '@prisma/client';
+import { ekubo_position_timeseries as PrismaPositionTimeseries } from "@prisma/client";
+import { ContractAddr } from "@strkfarm/sdk";
+import {
+  Arg,
+  Field,
+  InputType,
+  Int,
+  Mutation,
+  ObjectType,
+  Query,
+  Resolver,
+} from "type-graphql";
+
+import { prisma } from "../../prisma/client";
 
 @ObjectType()
 class EkuboPosition {
@@ -25,6 +35,9 @@ class EkuboPosition {
 
   @Field(() => Int, { nullable: true })
   upper_bound?: number;
+
+  @Field(() => String, { nullable: true })
+  liquidity?: string;
 
   @Field(() => String)
   owner_address!: string;
@@ -59,19 +72,21 @@ class EkuboPosition {
 
 @Resolver()
 export class EkuboResolver {
-  constructor() {}
-
   @Query(() => [EkuboPosition])
   async getEkuboPositionsByUser(
-    @Arg('userAddress', () => String) userAddress: string,
-    @Arg('showClosed', () => Boolean, { defaultValue: false }) showClosed: boolean = false,
-    @Arg('toDateTime', () => Date, { defaultValue: new Date() }) toDateTime: Date = new Date(),
+    @Arg("userAddress", () => String) userAddress: string,
+    @Arg("showClosed", () => Boolean, { defaultValue: false })
+    showClosed = false,
+    @Arg("toDateTime", () => Date, { defaultValue: new Date() })
+    toDateTime: Date = new Date()
   ): Promise<EkuboPosition[]> {
     const toTimestamp = Math.floor(toDateTime.getTime() / 1000);
     const _userAddress = ContractAddr.from(userAddress).address;
 
-    console.log(`Fetching Ekubo positions for user: ${_userAddress}, time: ${toTimestamp}, showClosed: ${showClosed}`);
-    
+    console.log(
+      `Fetching Ekubo positions for user: ${_userAddress}, time: ${toTimestamp}, showClosed: ${showClosed}`
+    );
+
     if (showClosed) {
       return this.getAllUserPositionsWithinTimeframe(_userAddress, toTimestamp);
     } else {
@@ -81,7 +96,7 @@ export class EkuboResolver {
 
   private async getAllUserPositionsWithinTimeframe(
     userAddress: string,
-    toTimestamp: number,
+    toTimestamp: number
   ): Promise<EkuboPosition[]> {
     // Get all positions that were owned by the user at any point before toTimestamp
     const userPositions = await prisma.$queryRaw<EkuboPosition[]>`
@@ -111,23 +126,25 @@ export class EkuboResolver {
 
     // Filter unique positions by position_id, lower_bound, and upper_bound
     const uniquePositions = new Map<string, EkuboPosition>();
-    userPositions.forEach(position => {
+    userPositions.forEach((position) => {
       const key = `${position.position_id}-${position.lower_bound}-${position.upper_bound}`;
       if (!uniquePositions.has(key)) {
         uniquePositions.set(key, position);
       }
     });
 
-    console.log(`Found ${uniquePositions.size} unique positions that were owned by user at some point`);
+    console.log(
+      `Found ${uniquePositions.size} unique positions that were owned by user at some point`
+    );
 
-    return Array.from(uniquePositions.values()).map(position => ({
+    return Array.from(uniquePositions.values()).map((position) => ({
       ...position,
     }));
   }
 
   private async getCurrentlyOwnedPositions(
     userAddress: string,
-    toTimestamp: number,
+    toTimestamp: number
   ): Promise<EkuboPosition[]> {
     // Get positions currently owned by the user at toTimestamp
     const currentlyOwnedPositions = await prisma.$queryRaw<EkuboPosition[]>`
@@ -157,7 +174,7 @@ export class EkuboResolver {
           id, position_id, pool_fee, pool_tick_spacing, extension,
           lower_bound, upper_bound, owner_address, block_number,
           tx_index, event_index, timestamp, "txHash", record_type,
-          created_at, updated_at
+          created_at, updated_at, liquidity
         FROM ekubo_position_timeseries
         WHERE position_id IN (SELECT position_id FROM currently_owned_positions)
           AND timestamp <= ${toTimestamp}
@@ -165,12 +182,15 @@ export class EkuboResolver {
         ORDER BY position_id, timestamp DESC
       )
       SELECT * FROM position_states
+      WHERE liquidity IS NOT NULL AND liquidity != '0'
       ORDER BY timestamp DESC
     `;
 
-    console.log(`Found ${currentlyOwnedPositions.length} currently owned positions for user ${userAddress}`);
+    console.log(
+      `Found ${currentlyOwnedPositions.length} currently owned positions for user ${userAddress}`
+    );
 
-    return currentlyOwnedPositions.map(position => ({
+    return currentlyOwnedPositions.map((position) => ({
       ...position,
       // currently_owned: true,
     }));

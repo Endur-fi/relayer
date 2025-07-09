@@ -11,7 +11,11 @@ export async function resetDb(mockBlocks: any[]) {
   await prisma.blocks.createMany({ data: mockBlocks });
 }
 
-export async function createTestUsers(testUsers: { address: string }[], startBlock: number, startTime: number) {
+export async function createTestUsers(
+  testUsers: { address: string }[],
+  startBlock: number,
+  startTime: number
+) {
   await prisma.users.createMany({
     data: testUsers.map((user) => ({
       user_address: user.address,

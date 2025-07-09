@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
 import { prisma } from '../../../prisma/client';
 import { BotService } from '../../common/services/bot.service';
@@ -18,7 +18,7 @@ export class WeeklyPointsService {
 
   constructor(
     @Inject(BotService)
-    private readonly botService: BotService,
+    private readonly botService: BotService
   ) {}
 
   // Process weekly points for all users
@@ -29,7 +29,7 @@ export class WeeklyPointsService {
     const users = await this.botService.getAllUsers();
 
     if (!users || users.length === 0) {
-      this.logger.warn('No users found for weekly points processing');
+      throw new Error('No users found for weekly points processing');
       return;
     }
 
@@ -129,10 +129,10 @@ export class WeeklyPointsService {
         const pointsDelta = currentUserPoints - previousUserPoints;
 
         // Only include positive deltas (points gained)
-        if (pointsDelta > BigInt(0)) {
+        if (pointsDelta >= BigInt(0)) {
           weeklyDelta[address] = pointsDelta.toString();
         } else {
-          weeklyDelta[address] = '0';
+          throw new Error(`Negative points delta for address ${address}: ${pointsDelta}`);
         }
       }
 
@@ -156,7 +156,7 @@ export class WeeklyPointsService {
   ): Promise<void> {
     try {
       // Find points for this address or assign default
-      const userPoints = weeklyPoints[address] || '0';
+      const userPoints = weeklyPoints[address] || "0";
 
       // Calculate week boundaries for metadata
       const now = new Date();
@@ -181,8 +181,86 @@ export class WeeklyPointsService {
       this.logger.log(`Points sent for ${user.username}:${address} - ${userPoints} points`);
     } catch (error: unknown) {
       results.failed++;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to send points for ${user.username}:${address}: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Failed to send points for ${user.username}:${address}: ${errorMessage}`
+      );
+    }
+  }
+
+  async weeklyPointsSnapshot() {
+    // Calculate PREVIOUS week boundaries (the completed week we're taking snapshot of)
+    const now = new Date();
+
+    // Get the start of current week (last Sunday at 00:00)
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setDate(now.getDate() - now.getDay());
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    // Previous week end is current week start minus 1 millisecond
+    const previousWeekEnd = new Date(currentWeekStart.getTime() - 1);
+
+    // Previous week start is 7 days before current week start
+    const previousWeekStart = new Date(currentWeekStart);
+    previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+
+    this.logger.log(
+      `Taking snapshot for COMPLETED week: ${previousWeekStart.toISOString()} to ${previousWeekEnd.toISOString()}`,
+    );
+
+    // Get all users with points from points_aggregated table
+    const currentPointsSnapshot = await prisma.points_aggregated.findMany({
+      select: {
+        user_address: true,
+        total_points: true,
+      },
+    });
+
+    this.logger.log(`Found ${currentPointsSnapshot.length} users with points for snapshot`);
+
+    if (currentPointsSnapshot.length === 0) {
+      throw new Error(
+        'No users found with points to take weekly snapshot. Cannot proceed.',
+      );
+    }
+
+    // Check if snapshot already exists for this week
+    const existingSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
+      where: {
+        week_start_date: previousWeekStart,
+      },
+    });
+
+    if (existingSnapshot) {
+      this.logger.warn(
+        `Snapshot already exists for week starting ${previousWeekStart.toISOString()}, skipping`,
+      );
+      return;
+    }
+
+    // Batch insert snapshots for all users
+    const snapshotRecords = currentPointsSnapshot.map((userPoints) => ({
+      user_address: userPoints.user_address,
+      total_points: userPoints.total_points,
+      week_start_date: previousWeekStart,
+      week_end_date: previousWeekEnd,
+      snapshot_taken_at: now,
+    }));
+
+    // Use createMany for better performance
+    const result = await prisma.cumulative_weekly_snapshot_points.createMany({
+      data: snapshotRecords,
+      skipDuplicates: true,
+    });
+
+    this.logger.log(`Weekly points snapshot completed. Created ${result.count} snapshots`);
+
+    return {
+      previousWeekStart,
+      previousWeekEnd,
+      snapshotCount: result.count,
+      snapshotTakenAt: now,
     }
   }
 }

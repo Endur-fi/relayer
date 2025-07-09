@@ -1,17 +1,21 @@
-import { Logger } from '@nestjs/common';
-import { getDefaultStoreConfig, IConfig, Store } from '@strkfarm/sdk';
-import assert from 'assert';
-import * as dotenv from 'dotenv';
-import { Account, BlockIdentifier, num, RpcProvider } from 'starknet';
-import { ConfigService } from '../relayer/services/configService';
-import { NotifService } from '../relayer/services/notifService';
-import { Network } from './constants';
+import assert from "assert";
+
+import { ApolloClient, DefaultOptions, InMemoryCache } from "@apollo/client";
+import { Logger } from "@nestjs/common";
+import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
+import * as dotenv from "dotenv";
+import { Account, BlockIdentifier, num, RpcProvider } from "starknet";
+
+import { Network } from "./constants";
+import { ConfigService } from "../relayer/services/configService";
+import { NotifService } from "../relayer/services/notifService";
 dotenv.config();
 
 export const STRK_DECIMALS = 18;
 export const STRK_TOKEN =
   "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d" as const;
-export const xSTRK_TOKEN_MAINNET = "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
+export const xSTRK_TOKEN_MAINNET =
+  "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
 export const ETH_TOKEN =
   "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 export const USDC_TOKEN =
@@ -21,37 +25,39 @@ export const USDT_TOKEN =
 export const WBTC_TOKEN =
   "0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac";
 
-
 export function getProvider(): RpcProvider {
   const env: any = dotenv.config().parsed;
-  assert(env.RPC_URL, 'RPC URL not set in .env');
+  assert(env.RPC_URL, "RPC URL not set in .env");
   // use this to explicitly read from .env of this project
   // (VT: I have some global env variables set as well)
   return new RpcProvider({ nodeUrl: env.RPC_URL });
 }
 
 export function getAccount(): Account {
-  assert(process.env.ACCOUNT_SECURE_PASSWORD, 'ACCOUNT_SECURE_PASSWORD not set in .env');
-  assert(process.env.ACCOUNT_KEY, 'ACCOUNT_KEY not set in .env');
+  assert(
+    process.env.ACCOUNT_SECURE_PASSWORD,
+    "ACCOUNT_SECURE_PASSWORD not set in .env"
+  );
+  assert(process.env.ACCOUNT_KEY, "ACCOUNT_KEY not set in .env");
 
   const config: IConfig = {
     provider: getProvider(),
     network: getNetwork(),
-    stage: 'production',
+    stage: "production",
   };
   // initialize provider
   const storeConfig = getDefaultStoreConfig(config.network);
   // storeConfig.ACCOUNTS_FILE_NAME = 'account_sepolia.json'
   const store = new Store(config, {
     ...storeConfig,
-    PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || '',
+    PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || "",
   });
 
-  return store.getAccount(process.env.ACCOUNT_KEY, '0x3');
+  return store.getAccount(process.env.ACCOUNT_KEY, "0x3");
 }
 
 export function getNetwork(): Network {
-  assert(process.env.NETWORK, 'Network not configured in .env');
+  assert(process.env.NETWORK, "Network not configured in .env");
 
   const network = process.env.NETWORK as string;
   if (network == Network.sepolia) {
@@ -59,7 +65,7 @@ export function getNetwork(): Network {
   } else if (network == Network.mainnet) {
     return Network.mainnet;
   } else {
-    throw new Error('Incorrect network configured, check .env file');
+    throw new Error("Incorrect network configured, check .env file");
   }
 }
 
@@ -72,7 +78,10 @@ export function getTGToken() {
  * @param maxAttempts
  * @returns
  */
-export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorator {
+export function TryCatchAsync(
+  maxAttempts = 1,
+  waitTimeMs = 1000
+): MethodDecorator {
   const logger = new Logger(TryCatchAsync.name);
   return function (target, propertyKey, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
@@ -86,14 +95,18 @@ export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorat
           // Handle the error
           retry += 1;
           if (retry == maxAttempts) {
-            if (this && 'notifService' in this) {
-              (this as any).notifService.sendMessage(`[${String(propertyKey)}] Error: ${error}`);
+            if (this && "notifService" in this) {
+              (this as any).notifService.sendMessage(
+                `[${String(propertyKey)}] Error: ${error}`
+              );
             }
             logger.error(`[${String(propertyKey)}] Error:`, error);
             console.log(`[${String(propertyKey)}] Error:`, error);
             throw new Error(`[${String(propertyKey)}] Max retries reached`);
           }
-          logger.warn(`[${String(propertyKey)}] failed. Retrying... ${retry + 1} / ${maxAttempts}`);
+          logger.warn(
+            `[${String(propertyKey)}] failed. Retrying... ${retry + 1} / ${maxAttempts}`
+          );
           await new Promise((resolve) => setTimeout(resolve, waitTimeMs));
         }
       }
@@ -105,22 +118,25 @@ export function TryCatchAsync(maxAttempts = 1, waitTimeMs = 1000): MethodDecorat
 
 export const logger = {
   debug: (message: string, ...args: any[]) => {
-    if (process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test') {
+    if (
+      process.env.NODE_ENV !== "production" &&
+      process.env.NODE_ENV !== "test"
+    ) {
       console.log(`[DEBUG] ${message}`, ...args);
     }
   },
   info: (message: string, ...args: any[]) => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== "test") {
       console.info(`[INFO] ${message}`, ...args);
     }
   },
   warn: (message: string, ...args: any[]) => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== "test") {
       console.warn(`[WARN] ${message}`, ...args);
     }
   },
   error: (message: string, ...args: any[]) => {
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== "test") {
       console.error(`[ERROR] ${message}`, ...args);
     }
   },
@@ -132,22 +148,22 @@ export function safeToBigInt(value: any): bigint {
     return BigInt(0);
   }
 
-  if (typeof value === 'bigint') {
+  if (typeof value === "bigint") {
     return value;
   }
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     // handle decimal strings by truncating the decimal part
     const floatValue = parseFloat(value);
     return BigInt(Math.floor(floatValue));
   }
 
-  if (typeof value === 'number') {
+  if (typeof value === "number") {
     return BigInt(Math.floor(value));
   }
 
   // handle Prisma Decimal type
-  if (value && typeof value.toString === 'function') {
+  if (value && typeof value.toString === "function") {
     const stringValue = value.toString();
     const floatValue = parseFloat(stringValue);
     return BigInt(Math.floor(floatValue));
@@ -164,3 +180,24 @@ export function standariseAddress(address: string | bigint) {
   const a = num.getHexString(num.getDecimalString(_a.toString()));
   return a;
 }
+
+const defaultOptions: DefaultOptions = {
+  watchQuery: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "ignore",
+  },
+  query: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "all",
+  },
+};
+
+export const apolloClient = new ApolloClient({
+  uri:
+    getNetwork() == Network.mainnet
+      ? "https://graphql.mainnet.endur.fi"
+      : "https://graphql.sepolia.endur.fi",
+  // uri: "http://localhost:4000",
+  cache: new InMemoryCache(),
+  defaultOptions,
+});

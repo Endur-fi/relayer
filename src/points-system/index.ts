@@ -1,18 +1,17 @@
-import * as dotenv from 'dotenv';
+import { Module } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import "@nestjs/platform-express";
+import { ScheduleModule } from "@nestjs/schedule";
+import * as dotenv from "dotenv";
 dotenv.config();
 
-import { Module } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
-import '@nestjs/platform-express';
-import { ScheduleModule } from '@nestjs/schedule';
-
-import { BotService } from '../common/services/bot.service';
-import { BonusController } from './controllers/user-bonus.controller';
-import { DexScoreService } from './services/dex-points.service';
-import { PointsCronService } from './services/points-cron.service';
-import { PointsSystemService } from './services/points-system.service';
-import { BonusService } from './services/user-bonus.service';
-import { WeeklyPointsService } from './services/weekly-points.service';
+import { BonusController } from "./controllers/user-bonus.controller";
+import { DexScoreService } from "./services/dex-points.service";
+import { PointsCronService } from "./services/points-cron.service";
+import { PointsSystemService } from "./services/points-system.service";
+import { BonusService } from "./services/user-bonus.service";
+import { WeeklyPointsService } from "./services/weekly-points.service";
+import { BotService } from "../common/services/bot.service";
 @Module({
   imports: [ScheduleModule.forRoot()],
   providers: [
@@ -32,7 +31,7 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     await app.listen(process.env.PORT ?? 4000);
   } catch (error) {
-    console.error('Error starting the application:', error);
+    console.error("Error starting the application:", error);
     process.exit(1);
   }
 }

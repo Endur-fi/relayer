@@ -4,7 +4,7 @@
 // The poseidon hash is used for the leaf nodes (to create leaves), while the pedersen hash is used
 // for the internal nodes (to create the tree).
 
-import * as starknet from '@scure/starknet';
+import * as starknet from "@scure/starknet";
 
 type FieldElement = bigint; // hex string, e.g. "0x123..."
 type Address = bigint; // hex string
@@ -29,7 +29,7 @@ export class Node {
     value: FieldElement,
     accessible_addresses: Set<FieldElement>,
     left_child?: Node,
-    right_child?: Node,
+    right_child?: Node
   ) {
     this.value = value;
     this.accessible_addresses = accessible_addresses;
@@ -70,7 +70,7 @@ export class MerkleTree {
 
   constructor(allocations: CumulativeAllocation[]) {
     if (allocations.length === 0) {
-      throw new Error('No data for merkle tree');
+      throw new Error("No data for merkle tree");
     }
     const leaves = allocations.map((a) => Node.new_leaf(a));
 
@@ -87,17 +87,15 @@ export class MerkleTree {
     const felt_address = address;
 
     if (!this.root.accessible_addresses.has(felt_address)) {
-      throw new Error('Address not found in tree');
+      throw new Error("Address not found in tree");
     }
     let hashes: FieldElement[] = [];
     let current_node = this.root;
     // if either child is_some, then both is_some
-    while (true) {
+    while (current_node.left_child && current_node.right_child) {
       const left = current_node.left_child;
       const right = current_node.right_child;
-      if (!left || !right) {
-        throw new Error('Invalid tree structure');
-      }
+
       if (left.accessible_addresses.has(felt_address)) {
         hashes.push(right.value);
         current_node = left;
@@ -114,7 +112,7 @@ export class MerkleTree {
     hashes = hashes.reverse();
 
     const allocation = this.allocations.find((a) => a.address === felt_address);
-    if (!allocation) throw new Error('Allocation not found');
+    if (!allocation) throw new Error("Allocation not found");
 
     const amount = allocation.cumulative_amount.toString();
 
@@ -147,11 +145,11 @@ function build_tree(leaves: Node[]): Node {
 }
 
 function felt_to_b16(felt: string | bigint): string {
-  if (typeof felt === 'bigint') {
-    return '0x' + felt.toString(16);
+  if (typeof felt === "bigint") {
+    return "0x" + felt.toString(16);
   }
-  if (felt.startsWith('0x')) return felt;
-  return '0x' + BigInt(felt).toString(16);
+  if (felt.startsWith("0x")) return felt;
+  return "0x" + BigInt(felt).toString(16);
 }
 
 function hash(a: FieldElement, b: FieldElement): FieldElement {

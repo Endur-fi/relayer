@@ -1,31 +1,35 @@
-import type { Config } from 'npm:@apibara/indexer';
-import type { Block, FieldElement, Starknet } from 'npm:@apibara/indexer@0.4.1/starknet';
-import type { Postgres } from 'npm:@apibara/indexer@0.4.1/sink/postgres';
-import { hash } from 'https://esm.sh/starknet@6.16.0';
+import { hash } from "https://esm.sh/starknet@6.16.0";
+import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
+import type {
+  Block,
+  FieldElement,
+  Starknet,
+} from "npm:@apibara/indexer@0.4.1/starknet";
 
-import { toBigInt } from '../../common/utils.ts';
-import { getAddresses } from '../../common/constants.ts';
+import { getAddresses } from "../../common/constants.ts";
+import { toBigInt } from "../../common/utils.ts";
 
 export const config: Config<Starknet, Postgres> = {
-  streamUrl: Deno.env.get('STREAM_URL'),
-  startingBlock: Number(Deno.env.get('STARTING_BLOCK')),
+  streamUrl: Deno.env.get("STREAM_URL"),
+  startingBlock: Number(Deno.env.get("STARTING_BLOCK")),
 
-  finality: 'DATA_STATUS_ACCEPTED', // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
-  network: 'starknet',
+  finality: "DATA_STATUS_ACCEPTED", // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
+  network: "starknet",
   filter: {
     header: { weak: true },
     events: [
       {
         fromAddress: getAddresses().LST as FieldElement,
         includeTransaction: true,
-        keys: [hash.getSelectorFromName('ReceivedFunds') as FieldElement],
+        keys: [hash.getSelectorFromName("ReceivedFunds") as FieldElement],
       },
     ],
   },
-  sinkType: 'postgres',
+  sinkType: "postgres",
   sinkOptions: {
-    connectionString: Deno.env.get('DATABASE_URL'),
-    tableName: 'received_funds',
+    connectionString: Deno.env.get("DATABASE_URL"),
+    tableName: "received_funds",
   },
 };
 
@@ -42,14 +46,20 @@ export default function transform({ header, events }: Block) {
 
   const { blockNumber, timestamp } = header;
   // Convert timestamp to unix timestamp
-  const timestamp_unix = Math.floor(new Date(timestamp as string).getTime() / 1000);
+  const timestamp_unix = Math.floor(
+    new Date(timestamp as string).getTime() / 1000
+  );
 
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
-      throw new Error('ReceivedFunds: Expected event with data');
+      throw new Error("ReceivedFunds: Expected event with data");
     }
 
-    console.log('event keys and data length', event.keys.length, event.data.length);
+    console.log(
+      "event keys and data length",
+      event.keys.length,
+      event.data.length
+    );
 
     const amount = toBigInt(event.data.at(0)).toString();
     const sender = event.data.at(2);
@@ -57,7 +67,7 @@ export default function transform({ header, events }: Block) {
     const intransit = event.data.at(5);
 
     if (timestamp_unix.toString() == event.data.at(6)) {
-      throw Error('ReceivedFunds: Timestamp incorrect');
+      throw Error("ReceivedFunds: Timestamp incorrect");
     }
 
     const depositData = {
@@ -71,7 +81,7 @@ export default function transform({ header, events }: Block) {
       timestamp: timestamp_unix,
     };
 
-    console.log('event data', depositData);
+    console.log("event data", depositData);
     return depositData;
   });
 }

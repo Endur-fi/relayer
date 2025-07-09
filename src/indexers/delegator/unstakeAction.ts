@@ -1,30 +1,34 @@
-import type { Config } from 'npm:@apibara/indexer';
-import type { Block, FieldElement, Starknet } from 'npm:@apibara/indexer@0.4.1/starknet';
-import type { Postgres } from 'npm:@apibara/indexer@0.4.1/sink/postgres';
-import { hash } from 'https://esm.sh/starknet@6.16.0';
+import { hash } from "https://esm.sh/starknet@6.16.0";
+import type { Config } from "npm:@apibara/indexer";
+import type { Postgres } from "npm:@apibara/indexer@0.4.1/sink/postgres";
+import type {
+  Block,
+  FieldElement,
+  Starknet,
+} from "npm:@apibara/indexer@0.4.1/starknet";
 
-import { toBigInt } from '../../common/utils.ts';
-import { getAddresses } from '../../common/constants.ts';
+import { getAddresses } from "../../common/constants.ts";
+import { toBigInt } from "../../common/utils.ts";
 
 export const config: Config<Starknet, Postgres> = {
-  streamUrl: Deno.env.get('STREAM_URL'),
-  startingBlock: Number(Deno.env.get('STARTING_BLOCK')),
+  streamUrl: Deno.env.get("STREAM_URL"),
+  startingBlock: Number(Deno.env.get("STARTING_BLOCK")),
 
-  finality: 'DATA_STATUS_ACCEPTED', // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
-  network: 'starknet',
+  finality: "DATA_STATUS_ACCEPTED", // TODO: Should this be "DATA_STATUS_PENDING" or "DATA_STATUS_FINALIZED"?
+  network: "starknet",
   filter: {
     header: { weak: true },
     events: [
       {
         fromAddress: getAddresses().LST as FieldElement,
-        keys: [hash.getSelectorFromName('DelegatorUpdate') as FieldElement],
+        keys: [hash.getSelectorFromName("DelegatorUpdate") as FieldElement],
       },
     ],
   },
-  sinkType: 'postgres',
+  sinkType: "postgres",
   sinkOptions: {
-    connectionString: Deno.env.get('DATABASE_URL'),
-    tableName: 'unstake_action',
+    connectionString: Deno.env.get("DATABASE_URL"),
+    tableName: "unstake_action",
   },
 };
 
@@ -45,7 +49,7 @@ export function factory({ header, events }: Block) {
   const filters = events
     .filter(({ event }) => {
       if (!event || !event.data || !event.keys) {
-        throw new Error('ReceivedFunds: Expected event with data');
+        throw new Error("ReceivedFunds: Expected event with data");
       }
 
       const is_active = Boolean(event.data[1]);
@@ -53,14 +57,16 @@ export function factory({ header, events }: Block) {
     })
     .flatMap(({ event }) => {
       if (!event || !event.data || !event.keys) {
-        throw new Error('ReceivedFunds: Expected event with data');
+        throw new Error("ReceivedFunds: Expected event with data");
       }
 
       const delegatorAddress = event.data[0];
       return [
         {
           fromAddress: delegatorAddress,
-          keys: [hash.getSelectorFromName('UnstakeIntentStarted') as FieldElement],
+          keys: [
+            hash.getSelectorFromName("UnstakeIntentStarted") as FieldElement,
+          ],
         },
       ];
     });
@@ -88,10 +94,14 @@ export default function transform({ header, events }: Block) {
 
   return events.map(({ event, receipt }) => {
     if (!event || !event.data || !event.keys) {
-      throw new Error('ReceivedFunds: Expected event with data');
+      throw new Error("ReceivedFunds: Expected event with data");
     }
 
-    console.log('event keys and data length', event.keys.length, event.data.length);
+    console.log(
+      "event keys and data length",
+      event.keys.length,
+      event.data.length
+    );
 
     const amount = toBigInt(event.data.at(0)).toString();
 
@@ -102,7 +112,7 @@ export default function transform({ header, events }: Block) {
       amount,
     };
 
-    console.log('event data', eventData);
+    console.log("event data", eventData);
     return eventData;
   });
 }

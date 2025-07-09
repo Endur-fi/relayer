@@ -1,12 +1,22 @@
-import { forwardRef, Inject, Injectable } from '@nestjs/common';
-import { dex_positions, Prisma, PrismaClient, user_balances } from '@prisma/client';
-import { DefaultArgs } from '@prisma/client/runtime/library';
-import assert from 'assert';
-import { writeFileSync } from 'fs';
-import pLimit from 'p-limit';
-import { Contract } from 'starknet';
-import { ABI as LSTAbi } from '../../../abis/LST';
-import { getNetwork, getProvider, logger, TryCatchAsync } from '../../common/utils';
+import assert from "assert";
+import * as fs from "fs";
+import { writeFileSync } from "fs";
+
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
+import {
+  dex_positions,
+  Prisma,
+  PrismaClient,
+  user_balances,
+} from "@prisma/client";
+import { DefaultArgs } from "@prisma/client/runtime/library";
+import pLimit from "p-limit";
+import { Contract } from "starknet";
+
+import { DexScore, DexScoreService } from "./dex-points.service";
+
+import { ABI as LSTAbi } from "../../../abis/LST";
+import { getProvider, logger, TryCatchAsync } from "../../common/utils";
 import {
   calculatePoints,
   fetchHoldingsFromApi,
@@ -15,8 +25,7 @@ import {
   getDateString,
   prisma,
   sleep,
-} from '../utils';
-import { DexScore, DexScoreService } from './dex-points.service';
+} from "../utils";
 
 const DB_BATCH_SIZE = 100; // no of records to insert at once
 const GLOBAL_CONCURRENCY_LIMIT = 15; // total concurrent API calls allowed
@@ -30,17 +39,19 @@ const POINTS_MULTIPLIER = 1;
 export interface IPointsSystemService {
   fetchHoldingsWithRetry(
     userAddr: string,
-    date: Date,
+    date: Date
   ): Promise<{ holdings: user_balances; dex_info: DexScore }>;
   setConfig(config: { startDate: Date; endDate: Date }): void;
   updatePointsAggregated(
     userBalance: user_balances,
     prismaTransaction: Omit<
       PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>,
-      '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
-    >,
+      "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+    >
   ): Promise<void>;
-  loadAllUserRecords(allUsers: { user_address: string; timestamp: number }[]): Promise<void>;
+  loadAllUserRecords(
+    allUsers: { user_address: string; timestamp: number }[]
+  ): Promise<void>;
   getUserRecord(addr: string): Promise<Date | null>;
   updateUserRecord(addr: string, record: Date): Promise<void>;
   getAllTasks(): Promise<[string, Date][]>;
@@ -57,47 +68,51 @@ export class PointsSystemService implements IPointsSystemService {
   private readonly userRecords: Record<string, Date | null> = {};
 
   config = {
-    startDate: getDate('2024-11-25'),
+    startDate: getDate("2024-11-25"),
     endDate: getDate(),
   };
 
   constructor(
     @Inject(forwardRef(() => DexScoreService))
-    private readonly dexPoints: DexScoreService,
+    private readonly dexPoints: DexScoreService
   ) {}
 
   @TryCatchAsync(MAX_RETRIES, RETRY_DELAY)
   async fetchHoldingsWithRetry(
     userAddr: string,
-    date: Date,
+    date: Date
   ): Promise<{ holdings: user_balances; dex_info: DexScore }> {
     let blockInfo: { block_number: number } | null = null;
     try {
       blockInfo = await findClosestBlockInfo(date);
       if (!blockInfo || !blockInfo.block_number) {
         throw new Error(
-          `No block found for user ${userAddr} on date: ${date.toISOString().split('T')[0]}`,
+          `No block found for user ${userAddr} on date: ${date.toISOString().split("T")[0]}`
         );
       }
-      const dbObject = await fetchHoldingsFromApi(userAddr, blockInfo.block_number, date);
+      const dbObject = await fetchHoldingsFromApi(
+        userAddr,
+        blockInfo.block_number,
+        date
+      );
       const dex_info = await this.dexPoints.getDexBonusPoints(
         userAddr,
         blockInfo.block_number,
         date,
-        Number(dbObject.strkHoldings.nostraDexAmount),
+        Number(dbObject.strkHoldings.nostraDexAmount)
       );
       const holdings = {
         ...dbObject.xSTRKHoldings,
         user_address: userAddr,
         block_number: blockInfo.block_number,
         timestamp: Math.floor(date.getTime() / 1000), // convert date to timestamp
-        date: date.toISOString().split('T')[0], // format date as YYYY-MM-DD
+        date: date.toISOString().split("T")[0], // format date as YYYY-MM-DD
       };
       return { holdings, dex_info: dex_info };
     } catch (error) {
       console.error(error);
       logger.error(
-        `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`,
+        `Error fetching holdings for user ${userAddr} on date ${date.toISOString()}, blockInfo: ${JSON.stringify(blockInfo)}`
       );
       throw error; // rethrow to trigger retry
     }
@@ -111,8 +126,8 @@ export class PointsSystemService implements IPointsSystemService {
     userBalance: user_balances,
     prismaTransaction: Omit<
       PrismaClient<Prisma.PrismaClientOptions, never, DefaultArgs>,
-      '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
-    >,
+      "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+    >
   ): Promise<void> {
     if (!userBalance) return;
 
@@ -120,7 +135,10 @@ export class PointsSystemService implements IPointsSystemService {
     const blockNumber = userBalance.block_number;
     const timestamp = userBalance.timestamp;
 
-    const newPoints = calculatePoints(userBalance.total_amount, POINTS_MULTIPLIER);
+    const newPoints = calculatePoints(
+      userBalance.total_amount,
+      POINTS_MULTIPLIER
+    );
 
     // Ensure user_allocation row exists
     await prismaTransaction.user_allocation.upsert({
@@ -128,7 +146,7 @@ export class PointsSystemService implements IPointsSystemService {
       update: {},
       create: {
         user_address: userAddr,
-        allocation: '0', // Default allocation, can be updated later
+        allocation: "0", // Default allocation, can be updated later
       }, // Add other required fields if needed
     });
 
@@ -152,22 +170,26 @@ export class PointsSystemService implements IPointsSystemService {
     });
   }
 
-  async loadAllUserRecords(allUsers: { user_address: string; timestamp: number }[]) {
+  async loadAllUserRecords(
+    allUsers: { user_address: string; timestamp: number }[]
+  ) {
     // load all user records into memory
     // selects the latest record for each user
     const latestUserRecordsByDate = await prisma.user_balances.groupBy({
-      by: ['user_address'],
+      by: ["user_address"],
       _max: { date: true },
     });
 
     // update the in-memory cache
     allUsers.forEach((addr) => {
-      const userRecord = latestUserRecordsByDate.find((r) => r.user_address === addr.user_address);
+      const userRecord = latestUserRecordsByDate.find(
+        (r) => r.user_address === addr.user_address
+      );
       if (userRecord && userRecord._max && userRecord._max.date) {
         this.userRecords[addr.user_address] = getDate(userRecord._max.date);
       } else {
         this.userRecords[addr.user_address] = getDate(
-          getDateString(new Date(addr.timestamp * 1000)),
+          getDateString(new Date(addr.timestamp * 1000))
         ); // convert timestamp to Date
       }
     });
@@ -219,7 +241,10 @@ export class PointsSystemService implements IPointsSystemService {
       // if lastStoredRecord is null, it means no record found for the user
       // so we start from the startDate
       let currentDate = new Date(this.config.startDate.getTime());
-      if (lastStoredRecord && lastStoredRecord.getTime() >= currentDate.getTime()) {
+      if (
+        lastStoredRecord &&
+        lastStoredRecord.getTime() >= currentDate.getTime()
+      ) {
         currentDate = new Date(lastStoredRecord);
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -256,7 +281,7 @@ export class PointsSystemService implements IPointsSystemService {
     const now = new Date();
     console.log(
       `Processing batch of ${tasks.length} tasks: Now: ${now.toISOString()}`,
-      now.getTime(),
+      now.getTime()
     );
     const minDate = tasks.reduce((min, task) => {
       return task[1] < min ? task[1] : min;
@@ -264,17 +289,19 @@ export class PointsSystemService implements IPointsSystemService {
     const maxDate = tasks.reduce((max, task) => {
       return task[1] > max ? task[1] : max;
     }, getDate());
-    console.log(`Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`);
+    console.log(
+      `Tasks range: ${minDate.toISOString()} to ${maxDate.toISOString()}`
+    );
 
     const results = await Promise.all(
       tasks.map(([userAddr, date]) =>
-        globalLimit(() => this.fetchHoldingsWithRetry(userAddr, date)),
-      ),
+        globalLimit(() => this.fetchHoldingsWithRetry(userAddr, date))
+      )
     );
 
     const now2 = new Date();
     console.log(
-      `Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`,
+      `Fetched ${results.length} records from API: Now: ${now2.toISOString()}, diff: ${now2.getTime() - now.getTime()}ms`
     );
 
     const dexScoreResults: dex_positions[] = [];
@@ -299,7 +326,9 @@ export class PointsSystemService implements IPointsSystemService {
 
     // Insert user balances in a transaction
     // Filter out null results (skipped users/dates)
-    const validResults = results.map((r) => r.holdings).filter(Boolean) as user_balances[];
+    const validResults = results
+      .map((r) => r.holdings)
+      .filter(Boolean) as user_balances[];
 
     writeFileSync(`holdings2.json`, JSON.stringify(validResults, null, 2));
     writeFileSync(`holdings2a.json`, JSON.stringify(dexScoreResults, null, 2));
@@ -312,7 +341,7 @@ export class PointsSystemService implements IPointsSystemService {
         uniqueDexScores.set(key, score);
       } else {
         console.warn(
-          `Duplicate dex score found for user ${score.user_address}, pool ${score.pool_key}, timestamp ${score.timestamp}. Skipping duplicate.`,
+          `Duplicate dex score found for user ${score.user_address}, pool ${score.pool_key}, timestamp ${score.timestamp}. Skipping duplicate.`
         );
       }
     });
@@ -333,12 +362,12 @@ export class PointsSystemService implements IPointsSystemService {
           await this.updatePointsAggregated(userBalance, prismaTransaction);
         }
       },
-      { timeout: 300000 },
+      { timeout: 300000 }
     );
     // .then(() => { // 30 seconds timeout for the transaction
     const now3 = new Date();
     console.log(
-      `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`,
+      `Inserted ${validResults.length} records in batch: Now: ${now3.toISOString()}, diff: ${now3.getTime() - now2.getTime()}ms`
     );
     return validResults.length;
     // }).catch((error) => {
@@ -352,7 +381,7 @@ export class PointsSystemService implements IPointsSystemService {
   // only one time run
   async doOneCallPerUser() {
     // preload ekubo info
-    console.log('Preloading ekubo info for all users...');
+    console.log("Preloading ekubo info for all users...");
     const allUsers = await prisma.users.findMany({
       select: {
         user_address: true,
@@ -360,24 +389,29 @@ export class PointsSystemService implements IPointsSystemService {
       },
     });
     const tasks = allUsers.map(
-      (user) => [user.user_address, new Date(user.timestamp * 1000 + 86400000)] as [string, Date],
+      (user) =>
+        [user.user_address, new Date(user.timestamp * 1000 + 86400000)] as [
+          string,
+          Date,
+        ]
     );
     for (let i = 0; i < tasks.length; i = i + 5) {
       console.log(`Preloading holdings for user: ${i}/${tasks.length}`);
       const _tasks = tasks.slice(i, i + 5);
       const proms = _tasks.map((task) =>
-        globalLimit(() => this.fetchHoldingsWithRetry(task[0], getDate('2024-12-01'))),
+        globalLimit(() =>
+          this.fetchHoldingsWithRetry(task[0], getDate("2024-12-01"))
+        )
       );
       await Promise.all(proms);
     }
   }
 
   async loadBlocks() {
-    const fs = require('fs');
-    const blocks = fs.readFileSync(`blocks.json`, 'utf-8');
+    const blocks = fs.readFileSync(`blocks.json`, "utf-8");
     const parsedBlocks = JSON.parse(blocks);
     if (!Array.isArray(parsedBlocks)) {
-      throw new Error('Invalid blocks data format. Expected an array.');
+      throw new Error("Invalid blocks data format. Expected an array.");
     }
     console.log(`Loading ${parsedBlocks.length} blocks from file...`);
     for (let i = 0; i < parsedBlocks.length; i++) {
@@ -395,10 +429,10 @@ export class PointsSystemService implements IPointsSystemService {
         },
       });
       console.log(
-        `Block ${res.block_number.toString()}, ${res.timestamp.toString()} loaded successfully.`,
+        `Block ${res.block_number.toString()}, ${res.timestamp.toString()} loaded successfully.`
       );
     }
-    console.log('Blocks loaded successfully.');
+    console.log("Blocks loaded successfully.");
   }
 
   async sanityBlocks() {
@@ -408,22 +442,27 @@ export class PointsSystemService implements IPointsSystemService {
     const endDate = this.config.endDate;
     const currentDate = new Date(startDate.getTime());
     const missingBlocks: string[] = [];
-    let store: any[] = [];
-    const fs = require('fs');
+    let store: unknown[] = [];
     if (fs.existsSync(`blocks.json`)) {
       console.log(`Blocks file already exists, skipping sanity check.`);
-      store = JSON.parse(fs.readFileSync(`blocks.json`, 'utf-8'));
+      store = JSON.parse(fs.readFileSync(`blocks.json`, "utf-8"));
     }
     while (currentDate <= endDate) {
-      console.log(`Checking block for date: ${currentDate.toISOString().split('T')[0]}`);
+      console.log(
+        `Checking block for date: ${currentDate.toISOString().split("T")[0]}`
+      );
       const blockInfo = await findClosestBlockInfo(currentDate);
       if (!blockInfo) {
-        missingBlocks.push(currentDate.toISOString().split('T')[0]);
+        missingBlocks.push(currentDate.toISOString().split("T")[0]);
       } else {
-        const exists = store.find((b: any) => b.date === currentDate.toISOString().split('T')[0]);
+        const exists = store.find(
+          (b: unknown) =>
+            (b as { date: string }).date ===
+            currentDate.toISOString().split("T")[0]
+        );
         if (!exists) {
           store.push({
-            date: currentDate.toISOString().split('T')[0],
+            date: currentDate.toISOString().split("T")[0],
             block_number: blockInfo ? blockInfo.block_number : null,
           });
         }
@@ -433,14 +472,18 @@ export class PointsSystemService implements IPointsSystemService {
 
     // store the blocks in json
     console.log(`Storing blocks for dates`);
-    store = store.sort((a, b) => getDate(a.date).getTime() - getDate(b.date).getTime());
+    store = store.sort(
+      (a, b) =>
+        getDate((a as { date: string }).date).getTime() -
+        getDate((b as { date: string }).date).getTime()
+    );
     fs.writeFileSync(`blocks.json`, JSON.stringify(store, null, 2));
     if (missingBlocks.length > 0) {
-      logger.warn(`Missing blocks for dates: ${missingBlocks.join(', ')}`);
+      logger.warn(`Missing blocks for dates: ${missingBlocks.join(", ")}`);
       throw new Error(`Missing blocks exist`);
     }
 
-    logger.info('All blocks are present for the date range.');
+    logger.info("All blocks are present for the date range.");
   }
 
   async fetchAndStoreHoldings() {
@@ -452,19 +495,19 @@ export class PointsSystemService implements IPointsSystemService {
     const allTasks = await this.getAllTasks();
 
     if (allTasks.length === 0) {
-      logger.info('No tasks to process.');
+      logger.info("No tasks to process.");
       return;
     }
 
-    let totalInserted = 0;
+    const totalInserted = 0;
 
     for (let i = 0; i < allTasks.length; i += DB_BATCH_SIZE) {
       const taskBatch = allTasks.slice(i, i + DB_BATCH_SIZE);
 
       logger.info(
         `Processing batch ${Math.floor(i / DB_BATCH_SIZE) + 1}/${Math.ceil(
-          allTasks.length / DB_BATCH_SIZE,
-        )}`,
+          allTasks.length / DB_BATCH_SIZE
+        )}`
       );
 
       await this.processTaskBatch(taskBatch);
@@ -477,10 +520,10 @@ export class PointsSystemService implements IPointsSystemService {
 
     const uniqueDates = new Set<string>();
     allTasks.forEach((task) => {
-      const dateStr = task[1].toISOString().split('T')[0];
+      const dateStr = task[1].toISOString().split("T")[0];
       uniqueDates.add(dateStr);
     });
-    logger.info(`Unique dates found: ${Array.from(uniqueDates).join(', ')}`);
+    logger.info(`Unique dates found: ${Array.from(uniqueDates).join(", ")}`);
 
     for (const date of uniqueDates) {
       await this.checkSanity(date);
@@ -490,19 +533,24 @@ export class PointsSystemService implements IPointsSystemService {
   }
 
   async nostraXSTRKDebt(blockNumber: number) {
-    const dToken = '0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d';
+    const dToken =
+      "0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d";
     const contract = new Contract(LSTAbi, dToken, getProvider());
-    const debt: any = await contract.call('total_supply', [], {
+    const debt: any = await contract.call("total_supply", [], {
       blockIdentifier: blockNumber,
     });
-    console.log(`Nostra X STRK Debt at block ${blockNumber}:`, debt / BigInt(1e18));
+    console.log(
+      `Nostra X STRK Debt at block ${blockNumber}:`,
+      debt / BigInt(1e18)
+    );
     return Number(debt / BigInt(1e18));
   }
 
   async totalSupply(blockNumber: number) {
-    const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a';
+    const lst =
+      "0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
     const contract = new Contract(LSTAbi, lst, getProvider());
-    const supply: any = await contract.call('total_supply', [], {
+    const supply: any = await contract.call("total_supply", [], {
       blockIdentifier: blockNumber,
     });
     console.log(`Total supply at block ${blockNumber}:`, supply / BigInt(1e18));
@@ -541,9 +589,14 @@ export class PointsSystemService implements IPointsSystemService {
     });
 
     // sort by total_amount descending
-    const sorted = data.sort((a, b) => Number(b.total_amount) - Number(a.total_amount));
+    const sorted = data.sort(
+      (a, b) => Number(b.total_amount) - Number(a.total_amount)
+    );
 
-    const total = data.reduce((acc, curr) => acc + Number(curr.total_amount), 0);
+    const total = data.reduce(
+      (acc, curr) => acc + Number(curr.total_amount),
+      0
+    );
     console.log(`Total amount for ${date}: ${total}`);
 
     const effectiveCalc = total - debt;
@@ -552,45 +605,30 @@ export class PointsSystemService implements IPointsSystemService {
 
     const diff = effectiveCalc - xSTRKSupply;
     console.log(
-      `Difference between effective calculation and xSTRK supply: date: ${date} - diff ${diff}`,
+      `Difference between effective calculation and xSTRK supply: date: ${date} - diff ${diff}`
     );
 
     assert(
       Math.abs(diff) < 0.015 * xSTRKSupply,
-      `Data sanity check failed for date ${date}. Difference is too high: ${diff}`,
+      `Data sanity check failed for date ${date}. Difference is too high: ${diff}`
     );
-  }
-
-  /**
-   * Calculate base points from user holdings
-   */
-  private calculateBasePoints(holdings: any[]): number {
-    return holdings.reduce((total, holding) => {
-      // Calculate points based on token value, amount, etc.
-      const holdingValue = holding.amount * (holding.price || 0);
-
-      // Example formula: 1 point per 10 units of token value
-      const holdingPoints = holdingValue / 10;
-
-      return total + holdingPoints;
-    }, 0);
   }
 }
 
 export const xSTRK_DAPPS = [
-  '0x2545b2e5d519fc230e9cd781046d3a64e092114f07e44771e0d719d148725ef', // Singleton
-  '0xd8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160', // Singleton V2
-  '0x1b8d8e31f9dd1bde7dc878dd871225504837c78c40ff01cbf03a255e2154bf0', // nxSTRK-c
-  '0x6878fd475d5cea090934d690ecbe4ad78503124e4f80380a2e45eb417aafb9c', // nxSTRK
-  '0x59a943ca214c10234b9a3b61c558ac20c005127d183b86a99a8f3c60a08b4ff', // nostra interest rate model
-  '0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b', // Ekubo Core
-  '0x205fd8586f6be6c16f4aa65cc1034ecff96d96481878e55f629cd0cb83e05f', // Nostra xSTRK/STRK DEX pool
-  '0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b', // STRKFarm xSTRK Sensei
-  '0x4a3e7dffd8e74a706be9abe6474e07fbbcf41e1be71387514c4977d54dbc428', // Opus
+  "0x2545b2e5d519fc230e9cd781046d3a64e092114f07e44771e0d719d148725ef", // Singleton
+  "0xd8d6dfec4d33bfb6895de9f3852143a17c6f92fd2a21da3d6924d34870160", // Singleton V2
+  "0x1b8d8e31f9dd1bde7dc878dd871225504837c78c40ff01cbf03a255e2154bf0", // nxSTRK-c
+  "0x6878fd475d5cea090934d690ecbe4ad78503124e4f80380a2e45eb417aafb9c", // nxSTRK
+  "0x59a943ca214c10234b9a3b61c558ac20c005127d183b86a99a8f3c60a08b4ff", // nostra interest rate model
+  "0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b", // Ekubo Core
+  "0x205fd8586f6be6c16f4aa65cc1034ecff96d96481878e55f629cd0cb83e05f", // Nostra xSTRK/STRK DEX pool
+  "0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b", // STRKFarm xSTRK Sensei
+  "0x4a3e7dffd8e74a706be9abe6474e07fbbcf41e1be71387514c4977d54dbc428", // Opus
 ];
 
 // contracts excluded from points system
 export const EXCLUSION_LIST = [
   ...xSTRK_DAPPS,
-  '0x301c5ba2c76af76c28e9f4d55680d8507267b9d324129a71d6cdc54a3318298', // admin wallet
+  "0x301c5ba2c76af76c28e9f4d55680d8507267b9d324129a71d6cdc54a3318298", // admin wallet
 ];

@@ -50,7 +50,7 @@ describe('WeeklyPointsService', () => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
+  it("should be defined", () => {
     expect(service).toBeDefined();
   });
 
@@ -61,10 +61,10 @@ describe('WeeklyPointsService', () => {
         { id: 1, username: 'user1', telegramId: 123, timezone: 'UTC', addresses: ['0x1', '0x3'] },
         {
           id: 2,
-          username: 'user2',
+          username: "user2",
           telegramId: 456,
-          timezone: 'America/New_York',
-          addresses: ['0x2'],
+          timezone: "America/New_York",
+          addresses: ["0x2"],
         },
       ];
 
@@ -182,10 +182,10 @@ describe('WeeklyPointsService', () => {
     it('should successfully process user points', async () => {
       const mockUser = {
         id: 1,
-        username: 'user1',
+        username: "user1",
         telegramId: 123,
-        timezone: 'UTC',
-        addresses: ['0x1'],
+        timezone: "UTC",
+        addresses: ["0x1"],
       };
       const mockResults = { success: 0, failed: 0 };
 
@@ -200,10 +200,10 @@ describe('WeeklyPointsService', () => {
     it('should handle failed points processing', async () => {
       const mockUser = {
         id: 1,
-        username: 'user1',
+        username: "user1",
         telegramId: 123,
-        timezone: 'UTC',
-        addresses: ['0x1'],
+        timezone: "UTC",
+        addresses: ["0x1"],
       };
       const mockResults = { success: 0, failed: 0 };
 

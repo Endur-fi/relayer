@@ -1,6 +1,15 @@
-import { Arg, Field, InputType, Int, Mutation, ObjectType, Query, Resolver } from 'type-graphql';
+import {
+  Arg,
+  Field,
+  InputType,
+  Int,
+  Mutation,
+  ObjectType,
+  Query,
+  Resolver,
+} from "type-graphql";
 
-import { UsersService } from '../points-system/services/users.service';
+import { UsersService } from "../points-system/services/users.service";
 
 @InputType()
 class PaginationOptionsInput {
@@ -10,11 +19,11 @@ class PaginationOptionsInput {
   @Field(() => Int, { defaultValue: 10 })
   limit!: number;
 
-  @Field(() => String, { defaultValue: 'total_points' })
-  sortBy!: 'total_points' | 'user_address' | 'created_on';
+  @Field(() => String, { defaultValue: "total_points" })
+  sortBy!: "total_points" | "user_address" | "created_on";
 
-  @Field(() => String, { defaultValue: 'desc' })
-  sortOrder!: 'asc' | 'desc';
+  @Field(() => String, { defaultValue: "desc" })
+  sortOrder!: "asc" | "desc";
 }
 
 @InputType()
@@ -358,17 +367,18 @@ export class UsersResolver {
 
   @Query(() => PaginatedUsersResult)
   async getAllUsersWithDetails(
-    @Arg('options', () => PaginationOptionsInput, { nullable: true })
-    options?: PaginationOptionsInput,
+    @Arg("options", () => PaginationOptionsInput, { nullable: true })
+    options?: PaginationOptionsInput
   ): Promise<PaginatedUsersResult> {
     const paginationOptions = {
       page: options?.page || 1,
       limit: options?.limit || 10,
-      sortBy: (options?.sortBy as any) || 'total_points',
-      sortOrder: (options?.sortOrder as any) || 'desc',
+      sortBy: (options?.sortBy as any) || "total_points",
+      sortOrder: (options?.sortOrder as any) || "desc",
     };
 
-    const result = await this.usersService.getAllUsersWithDetails(paginationOptions);
+    const result =
+      await this.usersService.getAllUsersWithDetails(paginationOptions);
 
     return {
       users: result.users.map((user) => ({
@@ -381,14 +391,15 @@ export class UsersResolver {
       pagination: result.pagination,
       summary: {
         ...result.summary,
-        total_points_all_users: result.summary.total_points_all_users.toString(),
+        total_points_all_users:
+          result.summary.total_points_all_users.toString(),
       },
     };
   }
 
   @Query(() => UserCompleteDetails, { nullable: true })
   async getUserCompleteDetails(
-    @Arg('userAddress', () => String) userAddress: string,
+    @Arg("userAddress", () => String) userAddress: string
   ): Promise<UserCompleteDetails | null> {
     const result = await this.usersService.getUserCompleteDetails(userAddress);
 
@@ -480,48 +491,59 @@ export class UsersResolver {
   // }
 
   @Query(() => UserTags)
-  async getUserTags(@Arg('userAddress', () => String) userAddress: string): Promise<UserTags> {
+  async getUserTags(
+    @Arg("userAddress", () => String) userAddress: string
+  ): Promise<UserTags> {
     const result = await this.usersService.getUserTags(userAddress);
     return result;
   }
 
   @Query(() => Boolean)
-  async hasEmailSaved(@Arg('userAddress', () => String) userAddress: string): Promise<boolean> {
+  async hasEmailSaved(
+    @Arg("userAddress", () => String) userAddress: string
+  ): Promise<boolean> {
     const result = await this.usersService.hasEmailSaved(userAddress);
     return result;
   }
 
   @Mutation(() => AddPointsResult)
   async addPointsToUser(
-    @Arg('input', () => AddPointsInput) input: AddPointsInput,
+    @Arg("input", () => AddPointsInput) input: AddPointsInput
   ): Promise<AddPointsResult> {
     try {
-      const result = await this.usersService.addPointsToUser(input.userAddress, "1000");
+      const result = await this.usersService.addPointsToUser(
+        input.userAddress,
+        "1000"
+      );
 
       return {
         success: result.success,
         message: result.message,
         userAddress: input.userAddress,
-        pointsAdded: result.success ? "1000" : '0',
-        newTotalPoints: result?.data?.newTotalPoints?.toString() ?? '0',
+        pointsAdded: result.success ? "1000" : "0",
+        newTotalPoints: result?.data?.newTotalPoints?.toString() ?? "0",
       };
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to add points',
+        message:
+          error instanceof Error ? error.message : "Failed to add points",
         userAddress: input.userAddress,
-        pointsAdded: '0',
-        newTotalPoints: '0',
+        pointsAdded: "0",
+        newTotalPoints: "0",
       };
     }
   }
 
   @Mutation(() => SaveEmailResult)
   async saveEmail(
-    @Arg('input', () => SaveEmailInput) input: SaveEmailInput,
+    @Arg("input", () => SaveEmailInput) input: SaveEmailInput
   ): Promise<SaveEmailResult> {
     try {
-      const result = await this.usersService.saveEmail(input.userAddress, input.email);
+      const result = await this.usersService.saveEmail(
+        input.userAddress,
+        input.email
+      );
       return {
         success: result.success,
         message: result.message,
@@ -529,7 +551,8 @@ export class UsersResolver {
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to save email',
+        message:
+          error instanceof Error ? error.message : "Failed to save email",
       };
     }
   }
