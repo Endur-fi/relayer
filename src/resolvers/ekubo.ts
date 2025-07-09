@@ -1,4 +1,4 @@
-import { ekubo_positions as PrismaPosition } from "@prisma/client";
+import { ekubo_position_timeseries as PrismaPositionTimeseries } from "@prisma/client";
 import { ContractAddr } from "@strkfarm/sdk";
 import {
   Arg,
@@ -16,16 +16,31 @@ import { prisma } from "../../prisma/client";
 @ObjectType()
 class EkuboPosition {
   @Field(() => String)
-  pool_fee!: string;
-
-  @Field(() => String)
-  pool_tick_spacing!: string;
-
-  @Field(() => String)
-  extension!: string;
+  id!: string;
 
   @Field(() => String)
   position_id!: string;
+
+  @Field(() => String, { nullable: true })
+  pool_fee?: string;
+
+  @Field(() => String, { nullable: true })
+  pool_tick_spacing?: string;
+
+  @Field(() => String, { nullable: true })
+  extension?: string;
+
+  @Field(() => Int, { nullable: true })
+  lower_bound?: number;
+
+  @Field(() => Int, { nullable: true })
+  upper_bound?: number;
+
+  @Field(() => String, { nullable: true })
+  liquidity?: string;
+
+  @Field(() => String)
+  owner_address!: string;
 
   @Field(() => Int)
   block_number!: number;
@@ -42,11 +57,8 @@ class EkuboPosition {
   @Field(() => String)
   txHash!: string;
 
-  @Field(() => Int)
-  lower_bound!: number;
-
-  @Field(() => Int)
-  upper_bound!: number;
+  @Field(() => String)
+  record_type!: string;
 
   @Field(() => Date)
   created_at!: Date;
@@ -60,256 +72,149 @@ class EkuboPosition {
 
 @Resolver()
 export class EkuboResolver {
-  constructor() {}
-
   @Query(() => [EkuboPosition])
   async getEkuboPositionsByUser(
     @Arg("userAddress", () => String) userAddress: string,
     @Arg("showClosed", () => Boolean, { defaultValue: false })
     showClosed = false,
-    @Arg("fromDateTime", () => Date, { defaultValue: new Date("2024-11-24") })
-    fromDateTime: Date = new Date("2024-11-24"),
     @Arg("toDateTime", () => Date, { defaultValue: new Date() })
     toDateTime: Date = new Date()
   ): Promise<EkuboPosition[]> {
-    const fromTimestamp = Math.floor(fromDateTime.getTime() / 1000);
     const toTimestamp = Math.floor(toDateTime.getTime() / 1000);
     const _userAddress = ContractAddr.from(userAddress).address;
 
+    console.log(
+      `Fetching Ekubo positions for user: ${_userAddress}, time: ${toTimestamp}, showClosed: ${showClosed}`
+    );
+
     if (showClosed) {
-      return this.getAllUserPositionsWithinTimeframe(
-        _userAddress,
-        fromTimestamp,
-        toTimestamp
-      );
+      return this.getAllUserPositionsWithinTimeframe(_userAddress, toTimestamp);
     } else {
-      return this.getCurrentlyOwnedPositions(
-        _userAddress,
-        fromTimestamp,
-        toTimestamp
-      );
+      return this.getCurrentlyOwnedPositions(_userAddress, toTimestamp);
     }
   }
 
   private async getAllUserPositionsWithinTimeframe(
     userAddress: string,
-    fromTimestamp: number,
     toTimestamp: number
   ): Promise<EkuboPosition[]> {
-    const nftIds = await this.getUserNftIds(userAddress, toTimestamp);
+    // Get all positions that were owned by the user at any point before toTimestamp
+    const userPositions = await prisma.$queryRaw<EkuboPosition[]>`
+      WITH user_position_ownership AS (
+        SELECT DISTINCT position_id
+        FROM ekubo_position_timeseries
+        WHERE owner_address = ${userAddress}
+          AND timestamp <= ${toTimestamp}
+          AND (record_type = 'nft_mint' OR record_type = 'nft_transfer')
+      ),
+      position_states AS (
+        SELECT
+          id, position_id, pool_fee, pool_tick_spacing, extension,
+          lower_bound, upper_bound, owner_address, block_number,
+          tx_index, event_index, timestamp, "txHash", record_type,
+          created_at, updated_at
+        FROM ekubo_position_timeseries
+        WHERE position_id IN (SELECT position_id FROM user_position_ownership)
+          AND record_type = 'position_updated'
+          AND timestamp <= ${toTimestamp}
+          AND owner_address = ${userAddress}
+        ORDER BY position_id, timestamp DESC
+      )
+      SELECT * FROM position_states
+      ORDER BY timestamp DESC
+    `;
 
-    if (nftIds.length === 0) {
-      return [];
-    }
+    // Filter unique positions by position_id, lower_bound, and upper_bound
+    const uniquePositions = new Map<string, EkuboPosition>();
+    userPositions.forEach((position) => {
+      const key = `${position.position_id}-${position.lower_bound}-${position.upper_bound}`;
+      if (!uniquePositions.has(key)) {
+        uniquePositions.set(key, position);
+      }
+    });
 
-    const positions = await this.getPositionsInTimeframe(
-      nftIds,
-      fromTimestamp,
-      toTimestamp
+    console.log(
+      `Found ${uniquePositions.size} unique positions that were owned by user at some point`
     );
 
-    return this.enrichPositionsWithOwnership(
-      positions,
-      userAddress,
-      toTimestamp
-    );
+    return Array.from(uniquePositions.values()).map((position) => ({
+      ...position,
+    }));
   }
 
   private async getCurrentlyOwnedPositions(
     userAddress: string,
-    fromTimestamp: number,
     toTimestamp: number
   ): Promise<EkuboPosition[]> {
-    const ownedNftIds = await this.getCurrentlyOwnedNftIds(
-      userAddress,
-      toTimestamp
+    // Get positions currently owned by the user at toTimestamp
+    const currentlyOwnedPositions = await prisma.$queryRaw<EkuboPosition[]>`
+      WITH ever_had_ownership AS (
+        SELECT DISTINCT position_id, owner_address, timestamp
+        FROM ekubo_position_timeseries
+        WHERE timestamp <= ${toTimestamp}
+          AND owner_address = ${userAddress}
+          AND (record_type = 'nft_mint' OR record_type = 'nft_transfer')
+      ),
+      latest_ownership AS (
+        SELECT DISTINCT ON (position_id) 
+          position_id, owner_address, timestamp
+        FROM ekubo_position_timeseries
+        WHERE timestamp <= ${toTimestamp}
+          AND position_id IN (SELECT position_id FROM ever_had_ownership)
+          AND (record_type = 'nft_mint' OR record_type = 'nft_transfer')
+        ORDER BY position_id, timestamp DESC
+      ),
+      currently_owned_positions AS (
+        SELECT position_id
+        FROM latest_ownership
+        WHERE owner_address = ${userAddress}
+      ),
+      position_states AS (
+        SELECT DISTINCT ON (position_id) 
+          id, position_id, pool_fee, pool_tick_spacing, extension,
+          lower_bound, upper_bound, owner_address, block_number,
+          tx_index, event_index, timestamp, "txHash", record_type,
+          created_at, updated_at, liquidity
+        FROM ekubo_position_timeseries
+        WHERE position_id IN (SELECT position_id FROM currently_owned_positions)
+          AND timestamp <= ${toTimestamp}
+          AND (lower_bound IS NOT NULL AND upper_bound IS NOT NULL and pool_fee IS NOT NULL)
+        ORDER BY position_id, timestamp DESC
+      )
+      SELECT * FROM position_states
+      WHERE liquidity IS NOT NULL AND liquidity != '0'
+      ORDER BY timestamp DESC
+    `;
+
+    console.log(
+      `Found ${currentlyOwnedPositions.length} currently owned positions for user ${userAddress}`
     );
 
-    if (ownedNftIds.length === 0) {
-      return [];
-    }
-
-    const positions = await this.getPositionsInTimeframe(
-      ownedNftIds,
-      fromTimestamp,
-      toTimestamp
-    );
-
-    return positions.map((position) => ({
+    return currentlyOwnedPositions.map((position) => ({
       ...position,
       // currently_owned: true,
     }));
   }
 
-  private async getUserNftIds(
-    userAddress: string,
-    toTimestamp: number
-  ): Promise<string[]> {
-    const userNftIds = await prisma.ekubo_nfts.findMany({
-      where: {
-        to_address: userAddress,
-        timestamp: {
-          lte: toTimestamp,
-        },
-      },
-      select: {
-        nft_id: true,
-        timestamp: true,
-      },
-      orderBy: {
-        timestamp: "asc",
-      },
-    });
+  // private async checkCurrentOwnership(positionId: string, userAddress: string, toTimestamp: number): Promise<boolean> {
+  //   const latestOwnership = await prisma.ekubo_position_timeseries.findFirst({
+  //     where: {
+  //       position_id: positionId,
+  //       timestamp: {
+  //         lte: toTimestamp,
+  //       },
+  //       record_type: {
+  //         in: ['nft_mint', 'nft_transfer'],
+  //       },
+  //     },
+  //     orderBy: {
+  //       timestamp: 'desc',
+  //     },
+  //     select: {
+  //       owner_address: true,
+  //     },
+  //   });
 
-    return userNftIds.map((nft) => nft.nft_id);
-  }
-
-  private async getCurrentlyOwnedNftIds(
-    userAddress: string,
-    toTimestamp: number
-  ): Promise<string[]> {
-    const currentlyOwnedNfts = await prisma.$queryRaw<{ nft_id: string }[]>`
-      WITH latest_transfers AS (
-        SELECT DISTINCT ON (nft_id) nft_id, to_address, timestamp
-        FROM ekubo_nfts
-        WHERE timestamp <= ${toTimestamp}
-        ORDER BY nft_id, timestamp DESC
-      )
-      SELECT nft_id
-      FROM latest_transfers
-      WHERE to_address = ${userAddress}
-    `;
-
-    return currentlyOwnedNfts.map((nft) => nft.nft_id);
-  }
-
-  // This method retrieves positions within a specified timeframe based on NFT IDs.
-  private async getPositionsInTimeframe(
-    nftIds: string[],
-    fromTimestamp: number,
-    toTimestamp: number
-  ): Promise<PrismaPosition[]> {
-    // Get all positions for the NFT IDs, ordered by timestamp
-    const allPositions = await prisma.ekubo_positions.findMany({
-      where: {
-        position_id: {
-          in: nftIds,
-        },
-      },
-      orderBy: [{ position_id: "asc" }, { timestamp: "asc" }],
-    });
-
-    const relevantPositions: PrismaPosition[] = [];
-    const positionsByNftId = this.groupPositionsByNftId(allPositions);
-
-    for (const [_, positions] of positionsByNftId.entries()) {
-      const relevantPosition = this.findRelevantPositionForTimeframe(
-        positions,
-        fromTimestamp,
-        toTimestamp
-      );
-
-      if (relevantPosition) {
-        relevantPositions.push(relevantPosition);
-      }
-    }
-
-    // Sort by timestamp descending for consistent ordering
-    return relevantPositions.sort((a, b) => b.timestamp - a.timestamp);
-  }
-
-  private groupPositionsByNftId(
-    positions: PrismaPosition[]
-  ): Map<string, PrismaPosition[]> {
-    const grouped = new Map<string, PrismaPosition[]>();
-
-    for (const position of positions) {
-      if (!grouped.has(position.position_id)) {
-        grouped.set(position.position_id, []);
-      }
-      grouped.get(position.position_id)!.push(position);
-    }
-
-    return grouped;
-  }
-
-  private findRelevantPositionForTimeframe(
-    positions: PrismaPosition[],
-    fromTimestamp: number,
-    toTimestamp: number
-  ): PrismaPosition | null {
-    // Find the latest position that was created before or during the timeframe
-    let relevantPosition: PrismaPosition | null = null;
-
-    for (let i = 0; i < positions.length; i++) {
-      const currentPosition = positions[i];
-      const nextPosition = positions[i + 1];
-
-      // Case 1: Position created within timeframe
-      if (
-        currentPosition.timestamp >= fromTimestamp &&
-        currentPosition.timestamp <= toTimestamp
-      ) {
-        relevantPosition = currentPosition;
-        break;
-      }
-
-      // Case 2: Position created before timeframe
-      if (currentPosition.timestamp < fromTimestamp) {
-        // Check if this position is "active" during the timeframe
-        if (!nextPosition) {
-          // No next position, so this position is still active
-          relevantPosition = currentPosition;
-        } else if (nextPosition.timestamp > fromTimestamp) {
-          // Next position is after timeframe starts, so this position was active during timeframe
-          relevantPosition = currentPosition;
-        }
-        // If next position is also before timeframe, continue to next iteration
-      }
-
-      // Case 3: Position created after timeframe - skip
-      if (currentPosition.timestamp > toTimestamp) {
-        break;
-      }
-    }
-
-    return relevantPosition;
-  }
-
-  private async enrichPositionsWithOwnership(
-    positions: PrismaPosition[],
-    userAddress: string,
-    toTimestamp: number
-  ): Promise<EkuboPosition[]> {
-    return Promise.all(
-      positions.map(async (position): Promise<EkuboPosition> => {
-        // const currentlyOwned = await this.checkCurrentOwnership(position.position_id, userAddress, toTimestamp);
-
-        return {
-          ...position,
-          // currently_owned: currentlyOwned,
-        };
-      })
-    );
-  }
-
-  private async checkCurrentOwnership(
-    positionId: string,
-    userAddress: string,
-    toTimestamp: number
-  ): Promise<boolean> {
-    const latestTransfer = await prisma.ekubo_nfts.findFirst({
-      where: {
-        nft_id: positionId,
-        timestamp: {
-          lte: toTimestamp,
-        },
-      },
-      orderBy: {
-        timestamp: "desc",
-      },
-    });
-
-    return latestTransfer?.to_address === userAddress;
-  }
+  //   return latestOwnership?.owner_address === userAddress;
+  // }
 }

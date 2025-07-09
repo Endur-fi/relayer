@@ -1,3 +1,5 @@
+import assert from "assert";
+
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Web3Number } from "@strkfarm/sdk";
 import { Call, Contract, TransactionExecutionStatus, uint256 } from "starknet";
@@ -8,8 +10,6 @@ import { ABI as LSTAbi } from "../../../abis/LST";
 import { ABI as StrkAbi } from "../../../abis/Strk";
 import { getAddresses } from "../../common/constants";
 import { getNetwork } from "../../common/utils";
-
-const assert = require("assert");
 
 interface ILSTService {
   sendToWithdrawQueue(amount: Web3Number): void;

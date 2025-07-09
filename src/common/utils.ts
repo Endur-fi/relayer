@@ -1,5 +1,6 @@
 import assert from "assert";
 
+import { ApolloClient, DefaultOptions, InMemoryCache } from "@apollo/client";
 import { Logger } from "@nestjs/common";
 import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 import * as dotenv from "dotenv";
@@ -52,7 +53,7 @@ export function getAccount(): Account {
     PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || "",
   });
 
-  return store.getAccount(process.env.ACCOUNT_KEY);
+  return store.getAccount(process.env.ACCOUNT_KEY, "0x3");
 }
 
 export function getNetwork(): Network {
@@ -179,3 +180,24 @@ export function standariseAddress(address: string | bigint) {
   const a = num.getHexString(num.getDecimalString(_a.toString()));
   return a;
 }
+
+const defaultOptions: DefaultOptions = {
+  watchQuery: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "ignore",
+  },
+  query: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "all",
+  },
+};
+
+export const apolloClient = new ApolloClient({
+  uri:
+    getNetwork() == Network.mainnet
+      ? "https://graphql.mainnet.endur.fi"
+      : "https://graphql.sepolia.endur.fi",
+  // uri: "http://localhost:4000",
+  cache: new InMemoryCache(),
+  defaultOptions,
+});

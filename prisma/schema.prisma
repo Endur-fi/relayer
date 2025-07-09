@@ -266,6 +266,9 @@ model ekubo_positions {
 
   lower_bound Int
   upper_bound Int
+  liquidity_delta String
+  amount0_delta String
+  amount1_delta String
 
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
@@ -273,6 +276,7 @@ model ekubo_positions {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@index([timestamp(sort: Desc)])
 }
 
 model ekubo_nfts {
@@ -289,4 +293,47 @@ model ekubo_nfts {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@index([nft_id], type: Hash)
+}
+
+model ekubo_position_timeseries {
+  id           String @id @default(uuid())
+  
+  // Position info (nft_id and position_id are the same)
+  position_id  String
+  
+  // Pool info
+  pool_fee          String?
+  pool_tick_spacing String?
+  extension         String?
+  
+  // Position bounds (null when NFT is minted but position not yet created)
+  lower_bound  Int?
+  upper_bound  Int?
+  
+  // Final calculated values (accumulated from deltas)
+  liquidity    String? // Final liquidity value (cannot be negative)
+  amount0      String? // Final amount0 value (can be negative)
+  amount1      String? // Final amount1 value (can be negative)
+  
+  // Owner info
+  owner_address String
+  
+  // Timing info
+  block_number Int
+  tx_index     Int @default(0)
+  event_index  Int @default(0)
+  timestamp    Int
+  txHash       String
+  
+  // Record type
+  record_type  String // "nft_mint", "nft_transfer", "position_created", "position_updated"
+  
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  @@index([position_id])
+  @@index([owner_address])
+  @@index([timestamp(sort: Desc)])
+  @@index([block_number(sort: Desc), tx_index(sort: Desc), event_index(sort: Desc)], name: "block_tx_event_idx")
 }

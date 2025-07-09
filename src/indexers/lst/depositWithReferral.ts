@@ -87,7 +87,12 @@ export default function transform({ header, events }: Block) {
       .toHexString(referrer)
       .toString()
       .match(/.{1,2}/g)
-      ?.reduce((acc, char) => acc + String.fromCharCode(parseInt(char, 16)), "")
+      ?.reduce(
+        (acc: string, char: string) =>
+          acc + String.fromCharCode(parseInt(char, 16)),
+        ""
+      )
+      // eslint-disable-next-line no-control-regex
       ?.replace(/\x00/g, ""); // Remove null bytes
 
     // Since `assets` and `shares` are both u256, they take up 2 felts

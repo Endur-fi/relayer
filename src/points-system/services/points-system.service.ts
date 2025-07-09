@@ -1,4 +1,5 @@
 import assert from "assert";
+import * as fs from "fs";
 import { writeFileSync } from "fs";
 
 import { forwardRef, Inject, Injectable } from "@nestjs/common";
@@ -15,12 +16,7 @@ import { Contract } from "starknet";
 import { DexScore, DexScoreService } from "./dex-points.service";
 
 import { ABI as LSTAbi } from "../../../abis/LST";
-import {
-  getNetwork,
-  getProvider,
-  logger,
-  TryCatchAsync,
-} from "../../common/utils";
+import { getProvider, logger, TryCatchAsync } from "../../common/utils";
 import {
   calculatePoints,
   fetchHoldingsFromApi,
@@ -413,7 +409,6 @@ export class PointsSystemService implements IPointsSystemService {
   }
 
   async loadBlocks() {
-    const fs = require("fs");
     const blocks = fs.readFileSync(`blocks.json`, "utf-8");
     const parsedBlocks = JSON.parse(blocks);
     if (!Array.isArray(parsedBlocks)) {
@@ -448,8 +443,7 @@ export class PointsSystemService implements IPointsSystemService {
     const endDate = this.config.endDate;
     const currentDate = new Date(startDate.getTime());
     const missingBlocks: string[] = [];
-    let store: any[] = [];
-    const fs = require("fs");
+    let store: unknown[] = [];
     if (fs.existsSync(`blocks.json`)) {
       console.log(`Blocks file already exists, skipping sanity check.`);
       store = JSON.parse(fs.readFileSync(`blocks.json`, "utf-8"));
@@ -463,7 +457,9 @@ export class PointsSystemService implements IPointsSystemService {
         missingBlocks.push(currentDate.toISOString().split("T")[0]);
       } else {
         const exists = store.find(
-          (b: any) => b.date === currentDate.toISOString().split("T")[0]
+          (b: unknown) =>
+            (b as { date: string }).date ===
+            currentDate.toISOString().split("T")[0]
         );
         if (!exists) {
           store.push({
@@ -478,7 +474,9 @@ export class PointsSystemService implements IPointsSystemService {
     // store the blocks in json
     console.log(`Storing blocks for dates`);
     store = store.sort(
-      (a, b) => getDate(a.date).getTime() - getDate(b.date).getTime()
+      (a, b) =>
+        getDate((a as { date: string }).date).getTime() -
+        getDate((b as { date: string }).date).getTime()
     );
     fs.writeFileSync(`blocks.json`, JSON.stringify(store, null, 2));
     if (missingBlocks.length > 0) {

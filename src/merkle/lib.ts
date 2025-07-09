@@ -92,12 +92,10 @@ export class MerkleTree {
     let hashes: FieldElement[] = [];
     let current_node = this.root;
     // if either child is_some, then both is_some
-    while (true) {
+    while (current_node.left_child && current_node.right_child) {
       const left = current_node.left_child;
       const right = current_node.right_child;
-      if (!left || !right) {
-        throw new Error("Invalid tree structure");
-      }
+
       if (left.accessible_addresses.has(felt_address)) {
         hashes.push(right.value);
         current_node = left;

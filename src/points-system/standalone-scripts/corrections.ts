@@ -1,10 +1,10 @@
+import fs from "fs";
+
 import { logger } from "@strkfarm/sdk";
 import { all } from "axios";
 import pLimit from "p-limit";
 
 import { fetchHoldingsFromApi, prisma } from "../utils";
-
-const fs = require("fs");
 
 const GLOBAL_CONCURRENCY_LIMIT = 60; // total concurrent API calls allowed
 const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
@@ -161,9 +161,28 @@ async function handleOpusPoints() {
     };
   }
 
-  const proms: any[] = [];
+  const proms: unknown[] = [];
   let count = 0;
   const records = 0;
+
+  async function processTask(_user: string, _date: Date) {
+    try {
+      const holdings = await fetchHoldingsWithRetry(_user, _date);
+      if (!holdings) {
+        count++;
+        return;
+      }
+      // console.log(`Fetched holdings for user: ${_user} on date: ${_date.toISOString()}: ${JSON.stringify(holdings)}`);
+      count++;
+      return holdings;
+    } catch (error) {
+      count++;
+      console.error(
+        `Failed to fetch holdings for user: ${_user} on date: ${_date.toISOString()}:`,
+        error
+      );
+    }
+  }
 
   setInterval(() => {
     console.log(
@@ -171,26 +190,8 @@ async function handleOpusPoints() {
     );
   }, 10000); // log every 10 seconds
 
-  const data: any[] = [];
+  const data: unknown[] = [];
   for (const [user, date] of tasks) {
-    async function processTask(_user: string, _date: Date) {
-      try {
-        const holdings = await fetchHoldingsWithRetry(_user, _date);
-        if (!holdings) {
-          count++;
-          return;
-        }
-        // console.log(`Fetched holdings for user: ${_user} on date: ${_date.toISOString()}: ${JSON.stringify(holdings)}`);
-        count++;
-        return holdings;
-      } catch (error) {
-        count++;
-        console.error(
-          `Failed to fetch holdings for user: ${_user} on date: ${_date.toISOString()}:`,
-          error
-        );
-      }
-    }
     proms.push(globalLimit(() => processTask(user, date)));
     // if (proms.length > 60) {
     //   const holdings = (await Promise.all(proms)).filter(h => h);
@@ -207,7 +208,10 @@ async function handleOpusPoints() {
 
   const results = await Promise.all(proms);
   const holdings = results.filter(
-    (h) => h && h.opusAmount && h.opusAmount !== "0"
+    (h) =>
+      h &&
+      (h as { opusAmount: string }).opusAmount &&
+      (h as { opusAmount: string }).opusAmount !== "0"
   );
   data.push(...holdings);
   fs.writeFileSync("holdings.json", JSON.stringify(data, null, 2));

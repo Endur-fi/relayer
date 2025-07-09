@@ -1,3 +1,5 @@
+import assert from "assert";
+
 import {
   fetchBuildExecuteTransaction,
   fetchQuotes,
@@ -25,8 +27,7 @@ import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PrismaService } from "./services/prismaService";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
-
-const assert = require("assert");
+import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 
 function getCronSettings(action: "process-withdraw-queue") {
   const config = new ConfigService();
@@ -117,6 +118,7 @@ export class CronService {
 
     // Just for testing
     // await this.stakeFunds();
+    // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
     // await this.claimUnstakedFunds();
   }
@@ -629,5 +631,11 @@ export class CronService {
       console.error("Error in claimUnstakedFunds:", err);
       throw err;
     }
+  }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync(3, 10000)
+  async updateEkuboPositionsTimeseries() {
+    await populateEkuboTimeseries(true);
   }
 }

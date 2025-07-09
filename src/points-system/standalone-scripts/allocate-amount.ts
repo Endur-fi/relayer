@@ -1,3 +1,5 @@
+import fs from "fs";
+
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 
@@ -94,13 +96,11 @@ async function saveAlocations() {
   const filtered = allocations.filter((a) => Number(a.allocation) > 0);
   console.log(`Total allocations: ${filtered.length}`);
 
-  const fs = require("fs");
   const outputFile = "allocationsLocal.json";
   fs.writeFileSync(outputFile, JSON.stringify(filtered, null, 2));
 }
 
 function compare() {
-  const fs = require("fs");
   const allocations = JSON.parse(
     fs.readFileSync("allocationsLocal.json", "utf8")
   );

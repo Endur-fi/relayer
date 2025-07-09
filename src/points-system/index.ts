@@ -1,10 +1,9 @@
-import * as dotenv from "dotenv";
-dotenv.config();
-
 import { Module } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import "@nestjs/platform-express";
 import { ScheduleModule } from "@nestjs/schedule";
+import * as dotenv from "dotenv";
+dotenv.config();
 
 import { BonusController } from "./controllers/user-bonus.controller";
 import { DexScoreService } from "./services/dex-points.service";
