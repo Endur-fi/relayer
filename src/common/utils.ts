@@ -6,6 +6,7 @@ import { Account, BlockIdentifier, num, RpcProvider } from 'starknet';
 import { ConfigService } from '../relayer/services/configService';
 import { NotifService } from '../relayer/services/notifService';
 import { Network } from './constants';
+import { ApolloClient, DefaultOptions, InMemoryCache } from '@apollo/client';
 dotenv.config();
 
 export const STRK_DECIMALS = 18;
@@ -164,3 +165,23 @@ export function standariseAddress(address: string | bigint) {
   const a = num.getHexString(num.getDecimalString(_a.toString()));
   return a;
 }
+
+const defaultOptions: DefaultOptions = {
+  watchQuery: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "ignore",
+  },
+  query: {
+    fetchPolicy: "no-cache",
+    errorPolicy: "all",
+  },
+};
+
+export const apolloClient = new ApolloClient({
+  uri: getNetwork() == Network.mainnet
+    ? "https://graphql.mainnet.endur.fi"
+    : "https://graphql.sepolia.endur.fi",
+  // uri: "http://localhost:4000",
+  cache: new InMemoryCache(),
+  defaultOptions,
+});

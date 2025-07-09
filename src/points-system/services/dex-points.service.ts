@@ -17,8 +17,9 @@ import ekuboPositionAbi from '../../common/abi/ekubo.position.abi.json';
 import STRKFarmEkuboAbi from '../../common/abi/strkfarm.ekubo.json';
 import { getAddresses } from '../../common/constants';
 import MyNumber from '../../common/MyNumber';
-import { getNetwork, getProvider, standariseAddress, TryCatchAsync } from '../../common/utils';
+import { apolloClient, getNetwork, getProvider, standariseAddress, STRK_TOKEN, TryCatchAsync } from '../../common/utils';
 import { findClosestBlockInfo, getDate, getDateString, prisma } from '../utils';
+import { gql } from '@apollo/client';
 
 const DEX_INCENTIVE_SCORING_EXPONENT = 5;
 const EKUBO_POSITION_ADDRESS = '0x02e0af29598b407c8716b17f6d2795eca1b471413fa03fb145a5e33722184067';
@@ -31,6 +32,28 @@ export interface DexScore {
   nostraScore: dex_positions[];
   strkfarmEkuboScore: dex_positions[];
 }
+
+const EKUBO_API_QUERY = gql`
+  query GetEkuboPositionsByUser(
+    $userAddress: String!
+    $showClosed: Boolean!
+    $toDateTime: DateTimeISO!
+  ) {
+    getEkuboPositionsByUser(
+      userAddress: $userAddress
+      showClosed: $showClosed
+      toDateTime: $toDateTime
+    ) {
+      position_id
+      timestamp
+      lower_bound
+      upper_bound
+      pool_fee
+      pool_tick_spacing
+      extension
+    }
+  }
+`;
 
 export interface IDexScoreService {
   getDexBonusPoints(
@@ -384,84 +407,97 @@ export class DexScoreService implements IDexScoreService {
     let xSTRKAmount = MyNumber.fromEther('0', 18);
     let STRKAmount = MyNumber.fromEther('0', 18);
 
-    const resp = await axios.get(
-      `https://mainnet-api.ekubo.org/positions/${address}?showClosed=true`,
-      {
-        headers: {
-          Host: 'mainnet-api.ekubo.org',
-        },
+    const blockInfo = await provider.getBlock(blockNumber ?? "latest");
+    const resp = await apolloClient.query({
+      query: EKUBO_API_QUERY,
+      variables: {
+        userAddress: address.toLowerCase(),
+        showClosed: false, // Fetch both open and closed positions
+        toDateTime: new Date(blockInfo.timestamp * 1000).toISOString(),
       },
-      // `https://mainnet-api.ekubo.org/positions/0x067138f4b11ac7757e39ee65814d7a714841586e2aa714ce4ececf38874af245`,
-    );
-    const res = resp.data;
+    });
+    const ekuboPositionsResp = resp;
+    if (
+      !ekuboPositionsResp ||
+      !ekuboPositionsResp.data ||
+      !ekuboPositionsResp.data.getEkuboPositionsByUser
+    ) {
+      throw new Error("Failed to fetch Ekubo positions data");
+    }
+    const ekuboPositions: {
+      position_id: string;
+      timestamp: string;
+      lower_bound: number;
+      upper_bound: number;
+      pool_fee: string;
+      pool_tick_spacing: string;
+      extension: string;
+    }[] = ekuboPositionsResp.data.getEkuboPositionsByUser;
+  
 
     const positionContract = new Contract(ekuboPositionAbi, EKUBO_POSITION_ADDRESS, provider);
 
     const positionsInfo: dex_positions[] = [];
 
-    if (res?.data) {
-      const filteredData = res?.data?.filter(
-        (position: any) =>
-          standariseAddress(position.pool_key.token0) ===
-            standariseAddress(getAddresses(getNetwork()).LST) ||
-          standariseAddress(position.pool_key.token1) ===
-            standariseAddress(getAddresses(getNetwork()).LST),
-      );
+    for (let i = 0; i < ekuboPositions.length; i++) {
+      const position = ekuboPositions[i];
+      if (!position.position_id) continue;
+      const poolKey = {
+        token0: XSTRK_ADDRESS,
+        token1: STRK_TOKEN,
+        fee: position.pool_fee,
+        tick_spacing: position.pool_tick_spacing,
+        extension: position.extension,
+      };
 
-      if (filteredData) {
-        for (let i = 0; i < filteredData.length; i++) {
-          const position = filteredData[i];
-          if (!position.id) continue;
-          try {
-            const result: any = await positionContract.call(
-              'get_token_info',
-              [
-                position?.id,
-                position.pool_key,
-                {
-                  lower: {
-                    mag: Math.abs(position?.bounds?.lower),
-                    sign: position?.bounds?.lower < 0 ? 1 : 0,
-                  },
-                  upper: {
-                    mag: Math.abs(position?.bounds?.upper),
-                    sign: position?.bounds?.upper < 0 ? 1 : 0,
-                  },
-                },
-              ],
-              {
-                blockIdentifier: blockNumber ?? 'pending',
+      try {
+        const result: any = await positionContract.call(
+          'get_token_info',
+          [
+            position?.position_id,
+            poolKey,
+            {
+              lower: {
+                mag: Math.abs(position.lower_bound),
+                sign: position.lower_bound < 0 ? 1 : 0,
               },
-            );
+              upper: {
+                mag: Math.abs(position.upper_bound),
+                sign: position.upper_bound < 0 ? 1 : 0,
+              },
+            },
+          ],
+          {
+            blockIdentifier: blockNumber ?? 'pending',
+          },
+        );
 
-            const score = this.calculateEkuboBonusScore(
-              Number(result.amount1.toString()) / 1e18,
-              Number(truePrice),
-              Number(EkuboCLVault.tickToPrice(position.bounds.lower)),
-            );
+        const score = this.calculateEkuboBonusScore(
+          Number(result.amount1.toString()) / 1e18,
+          Number(truePrice),
+          Number(EkuboCLVault.tickToPrice(BigInt(position.lower_bound))),
+        );
 
-            const positionInfo: dex_positions = {
-              pool_key: `ekubo_${num.getDecimalString(position.pool_key.fee)}_${num.getDecimalString(position.pool_key.tick_spacing)}_${position.id}`,
-              strk_amount: (Number(result.amount1.toString()) / 1e18).toString(),
-              score: new Decimal(score), // will be calculated later
-              block_number: blockNumber,
-              user_address: address,
-              additional_info: JSON.stringify({
-                lower_price: EkuboCLVault.tickToPrice(position.bounds.lower),
-                upper_price: EkuboCLVault.tickToPrice(position.bounds.upper),
-              }),
-              is_points_settled: false,
-              timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
-            };
-            positionsInfo.push(positionInfo);
-          } catch (error: any) {
-            if (error.message.includes('NOT_INITIALIZED')) {
-              // do nothing
-              continue;
-            }
-            throw error;
-          }
+        const positionInfo: dex_positions = {
+          pool_key: `ekubo_${num.getDecimalString(poolKey.fee)}_${num.getDecimalString(poolKey.tick_spacing)}_${position.position_id}`,
+          strk_amount: (Number(result.amount1.toString()) / 1e18).toString(),
+          score: new Decimal(score), // will be calculated later
+          block_number: blockNumber,
+          user_address: address,
+          additional_info: JSON.stringify({
+            lower_price: EkuboCLVault.tickToPrice(BigInt(position.lower_bound)),
+            upper_price: EkuboCLVault.tickToPrice(BigInt(position.upper_bound)),
+          }),
+          is_points_settled: false,
+          timestamp: Math.round(date.getTime() / 1000), // current timestamp in seconds
+        };
+        positionsInfo.push(positionInfo);
+      } catch (error: any) {
+        if (error.message.includes('NOT_INITIALIZED')) {
+          // do nothing
+          continue;
         }
+        throw error;
       }
     }
 
