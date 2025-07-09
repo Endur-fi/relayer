@@ -308,6 +308,11 @@ model ekubo_position_timeseries {
   lower_bound  Int?
   upper_bound  Int?
   
+  // Final calculated values (accumulated from deltas)
+  liquidity    String? // Final liquidity value (cannot be negative)
+  amount0      String? // Final amount0 value (can be negative)
+  amount1      String? // Final amount1 value (can be negative)
+  
   // Owner info
   owner_address String
   

@@ -1,5 +1,10 @@
-import { ekubo_nfts, ekubo_position_timeseries, ekubo_positions, PrismaClient } from '@prisma/client';
-import { logger } from '@strkfarm/sdk';
+import {
+  ekubo_nfts,
+  ekubo_position_timeseries,
+  ekubo_positions,
+  PrismaClient,
+} from '@prisma/client';
+import { logger, Web3Number } from '@strkfarm/sdk';
 import { num } from 'starknet';
 
 const prisma = new PrismaClient();
@@ -11,7 +16,7 @@ declare global {
 }
 BigInt.prototype.toJSON = function () {
   return this.toString();
-}
+};
 
 interface TimelineEvent {
   type: 'nft_transfer' | 'position_update';
@@ -31,16 +36,22 @@ interface PositionState {
   upper_bound?: number;
   owner_address?: string;
   has_position_data?: boolean;
+  // Final calculated values
+  liquidity?: string;
+  amount0?: string;
+  amount1?: string;
 }
 
 /**
- * 
- * @returns 
+ *
+ * @returns
  */
 async function getIndexersState() {
   const resp = await fetch('https://enurfi-indexers-with-health-api-mainnet.onrender.com/summary');
   const data = await resp.json();
-  const positionIndex = data.results.find((i: any) => i.file == 'apibara:sink:relayer::ekubo::positions');
+  const positionIndex = data.results.find(
+    (i: any) => i.file == 'apibara:sink:relayer::ekubo::positions',
+  );
   const nftIndex = data.results.find((i: any) => i.file == 'apibara:sink:relayer::ekubo::nfts');
   if (!positionIndex || !nftIndex) {
     throw new Error('Ekubo indexers not found');
@@ -52,13 +63,13 @@ async function getIndexersState() {
 /**
  * Determines the last processed event for incremental updates
  */
-async function getLastProcessedEvent(): Promise<{ blockNumber: number; txIndex: number; eventIndex: number } | null> {
+async function getLastProcessedEvent(): Promise<{
+  blockNumber: number;
+  txIndex: number;
+  eventIndex: number;
+} | null> {
   const latestRecord = await prisma.ekubo_position_timeseries.findFirst({
-    orderBy: [
-      { block_number: 'desc' },
-      { tx_index: 'desc' },
-      { event_index: 'desc' }
-    ]
+    orderBy: [{ block_number: 'desc' }, { tx_index: 'desc' }, { event_index: 'desc' }],
   });
 
   if (!latestRecord) {
@@ -68,14 +79,18 @@ async function getLastProcessedEvent(): Promise<{ blockNumber: number; txIndex: 
   return {
     blockNumber: latestRecord.block_number,
     txIndex: latestRecord.tx_index,
-    eventIndex: latestRecord.event_index
+    eventIndex: latestRecord.event_index,
   };
 }
 
 /**
  * Fetches NFT transfers, optionally filtered for incremental updates
  */
-async function fetchNftTransfers(lastProcessed?: { blockNumber: number; txIndex: number; eventIndex: number }) {
+async function fetchNftTransfers(lastProcessed?: {
+  blockNumber: number;
+  txIndex: number;
+  eventIndex: number;
+}) {
   return await prisma.ekubo_nfts.findMany({
     where: lastProcessed
       ? {
@@ -97,18 +112,18 @@ async function fetchNftTransfers(lastProcessed?: { blockNumber: number; txIndex:
           ],
         }
       : undefined,
-    orderBy: [
-      { block_number: 'asc' },
-      { tx_index: 'asc' },
-      { event_index: 'asc' },
-    ],
+    orderBy: [{ block_number: 'asc' }, { tx_index: 'asc' }, { event_index: 'asc' }],
   });
 }
 
 /**
  * Fetches position updates, optionally filtered for incremental updates
  */
-async function fetchPositionUpdates(lastProcessed?: { blockNumber: number; txIndex: number; eventIndex: number }) {
+async function fetchPositionUpdates(lastProcessed?: {
+  blockNumber: number;
+  txIndex: number;
+  eventIndex: number;
+}) {
   return await prisma.ekubo_positions.findMany({
     where: lastProcessed
       ? {
@@ -130,18 +145,17 @@ async function fetchPositionUpdates(lastProcessed?: { blockNumber: number; txInd
           ],
         }
       : undefined,
-    orderBy: [
-      { block_number: 'asc' },
-      { tx_index: 'asc' },
-      { event_index: 'asc' },
-    ],
+    orderBy: [{ block_number: 'asc' }, { tx_index: 'asc' }, { event_index: 'asc' }],
   });
 }
 
 /**
  * Creates a chronologically sorted timeline of all events
  */
-async function createEventTimeline(nftTransfers: ekubo_nfts[], positionUpdates: ekubo_positions[]): Promise<TimelineEvent[]> {
+async function createEventTimeline(
+  nftTransfers: ekubo_nfts[],
+  positionUpdates: ekubo_positions[],
+): Promise<TimelineEvent[]> {
   const timeline: TimelineEvent[] = [];
 
   // const lastBlockOfNFTTransfers = nftTransfers.length > 0 ? nftTransfers[nftTransfers.length - 1].block_number : 0;
@@ -155,12 +169,12 @@ async function createEventTimeline(nftTransfers: ekubo_nfts[], positionUpdates: 
     return timeline; // No events to process
   }
   // Filter out events that are not before the minimum last block
-  nftTransfers = nftTransfers.filter(nft => nft.block_number < minLastBlock);
-  positionUpdates = positionUpdates.filter(position => {
+  nftTransfers = nftTransfers.filter((nft) => nft.block_number < minLastBlock);
+  positionUpdates = positionUpdates.filter((position) => {
     // position id 0 is possible on initialization, so we dont want to keep it
     return position.block_number < minLastBlock && position.position_id != '0';
   });
-    
+
   // Add NFT transfers to timeline
   nftTransfers.forEach((nft) => {
     timeline.push({
@@ -188,11 +202,10 @@ async function createEventTimeline(nftTransfers: ekubo_nfts[], positionUpdates: 
   });
 
   // we want to remove nfts which dont have position data
-  const nftIdsWithPositionData = new Set(positionUpdates.map(p => p.position_id));
+  const nftIdsWithPositionData = new Set(positionUpdates.map((p) => p.position_id));
   let timelineUpdated = timeline.filter((event) => {
     return !(event.type === 'nft_transfer' && !nftIdsWithPositionData.has(event.data.nft_id));
   });
-  
 
   // Sort timeline by block_number, tx_index, event_index (not timestamp)
   timelineUpdated.sort((a, b) => {
@@ -224,6 +237,10 @@ async function processNftMint(tx: any, nft: any, positionStates: Map<string, Pos
       extension: null,
       lower_bound: null,
       upper_bound: null,
+      // Initialize final calculated values to 0
+      liquidity: Web3Number.fromWei("0", 18).toWei(),
+      amount0: Web3Number.fromWei("0", 18).toWei(),
+      amount1: Web3Number.fromWei("0", 18).toWei(),
     },
   });
 
@@ -231,6 +248,10 @@ async function processNftMint(tx: any, nft: any, positionStates: Map<string, Pos
   positionStates.set(nft.nft_id, {
     owner_address: nft.to_address,
     has_position_data: false,
+    // Initialize final values
+    liquidity: Web3Number.fromWei("0", 18).toWei(),
+    amount0: Web3Number.fromWei("0", 18).toWei(),
+    amount1: Web3Number.fromWei("0", 18).toWei(),
   });
 }
 
@@ -263,6 +284,10 @@ async function processNftTransfer(tx: any, nft: any, positionStates: Map<string,
       extension: currentState.extension || null,
       lower_bound: currentState.lower_bound || null,
       upper_bound: currentState.upper_bound || null,
+      // Carry forward existing final calculated values
+      liquidity: currentState.liquidity || Web3Number.fromWei("0", 18).toWei(),
+      amount0: currentState.amount0 || Web3Number.fromWei("0", 18).toWei(),
+      amount1: currentState.amount1 || Web3Number.fromWei("0", 18).toWei(),
     },
   });
 
@@ -276,7 +301,11 @@ async function processNftTransfer(tx: any, nft: any, positionStates: Map<string,
 /**
  * Processes a position update event with transaction
  */
-async function processPositionUpdate(tx: any, position: any, positionStates: Map<string, PositionState>) {
+async function processPositionUpdate(
+  tx: any,
+  position: any,
+  positionStates: Map<string, PositionState>,
+) {
   let currentState = positionStates.get(position.position_id);
   if (!currentState) {
     currentState = await loadPositionStateFromDb(position.position_id);
@@ -285,6 +314,14 @@ async function processPositionUpdate(tx: any, position: any, positionStates: Map
     }
     positionStates.set(position.position_id, currentState);
   }
+
+  // Calculate new final values using Web3Number operations
+  const finalValues = calculateNewFinalValues(
+    currentState,
+    position.liquidity_delta,
+    position.amount0_delta,
+    position.amount1_delta
+  );
 
   const recordType = 'position_updated';
 
@@ -304,10 +341,14 @@ async function processPositionUpdate(tx: any, position: any, positionStates: Map
       extension: position.extension,
       lower_bound: position.lower_bound,
       upper_bound: position.upper_bound,
+      // Final calculated values
+      liquidity: finalValues.liquidity,
+      amount0: finalValues.amount0,
+      amount1: finalValues.amount1,
     },
   });
 
-  // Update position state
+  // Update position state with new final values
   positionStates.set(position.position_id, {
     ...currentState,
     pool_fee: position.pool_fee,
@@ -316,6 +357,10 @@ async function processPositionUpdate(tx: any, position: any, positionStates: Map
     lower_bound: position.lower_bound,
     upper_bound: position.upper_bound,
     has_position_data: true,
+    // Update final values in memory
+    liquidity: finalValues.liquidity,
+    amount0: finalValues.amount0,
+    amount1: finalValues.amount1,
   });
 }
 
@@ -325,11 +370,7 @@ async function processPositionUpdate(tx: any, position: any, positionStates: Map
 async function loadPositionStateFromDb(positionId: string): Promise<PositionState | undefined> {
   const latestRecord = await prisma.ekubo_position_timeseries.findFirst({
     where: { position_id: positionId },
-    orderBy: [
-      { block_number: 'desc' },
-      { tx_index: 'desc' },
-      { event_index: 'desc' }
-    ]
+    orderBy: [{ block_number: 'desc' }, { tx_index: 'desc' }, { event_index: 'desc' }],
   });
 
   if (!latestRecord) {
@@ -344,35 +385,91 @@ async function loadPositionStateFromDb(positionId: string): Promise<PositionStat
     upper_bound: latestRecord.upper_bound || undefined,
     owner_address: latestRecord.owner_address || undefined,
     has_position_data: !!latestRecord.pool_fee,
+    // Load final calculated values
+    liquidity: latestRecord.liquidity || "0",
+    amount0: latestRecord.amount0 || "0",
+    amount1: latestRecord.amount1 || "0",
+  };
+}
+
+/**
+ * Calculates new final values by applying deltas to current values
+ */
+function calculateNewFinalValues(
+  currentState: PositionState,
+  liquidityDelta: string,
+  amount0Delta: string,
+  amount1Delta: string
+): { liquidity: string; amount0: string; amount1: string } {
+  // Current values (default to 0 if not set)
+  const currentLiquidity = Web3Number.fromWei(currentState.liquidity || "0", 18);
+  const currentAmount0 = Web3Number.fromWei(currentState.amount0 || "0", 18);
+  const currentAmount1 = Web3Number.fromWei(currentState.amount1 || "0", 18);
+  
+  // Deltas
+  const liquidityDeltaWeb3 = Web3Number.fromWei(liquidityDelta, 18);
+  const amount0DeltaWeb3 = Web3Number.fromWei(amount0Delta, 18);
+  const amount1DeltaWeb3 = Web3Number.fromWei(amount1Delta, 18);
+  
+  // Calculate new values
+  // console.log(`Calculating new final values for position ${currentState.owner_address}:
+  //   Current Liquidity: ${currentLiquidity.toString()},
+  //   Liquidity Delta: ${liquidityDeltaWeb3.toString()},
+  //   Current Amount0: ${currentAmount0.toString()},
+  //   Amount0 Delta: ${amount0DeltaWeb3.toString()},
+  //   Current Amount1: ${currentAmount1.toString()},
+  //   Amount1 Delta: ${amount1DeltaWeb3.toString()}`);
+  let newLiquidity = liquidityDeltaWeb3.eq(0) ? currentLiquidity : currentLiquidity.plus(liquidityDeltaWeb3.toString());
+  const newAmount0 = amount0DeltaWeb3.eq(0) ? currentAmount0 : currentAmount0.plus(amount0DeltaWeb3.toString());
+  const newAmount1 = amount1DeltaWeb3.eq(0) ? currentAmount1 : currentAmount1.plus(amount1DeltaWeb3.toString());
+  
+  // Ensure liquidity cannot be negative
+  if (newLiquidity.lt(Web3Number.fromWei("0", 18))) {
+    throw new Error(`Negative liquidity calculated for position ${currentState.owner_address}`);
+  }
+  
+  return {
+    liquidity: newLiquidity.toWei(),
+    amount0: newAmount0.toWei(),
+    amount1: newAmount1.toWei(),
   };
 }
 
 /**
  * Processes a batch of events in a single transaction
  */
-async function processBatch(eventBatch: TimelineEvent[], positionStates: Map<string, PositionState>): Promise<void> {
-  await prisma.$transaction(async (tx) => {
-    for (const event of eventBatch) {
-      try {
-        if (event.type === 'nft_transfer') {
-          const nft = event.data;
-          const fromAddressFelt = num.getDecimalString(nft.from_address);
-          const isNftMint = fromAddressFelt === '0';
+async function processBatch(
+  eventBatch: TimelineEvent[],
+  positionStates: Map<string, PositionState>,
+): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      for (const event of eventBatch) {
+        try {
+          if (event.type === 'nft_transfer') {
+            const nft = event.data;
+            const fromAddressFelt = num.getDecimalString(nft.from_address);
+            const isNftMint = fromAddressFelt === '0';
 
-          if (isNftMint) {
-            await processNftMint(tx, nft, positionStates);
-          } else {
-            await processNftTransfer(tx, nft, positionStates);
+            if (isNftMint) {
+              await processNftMint(tx, nft, positionStates);
+            } else {
+              await processNftTransfer(tx, nft, positionStates);
+            }
+          } else if (event.type === 'position_update') {
+            await processPositionUpdate(tx, event.data, positionStates);
           }
-        } else if (event.type === 'position_update') {
-          await processPositionUpdate(tx, event.data, positionStates);
+        } catch (err) {
+          logger.error(
+            `Processing event: ${event.type} at with id ${event.data.nft_id || event.data.position_id}, full event: ${JSON.stringify(event)}`,
+            err,
+          );
+          throw err;
         }
-      } catch(err) {
-        logger.error(`Processing event: ${event.type} at with id ${event.data.nft_id || event.data.position_id}, full event: ${JSON.stringify(event)}`, err);
-        throw err;
       }
-    }
-  }, { timeout: 100000 }); // Set a reasonable timeout for the transaction
+    },
+    { timeout: 100000 },
+  ); // Set a reasonable timeout for the transaction
 }
 
 /**
@@ -387,12 +484,14 @@ async function processEventTimeline(timeline: TimelineEvent[]): Promise<void> {
 
   for (let i = 0; i < timeline.length; i += BATCH_SIZE) {
     const batch = timeline.slice(i, i + BATCH_SIZE);
-    
+
     try {
       await processBatch(batch, positionStates);
       processedCount += batch.length;
-      
-      console.log(`Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(timeline.length / BATCH_SIZE)} (${processedCount}/${timeline.length} events)`);
+
+      console.log(
+        `Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(timeline.length / BATCH_SIZE)} (${processedCount}/${timeline.length} events)`,
+      );
     } catch (error) {
       console.error(`Error processing batch starting at index ${i}:`, error);
       throw error;

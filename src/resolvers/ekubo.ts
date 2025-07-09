@@ -26,6 +26,9 @@ class EkuboPosition {
   @Field(() => Int, { nullable: true })
   upper_bound?: number;
 
+  @Field(() => String, { nullable: true })
+  liquidity?: string;
+
   @Field(() => String)
   owner_address!: string;
 
@@ -157,7 +160,7 @@ export class EkuboResolver {
           id, position_id, pool_fee, pool_tick_spacing, extension,
           lower_bound, upper_bound, owner_address, block_number,
           tx_index, event_index, timestamp, "txHash", record_type,
-          created_at, updated_at
+          created_at, updated_at, liquidity
         FROM ekubo_position_timeseries
         WHERE position_id IN (SELECT position_id FROM currently_owned_positions)
           AND timestamp <= ${toTimestamp}
@@ -165,6 +168,7 @@ export class EkuboResolver {
         ORDER BY position_id, timestamp DESC
       )
       SELECT * FROM position_states
+      WHERE liquidity IS NOT NULL AND liquidity != '0'
       ORDER BY timestamp DESC
     `;
 
