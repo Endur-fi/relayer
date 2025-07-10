@@ -24,7 +24,7 @@ export class PointsCronService {
     await this.init();
 
     // Set up timezone-based scheduled jobs
-    await this.weeklyPointsService.setupTimezoneGroups();
+    // await this.weeklyPointsService.setupTimezoneGroups();
   }
 
   async init() {
