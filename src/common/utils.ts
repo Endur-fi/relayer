@@ -201,3 +201,17 @@ export const apolloClient = new ApolloClient({
   cache: new InMemoryCache(),
   defaultOptions,
 });
+
+export const EVENT_TYPES = [
+  "endur_points_earned_weekly_lst",
+  "strk_unstake_initiated_lst",
+  "strk_unstake_completed_lst",
+  "strk_unstake_initiated_native",
+  "strk_unstake_completed_native",
+  "strk_unstake_available_native",
+  "validator_left_staking_native",
+  "validator_low_liveliness_native",
+  "validator_commission_change",
+] as const;
+
+export type EventType = (typeof EVENT_TYPES)[number];

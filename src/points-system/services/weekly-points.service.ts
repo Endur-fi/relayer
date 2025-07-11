@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 
-import { prisma } from '../../../prisma/client';
-import { BotService } from '../../common/services/bot.service';
-import { TryCatchAsync } from '../../common/utils';
+import { prisma } from "../../../prisma/client";
+import { BotService } from "../../common/services/bot.service";
+import { TryCatchAsync } from "../../common/utils";
 
 interface User {
   id: number;
@@ -24,13 +24,12 @@ export class WeeklyPointsService {
   // Process weekly points for all users
   @TryCatchAsync()
   async processWeeklyPointsForAllUsers(): Promise<void> {
-    this.logger.log('Running weekly points distribution job...');
+    this.logger.log("Running weekly points distribution job...");
 
     const users = await this.botService.getAllUsers();
 
     if (!users || users.length === 0) {
-      throw new Error('No users found for weekly points processing');
-      return;
+      throw new Error("No users found for weekly points processing");
     }
 
     // Get weekly points delta (current points - previous week snapshot)
@@ -52,13 +51,18 @@ export class WeeklyPointsService {
       const batchRequests = allRequests.slice(i, i + BATCH_SIZE);
       await Promise.all(
         batchRequests.map((req) =>
-          this.processUserPoints(req.user, req.address, weeklyPointsData, results),
-        ),
+          this.processUserPoints(
+            req.user,
+            req.address,
+            weeklyPointsData,
+            results
+          )
+        )
       );
     }
 
     this.logger.log(
-      `Weekly points processing complete. Success: ${results.success}, Failed: ${results.failed}`,
+      `Weekly points processing complete. Success: ${results.success}, Failed: ${results.failed}`
     );
   }
 
@@ -67,31 +71,35 @@ export class WeeklyPointsService {
    */
   @TryCatchAsync()
   private async calculateWeeklyPointsDelta(): Promise<Record<string, string>> {
-    this.logger.log('Calculating weekly points delta...');
+    this.logger.log("Calculating weekly points delta...");
 
     try {
       // Get the most recent weekly snapshot (should be from previous week)
-      const latestSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
-        orderBy: {
-          week_start_date: 'desc',
-        },
-      });
+      const latestSnapshot =
+        await prisma.cumulative_weekly_snapshot_points.findFirst({
+          orderBy: {
+            week_start_date: "desc",
+          },
+        });
 
       if (!latestSnapshot) {
-        this.logger.error('No previous week snapshot found, cannot calculate weekly delta');
+        this.logger.error(
+          "No previous week snapshot found, cannot calculate weekly delta"
+        );
         return {};
       }
 
       // Get all snapshots from the latest week
-      const previousWeekSnapshots = await prisma.cumulative_weekly_snapshot_points.findMany({
-        where: {
-          week_start_date: latestSnapshot.week_start_date,
-        },
-        select: {
-          user_address: true,
-          total_points: true,
-        },
-      });
+      const previousWeekSnapshots =
+        await prisma.cumulative_weekly_snapshot_points.findMany({
+          where: {
+            week_start_date: latestSnapshot.week_start_date,
+          },
+          select: {
+            user_address: true,
+            total_points: true,
+          },
+        });
 
       // Get current points for all users
       const currentPoints = await prisma.points_aggregated.findMany({
@@ -103,9 +111,11 @@ export class WeeklyPointsService {
 
       // Create maps for easier lookup
       const previousPointsMap: Record<string, bigint> = {};
-      previousWeekSnapshots.forEach((snapshot: { user_address: string; total_points: bigint }) => {
-        previousPointsMap[snapshot.user_address] = snapshot.total_points;
-      });
+      previousWeekSnapshots.forEach(
+        (snapshot: { user_address: string; total_points: bigint }) => {
+          previousPointsMap[snapshot.user_address] = snapshot.total_points;
+        }
+      );
 
       const currentPointsMap: Record<string, bigint> = {};
       currentPoints.forEach((points) => {
@@ -132,16 +142,20 @@ export class WeeklyPointsService {
         if (pointsDelta >= BigInt(0)) {
           weeklyDelta[address] = pointsDelta.toString();
         } else {
-          throw new Error(`Negative points delta for address ${address}: ${pointsDelta}`);
+          throw new Error(
+            `Negative points delta for address ${address}: ${pointsDelta}`
+          );
         }
       }
 
-      this.logger.log(`Weekly delta calculated for ${Object.keys(weeklyDelta).length} addresses`);
+      this.logger.log(
+        `Weekly delta calculated for ${Object.keys(weeklyDelta).length} addresses`
+      );
 
       return weeklyDelta;
     } catch (error) {
-      this.logger.error('Error calculating weekly points delta:', error);
-      throw new Error('Failed to calculate weekly points delta');
+      this.logger.error("Error calculating weekly points delta:", error);
+      throw new Error("Failed to calculate weekly points delta");
     }
   }
 
@@ -152,7 +166,7 @@ export class WeeklyPointsService {
     user: User,
     address: string,
     weeklyPoints: Record<string, string>,
-    results: { success: number; failed: number },
+    results: { success: number; failed: number }
   ): Promise<void> {
     try {
       // Find points for this address or assign default
@@ -170,15 +184,22 @@ export class WeeklyPointsService {
 
       // Send weekly points event using BotService
       // Bot service will handle timezone-based delivery scheduling
-      await this.botService.sendWeeklyPointsEvent(address, userPoints.toString(), 'points', {
-        timezone: user.timezone,
-        weekStartDate: weekStart.toISOString(),
-        weekEndDate: weekEnd.toISOString(),
-        processedAt: now.toISOString(),
-      });
+      await this.botService.sendWeeklyPointsEvent(
+        `You earned ${userPoints} points this week!`,
+        address,
+        "null", // token is null for points
+        {
+          timezone: user.timezone,
+          weekStartDate: weekStart.toISOString(),
+          weekEndDate: weekEnd.toISOString(),
+          processedAt: now.toISOString(),
+        }
+      );
 
       results.success++;
-      this.logger.log(`Points sent for ${user.username}:${address} - ${userPoints} points`);
+      this.logger.log(
+        `Points sent for ${user.username}:${address} - ${userPoints} points`
+      );
     } catch (error: unknown) {
       results.failed++;
       const errorMessage =
@@ -206,7 +227,7 @@ export class WeeklyPointsService {
     previousWeekStart.setDate(currentWeekStart.getDate() - 7);
 
     this.logger.log(
-      `Taking snapshot for COMPLETED week: ${previousWeekStart.toISOString()} to ${previousWeekEnd.toISOString()}`,
+      `Taking snapshot for COMPLETED week: ${previousWeekStart.toISOString()} to ${previousWeekEnd.toISOString()}`
     );
 
     // Get all users with points from points_aggregated table
@@ -217,24 +238,27 @@ export class WeeklyPointsService {
       },
     });
 
-    this.logger.log(`Found ${currentPointsSnapshot.length} users with points for snapshot`);
+    this.logger.log(
+      `Found ${currentPointsSnapshot.length} users with points for snapshot`
+    );
 
     if (currentPointsSnapshot.length === 0) {
       throw new Error(
-        'No users found with points to take weekly snapshot. Cannot proceed.',
+        "No users found with points to take weekly snapshot. Cannot proceed."
       );
     }
 
     // Check if snapshot already exists for this week
-    const existingSnapshot = await prisma.cumulative_weekly_snapshot_points.findFirst({
-      where: {
-        week_start_date: previousWeekStart,
-      },
-    });
+    const existingSnapshot =
+      await prisma.cumulative_weekly_snapshot_points.findFirst({
+        where: {
+          week_start_date: previousWeekStart,
+        },
+      });
 
     if (existingSnapshot) {
       this.logger.warn(
-        `Snapshot already exists for week starting ${previousWeekStart.toISOString()}, skipping`,
+        `Snapshot already exists for week starting ${previousWeekStart.toISOString()}, skipping`
       );
       return;
     }
@@ -254,13 +278,15 @@ export class WeeklyPointsService {
       skipDuplicates: true,
     });
 
-    this.logger.log(`Weekly points snapshot completed. Created ${result.count} snapshots`);
+    this.logger.log(
+      `Weekly points snapshot completed. Created ${result.count} snapshots`
+    );
 
     return {
       previousWeekStart,
       previousWeekEnd,
       snapshotCount: result.count,
       snapshotTakenAt: now,
-    }
+    };
   }
 }

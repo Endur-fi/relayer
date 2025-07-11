@@ -1,9 +1,13 @@
-import assert from 'assert';
+import assert from "assert";
 
-import { fetchBuildExecuteTransaction, fetchQuotes, QuoteRequest } from '@avnu/avnu-sdk';
-import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { Web3Number } from '@strkfarm/sdk';
+import {
+  fetchBuildExecuteTransaction,
+  fetchQuotes,
+  QuoteRequest,
+} from "@avnu/avnu-sdk";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { Web3Number } from "@strkfarm/sdk";
 import {
   Account,
   Call,
@@ -12,26 +16,27 @@ import {
   TransactionExecutionStatus,
   Uint256,
   uint256,
-} from 'starknet';
+} from "starknet";
 
-import { prisma } from '../../prisma/client';
-import { getAddresses, getLSTDecimals, Network } from '../common/constants';
-import { BotService } from '../common/services/bot.service';
-import { getNetwork, TryCatchAsync } from '../common/utils';
-import { populateEkuboTimeseries } from '../points-system/standalone-scripts/populate-ekubo-timeseries';
-import { ConfigService } from './services/configService';
-import { DelegatorService } from './services/delegatorService';
-import { LSTService } from './services/lstService';
-import { NotifService } from './services/notifService';
-import { PrismaService } from './services/prismaService';
-import { WithdrawalQueueService } from './services/withdrawalQueueService';
-import { WeeklyPointsService } from '../points-system/services/weekly-points.service';
+import { getAddresses, getLSTDecimals, Network } from "../common/constants";
+import { BotService } from "../common/services/bot.service";
+import { getNetwork, STRK_TOKEN, TryCatchAsync } from "../common/utils";
+import { ConfigService } from "./services/configService";
+import { DelegatorService } from "./services/delegatorService";
+import { LSTService } from "./services/lstService";
+import { NotifService } from "./services/notifService";
+import { PrismaService } from "./services/prismaService";
+import { WithdrawalQueueService } from "./services/withdrawalQueueService";
+import { WeeklyPointsService } from "../points-system/services/weekly-points.service";
+import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 
-function getCronSettings(action: 'process-withdraw-queue' ) {
+function getCronSettings(action: "process-withdraw-queue") {
   const config = new ConfigService();
   switch (action) {
-    case 'process-withdraw-queue':
-      return config.isSepolia() ? CronExpression.EVERY_5_MINUTES : CronExpression.EVERY_HOUR;
+    case "process-withdraw-queue":
+      return config.isSepolia()
+        ? CronExpression.EVERY_5_MINUTES
+        : CronExpression.EVERY_HOUR;
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -163,7 +168,8 @@ export class CronService {
     this.logger.log(`Allowed limit: ${allowedLimit.toString()}`);
 
     const MAX_WITHDRAWALS_PER_DAY = 2_000_000; // 2M STRK
-    const processedWithdrawalsInLast24Hours = await this.prismaService.getWithdrawalsLastDay();
+    const processedWithdrawalsInLast24Hours =
+      await this.prismaService.getWithdrawalsLastDay();
     let processedWithdrawalsInLast24HoursDecimalAdjusted = Number(
       processedWithdrawalsInLast24Hours / BigInt(10 ** getLSTDecimals())
     );
@@ -211,9 +217,9 @@ export class CronService {
           }
 
           await this.botService.sendUnstakeCompletionEvent(
+            `You have successfully unstaked ${amount_strk.toString()} STRK`,
             w.receiver.toString(),
-            amount_strk.toString(), // amount
-            "STRK", // token name
+            STRK_TOKEN, // token address
             {
               requestId: w.request_id.toString(),
               timestamp: w.timestamp,
@@ -299,9 +305,12 @@ export class CronService {
     for (const w of recentWithdrawals) {
       try {
         await this.botService.sendUnstakeInitiationEvent(
+          `You have initiated unstaking of ${Web3Number.fromWei(
+            w.amount_strk,
+            18
+          ).toString()} STRK`,
           w.receiver.toString(),
-          Web3Number.fromWei(w.amount_strk, 18).toString(), // amount
-          "STRK", // token name
+          STRK_TOKEN, // token address
           {
             // metadata
             requestId: w.request_id.toString(),
