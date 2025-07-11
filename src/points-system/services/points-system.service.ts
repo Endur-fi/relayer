@@ -624,6 +624,7 @@ export const xSTRK_DAPPS = [
   "0x5dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b", // Ekubo Core
   "0x205fd8586f6be6c16f4aa65cc1034ecff96d96481878e55f629cd0cb83e05f", // Nostra xSTRK/STRK DEX pool
   "0x7023a5cadc8a5db80e4f0fde6b330cbd3c17bbbf9cb145cbabd7bd5e6fb7b0b", // STRKFarm xSTRK Sensei
+  "0x1f083b98674bc21effee29ef443a00c7b9a500fd92cf30341a3da12c73f2324", // STRKFarm xSTRK Ekubo
   "0x4a3e7dffd8e74a706be9abe6474e07fbbcf41e1be71387514c4977d54dbc428", // Opus
 ];
 

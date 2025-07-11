@@ -33,6 +33,7 @@ import {
   TryCatchAsync,
 } from "../../common/utils";
 import { findClosestBlockInfo, getDate, getDateString, prisma } from "../utils";
+import { xSTRK_DAPPS } from "./points-system.service";
 
 const DEX_INCENTIVE_SCORING_EXPONENT = 5;
 const EKUBO_POSITION_ADDRESS =
@@ -557,6 +558,9 @@ export class DexScoreService implements IDexScoreService {
       },
       where: {
         is_points_settled: false,
+        user_address: {
+          notIn: xSTRK_DAPPS
+        }
       },
     });
 
