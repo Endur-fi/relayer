@@ -4,11 +4,9 @@ import { ApolloClient, DefaultOptions, InMemoryCache } from "@apollo/client";
 import { Logger } from "@nestjs/common";
 import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 import * as dotenv from "dotenv";
-import { Account, BlockIdentifier, num, RpcProvider } from "starknet";
+import { Account, num, RpcProvider } from "starknet";
 
 import { Network } from "./constants";
-import { ConfigService } from "../relayer/services/configService";
-import { NotifService } from "../relayer/services/notifService";
 dotenv.config();
 
 export const STRK_DECIMALS = 18;
@@ -211,7 +209,7 @@ export const EVENT_TYPES = [
   "strk_unstake_available_native",
   "validator_left_staking_native",
   "validator_low_liveliness_native",
-  "validator_commission_change",
+  "validator_commission_change_native",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
