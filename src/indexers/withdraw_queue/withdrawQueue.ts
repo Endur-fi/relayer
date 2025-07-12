@@ -97,6 +97,7 @@ export default function transform({ header, events }: Block) {
             ).toString(),
             is_rejected: false,
             timestamp: timestamp_unix,
+            is_notified: false
           };
         } else {
           console.error("unexpected event data length", event.data.length);
