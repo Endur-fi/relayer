@@ -5,6 +5,7 @@ const app = express();
 const port = process.env.PORT || 4010;
 const redis = require("redis");
 const { RpcProvider } = require("starknet");
+const { exec } = require("child_process");
 
 if (!process.env.PERSIST_TO_REDIS) {
   console.error("PERSIST_TO_REDIS environment variable is not set.");
@@ -47,6 +48,31 @@ function getIndexState(key) {
   });
 }
 
+const lastRestartedTime = {};
+
+function restartIndexer(name) {
+  const now = Date.now();
+  const lastRestart = lastRestartedTime[name] || 0;
+  if (!name || now - lastRestart < 60000) {
+    console.log(`Indexer ${name} was restarted recently. Skipping restart.`);
+    return;
+  }
+  lastRestartedTime[name] = now;
+
+  // run command pm2 restart all
+  exec(`pm2 restart ${name}`, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error restarting indexers: ${error.message}`);
+      return;
+    }
+    if (stderr) {
+      console.error(`Error output: ${stderr}`);
+      return;
+    }
+    console.log(`Indexers restarted successfully: ${stdout}`);
+  });
+}
+
 app.get("/summary", async (_req, res) => {
   const results = [];
   let isAllSynced = true;
@@ -78,6 +104,7 @@ app.get("/summary", async (_req, res) => {
       });
       if (!isSynced) {
         isAllSynced = false;
+        restartIndexer(key.split("::").pop());
       }
     } catch (error) {
       results.push({

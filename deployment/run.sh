@@ -1,15 +1,15 @@
 #!/bin/bash
-# Install grpcurl if not installed
-if ! command -v grpcurl >/dev/null 2>&1; then
-    curl -sSL "https://github.com/fullstorydev/grpcurl/releases/download/v1.8.6/grpcurl_1.8.6_linux_x86_64.tar.gz" | tar -xz -C /usr/local/bin
-fi
 
-echo "Running indexers"
-/usr/bin/supervisord -c /app/supervisord.conf
+npx prisma db push
 
-echo "Sleeping 30s"
-sleep 30
-cat /var/log/supervisor/withdraw_queue.log
+# Source bashrc to ensure environment is loaded
+source ~/.bashrc
+cd /app
 
-echo "Starting server"
+# Start all indexer processes using PM2 ecosystem config
+pm2 start ./ecosystem.config.js
+
+# Save PM2 process list
+pm2 save
+
 node index.js
