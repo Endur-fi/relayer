@@ -27,9 +27,9 @@ RUN echo "Installed apibara, checking"
 RUN /root/.local/share/apibara/bin/apibara --version
 
 # install sink-postgres
-RUN wget https://github.com/apibara/dna/releases/download/sink-postgres%2Fv0.8.1/sink-postgres-x86_64-linux.gz
-RUN gzip -d sink-postgres-x86_64-linux.gz
-RUN chmod +x sink-postgres-x86_64-linux
+# RUN wget https://github.com/apibara/dna/releases/download/sink-postgres%2Fv0.8.1/sink-postgres-x86_64-linux.gz
+# RUN gzip -d sink-postgres-x86_64-linux.gz
+# RUN chmod +x sink-postgres-x86_64-linux
 RUN /root/.local/share/apibara/bin/apibara plugins install sink-postgres
 # RUN /root/.local/share/apibara/bin/apibara plugins install --file sink-postgres-x86_64-linux
 
