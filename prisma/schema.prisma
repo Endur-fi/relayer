@@ -253,16 +253,16 @@ model dex_positions {
 }
 
 model ekubo_positions {
-  pool_fee String
+  pool_fee          String
   pool_tick_spacing String
-  extension String
-  position_id String
+  extension         String
+  position_id       String
 
   block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
   timestamp    Int
-  txHash String
+  txHash       String
 
   lower_bound Int
   upper_bound Int
@@ -270,9 +270,9 @@ model ekubo_positions {
   amount0_delta String
   amount1_delta String
 
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  cursor       BigInt? @map("_cursor")
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  cursor     BigInt?  @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
@@ -286,27 +286,40 @@ model ekubo_nfts {
   timestamp    Int
   txHash       String
 
-  from_address   String
-  to_address     String
-  nft_id String
-  cursor BigInt? @map("_cursor")
+  from_address String
+  to_address   String
+  nft_id       String
+  cursor       BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
-  @@index([nft_id], type: Hash)
+}
+
+model cumulative_weekly_snapshot_points {
+  user_address      String
+  total_points      BigInt
+  week_start_date   DateTime // Start of the week (Sunday 00:00 UTC)
+  week_end_date     DateTime // End of the week (Saturday 23:59 UTC)
+  snapshot_taken_at DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@id([user_address, week_start_date])
+  @@index([week_start_date])
+  @@index([snapshot_taken_at])
 }
 
 model ekubo_position_timeseries {
-  id           String @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // Position info (nft_id and position_id are the same)
-  position_id  String
-  
+  position_id String
+
   // Pool info
   pool_fee          String?
   pool_tick_spacing String?
   extension         String?
-  
+
   // Position bounds (null when NFT is minted but position not yet created)
   lower_bound  Int?
   upper_bound  Int?
@@ -318,20 +331,20 @@ model ekubo_position_timeseries {
   
   // Owner info
   owner_address String
-  
+
   // Timing info
   block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
   timestamp    Int
   txHash       String
-  
+
   // Record type
-  record_type  String // "nft_mint", "nft_transfer", "position_created", "position_updated"
-  
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  
+  record_type String // "nft_mint", "nft_transfer", "position_created", "position_updated"
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   @@index([position_id])
   @@index([owner_address])
   @@index([timestamp(sort: Desc)])

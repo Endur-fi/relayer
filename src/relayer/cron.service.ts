@@ -20,13 +20,14 @@ import {
 
 import { getAddresses, getLSTDecimals, Network } from "../common/constants";
 import { BotService } from "../common/services/bot.service";
-import { getNetwork, TryCatchAsync } from "../common/utils";
+import { getNetwork, STRK_TOKEN, TryCatchAsync } from "../common/utils";
 import { ConfigService } from "./services/configService";
 import { DelegatorService } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PrismaService } from "./services/prismaService";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
+import { WeeklyPointsService } from "../points-system/services/weekly-points.service";
 import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 
 function getCronSettings(action: "process-withdraw-queue") {
@@ -71,6 +72,7 @@ export class CronService {
   readonly prismaService: PrismaService;
   readonly notifService: NotifService;
   readonly lstService: LSTService;
+  readonly weeklyPointsService: WeeklyPointsService;
   arbContract: Contract | null = null;
 
   constructor(
@@ -87,7 +89,9 @@ export class CronService {
     @Inject(forwardRef(() => NotifService))
     notifService: NotifService,
     @Inject(forwardRef(() => BotService))
-    botService: BotService
+    botService: BotService,
+    @Inject(forwardRef(() => WeeklyPointsService))
+    weeklyPointsService: WeeklyPointsService
   ) {
     this.config = config;
     this.withdrawalQueueService = withdrawalQueueService;
@@ -96,6 +100,7 @@ export class CronService {
     this.lstService = lstService;
     this.notifService = notifService;
     this.botService = botService;
+    this.weeklyPointsService = weeklyPointsService;
   }
 
   // Run the same task on startup
@@ -212,9 +217,9 @@ export class CronService {
           }
 
           await this.botService.sendUnstakeCompletionEvent(
+            `You have successfully unstaked ${amount_strk.toString()} STRK`,
             w.receiver.toString(),
-            amount_strk.toString(), // amount
-            "STRK", // token name
+            STRK_TOKEN, // token address
             {
               requestId: w.request_id.toString(),
               timestamp: w.timestamp,
@@ -300,9 +305,12 @@ export class CronService {
     for (const w of recentWithdrawals) {
       try {
         await this.botService.sendUnstakeInitiationEvent(
+          `You have initiated unstaking of ${Web3Number.fromWei(
+            w.amount_strk,
+            18
+          ).toString()} STRK`,
           w.receiver.toString(),
-          Web3Number.fromWei(w.amount_strk, 18).toString(), // amount
-          "STRK", // token name
+          STRK_TOKEN, // token address
           {
             // metadata
             requestId: w.request_id.toString(),
@@ -405,7 +413,6 @@ export class CronService {
     // todo modify arb contract to take flash loan from vesu and
     // execute swap using avnu swap (so that more routes can be used)
     const strkBalanceLST = await this.lstService.getSTRKBalance();
-    const account: Account = this.config.get("account");
     const queueStats =
       await this.withdrawalQueueService.getWithdrawalQueueState();
     const pendingAmount = queueStats.unprocessed_withdraw_queue_amount;
@@ -605,7 +612,7 @@ export class CronService {
           }
           return null;
         })
-        .filter((call) => call !== null);
+        .filter((call): call is Call => call !== null);
 
       if (calls.length == 0) {
         this.logger.log(`No unstake actions to perform`);
@@ -633,9 +640,53 @@ export class CronService {
     }
   }
 
+  // @Cron("0 1 * * 0") // Every Sunday at 01:00 UTC (1hr after weekly notifier)
+  // @TryCatchAsync()
+  // async weeklyPointsSnapshot() {
+  //   this.logger.log(
+  //     'Running weekly points snapshot - Monday 12:00 UTC (after Sunday ends globally)',
+  //   );
+
+  //   try {
+  //     const result = await this.weeklyPointsService.weeklyPointsSnapshot();
+  //     if (!result) {
+  //       this.logger.warn('No snapshots created this week');
+  //       return;
+  //     }
+  //     const { previousWeekStart, previousWeekEnd, snapshotCount, snapshotTakenAt } = result;
+  //     // Send notification about the snapshot completion
+  //     this.notifService.sendMessage(
+  //       `📊 Weekly Points Snapshot Completed\n` +
+  //         `Week: ${previousWeekStart.toDateString()} - ${previousWeekEnd.toDateString()}\n` +
+  //         `✅ Snapshots created: ${snapshotCount}\n` +
+  //         `📅 Taken at: ${snapshotTakenAt.toISOString()}`,
+  //     );
+  //   } catch (error) {
+  //     this.logger.error(
+  //       'Error in weekly points snapshot:',
+  //       error instanceof Error ? error.message : String(error),
+  //     );
+
+  //     // Send error notification
+  //     this.notifService.sendMessage(
+  //       `🚨 Weekly Points Snapshot Failed\n` +
+  //         `Error: ${error instanceof Error ? error.message : String(error)}\n` +
+  //         `Time: ${new Date().toISOString()}`,
+  //     );
+  //   }
+  // }
+
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync(3, 10000)
   async updateEkuboPositionsTimeseries() {
     await populateEkuboTimeseries(true);
   }
+
+  // // Run weekly job at midnight UTC on Sunday and process all users according to their timezones
+  // @Cron("0 0 * * 0")
+  // @TryCatchAsync()
+  // async processWeeklyPoints() {
+  //   this.logger.log("Running scheduled weekly points distribution job...");
+  //   await this.weeklyPointsService.processWeeklyPointsForAllUsers();
+  // }
 }

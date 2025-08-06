@@ -1,13 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 
-import { TryCatchAsync } from "../utils";
+import { EventType, TryCatchAsync } from "../utils";
 
 interface WebhookEventData {
-  eventType: string;
+  message: string;
+  eventType: EventType;
   starknetAddress: string;
-  amount: string;
-  tokenName: string;
+  token: string;
   metadata?: string;
 }
 
@@ -69,16 +69,16 @@ export class BotService {
    */
   @TryCatchAsync()
   async sendUnstakeInitiationEvent(
+    message: string,
     starknetAddress: string,
-    amount: string,
-    tokenName: string,
+    token: string,
     metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: "xstrk_unstake_initiated",
+      message,
+      eventType: "strk_unstake_initiated_lst",
       starknetAddress,
-      amount,
-      tokenName,
+      token,
       metadata: JSON.stringify(metadata),
     });
   }
@@ -88,16 +88,16 @@ export class BotService {
    */
   @TryCatchAsync()
   async sendUnstakeCompletionEvent(
+    message: string,
     starknetAddress: string,
-    amount: string,
-    tokenName: string,
+    token: string,
     metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: "xstrk_unstake_completed",
+      message,
+      eventType: "strk_unstake_completed_lst",
       starknetAddress,
-      amount,
-      tokenName,
+      token,
       metadata: JSON.stringify(metadata),
     });
   }
@@ -107,16 +107,16 @@ export class BotService {
    */
   @TryCatchAsync()
   async sendWeeklyPointsEvent(
+    message: string,
     starknetAddress: string,
-    amount: string,
-    tokenName: string,
+    token: string,
     metadata?: Record<string, any>
   ): Promise<void> {
     await this.sendWebhookEvent({
-      eventType: "endur_points_earned_weekly",
+      message,
+      eventType: "endur_points_earned_weekly_lst",
       starknetAddress,
-      amount,
-      tokenName,
+      token,
       metadata: JSON.stringify(metadata),
     });
   }
