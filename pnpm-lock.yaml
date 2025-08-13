@@ -25,7 +25,7 @@ importers:
         version: 3.1.0(ethers@6.15.0)(moment@2.30.1)(qs@6.14.0)(starknet@7.6.4)
       '@endur/sdk':
         specifier: github:Endur-fi/endur-sdk-ts
-        version: https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/a3230d68175f4581e724036a5b42f89cceb6741a(@apollo/client@3.13.8(graphql@16.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(starknet@7.6.4)
+        version: https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/64559089fabc626abc530b96e380781fe6b59d99(@apollo/client@3.13.8(graphql@16.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(starknet@7.6.4)
       '@nestjs/common':
         specifier: 10.4.1
         version: 10.4.1(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -910,8 +910,8 @@ packages:
   '@dabh/diagnostics@2.0.3':
     resolution: {integrity: sha512-hrlQOIi7hAfzsMqlGSFyVucrx38O+j6wiGOf//H2ecvIEqYN4ADBSS2iLMh5UFyDunCNniUIPk/q3riFv45xRA==}
 
-  '@endur/sdk@https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/a3230d68175f4581e724036a5b42f89cceb6741a':
-    resolution: {tarball: https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/a3230d68175f4581e724036a5b42f89cceb6741a}
+  '@endur/sdk@https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/64559089fabc626abc530b96e380781fe6b59d99':
+    resolution: {tarball: https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/64559089fabc626abc530b96e380781fe6b59d99}
     version: 1.0.0
     engines: {node: '>=18.0.0'}
     peerDependencies:
@@ -5374,7 +5374,7 @@ snapshots:
       enabled: 2.0.0
       kuler: 2.0.0
 
-  '@endur/sdk@https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/a3230d68175f4581e724036a5b42f89cceb6741a(@apollo/client@3.13.8(graphql@16.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(starknet@7.6.4)':
+  '@endur/sdk@https://codeload.github.com/Endur-fi/endur-sdk-ts/tar.gz/64559089fabc626abc530b96e380781fe6b59d99(@apollo/client@3.13.8(graphql@16.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(starknet@7.6.4)':
     dependencies:
       '@apollo/client': 3.13.8(graphql@16.9.0)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       axios: 1.11.0
