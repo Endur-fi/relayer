@@ -331,9 +331,6 @@ export class PointsSystemService implements IPointsSystemService {
       .map((r) => r.holdings)
       .filter(Boolean) as user_balances[];
 
-    writeFileSync(`holdings2.json`, JSON.stringify(validResults, null, 2));
-    writeFileSync(`holdings2a.json`, JSON.stringify(dexScoreResults, null, 2));
-
     // duplicate dex scores
     const uniqueDexScores = new Map<string, dex_positions>();
     dexScoreResults.forEach((score) => {

@@ -2,6 +2,8 @@ import { PrismaClient, user_balances } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { logger } from "@strkfarm/sdk";
 import axios from "axios";
+import { EndurSDK } from "@endur/sdk";
+import { getProvider } from "../common/utils";
 
 export const prisma = new PrismaClient({
   // log: ['query', 'info', 'warn', 'error'],
@@ -16,28 +18,6 @@ export async function connectPrisma() {
     throw error;
   }
 }
-
-const API_BASE_URL = `${process.env.API_ENDPOINT}/api/block-holdings`;
-
-// list of supported dApps to account points for
-export const DAPPs = [
-  "vesu",
-  "ekubo",
-  "nostraLending",
-  "nostraDex",
-  "wallet", // i.e. endur (xSTRK held in wallet directly)
-  "strkfarm",
-  "opus",
-];
-
-type dAppAmountProperty =
-  | "vesuAmount"
-  | "ekuboAmount"
-  | "nostraLendingAmount"
-  | "nostraDexAmount"
-  | "walletAmount"
-  | "strkfarmAmount"
-  | "opusAmount";
 
 const blockCache: Record<string, { block_number: number }> = {};
 export async function findClosestBlockInfo(date: Date) {
@@ -68,6 +48,14 @@ export async function findClosestBlockInfo(date: Date) {
   return res ? { block_number: Number(res.block_number) } : null;
 }
 
+const endurSdk = new EndurSDK({
+  config: {
+    network: 'mainnet',
+    timeout: 30000,
+  },
+  provider: getProvider() as any
+});
+
 export async function fetchHoldingsFromApi(
   userAddr: string,
   blockNumber: number,
@@ -80,82 +68,35 @@ export async function fetchHoldingsFromApi(
     ekuboAmount: string;
   };
 }> {
-  const endpoint = Math.random() < 0.5 ? API_BASE_URL : API_BASE_URL;
-  const url = `${endpoint}/${userAddr}/${blockNumber}`;
-  const response = await axios.get(url);
-  const data = response.data;
-
-  if (!data.blocks || !data.blocks[0]) {
-    throw new Error(
-      `Invalid data format for user ${userAddr} on date: ${date.toISOString().split("T")[0]}`
-    );
-  }
+  
+  const data = await endurSdk.holdings.getMultiProtocolHoldings({
+    address: userAddr,
+    blockNumber: blockNumber,
+    provider: getProvider() as any
+  });
 
   const timestamp = Math.floor(date.getTime() / 1000);
   const dbObject: user_balances = {
     user_address: userAddr,
-    block_number: Number(data.blocks[0].block),
-    vesuAmount: "0",
-    ekuboAmount: "0",
-    nostraLendingAmount: "0",
-    nostraDexAmount: "0",
-    walletAmount: "0",
-    strkfarmAmount: "0",
-    total_amount: "0",
-    opusAmount: "0",
+    block_number: blockNumber,
+    vesuAmount: (BigInt(data.byProtocol.vesu.xSTRKAmount) / BigInt(10**18)).toString(),
+    ekuboAmount: (BigInt(data.byProtocol.ekubo.xSTRKAmount) / BigInt(10**18)).toString(),
+    nostraLendingAmount: (BigInt(data.byProtocol.nostraLending.xSTRKAmount) / BigInt(10**18)).toString(),
+    nostraDexAmount: (BigInt(data.byProtocol.nostraDex.xSTRKAmount) / BigInt(10**18)).toString(),
+    walletAmount: (BigInt(data.byProtocol.lst.xSTRKAmount) / BigInt(10**18)).toString(),
+    strkfarmAmount: (BigInt(data.byProtocol.strkfarm.xSTRKAmount) + BigInt(data.byProtocol.strkfarmEkubo.xSTRKAmount)).toString(),
+    opusAmount: (BigInt(data.byProtocol.opus.xSTRKAmount) / BigInt(10**18)).toString(),
+    total_amount: (BigInt(data.total.xSTRKAmount) / BigInt(10**18)).toString(),
     date: date.toISOString().split("T")[0],
     timestamp: timestamp,
   };
 
-  const strkAmountsObject = { ...dbObject };
-
-  let totalAmount = 0;
-  for (const dapp of DAPPs) {
-    if (!data[dapp] || !data[dapp][0]) {
-      throw new Error(
-        `Invalid data format for dapp ${dapp} for user ${userAddr} on date: ${date.toISOString().split("T")[0]}`
-      );
-    }
-    const xSTRKAmount =
-      Number(
-        Number(data[dapp][0].xSTRKAmount.bigNumber * 100) /
-          10 ** data[dapp][0].xSTRKAmount.decimals
-      ) / 100;
-    totalAmount += xSTRKAmount;
-    const key = `${dapp}Amount` as dAppAmountProperty;
-    dbObject[key] = xSTRKAmount.toString();
-
-    const STRKAmount =
-      Number(
-        Number(data[dapp][0].STRKAmount.bigNumber * 100) /
-          10 ** data[dapp][0].STRKAmount.decimals
-      ) / 100;
-    strkAmountsObject[key] = STRKAmount.toString();
-  }
-
-  // handle exceptions
-  const strkfarmEkuboAmount =
-    Number(
-      Number(data["strkfarmEkubo"][0].xSTRKAmount.bigNumber * 100) /
-        10 ** data["strkfarmEkubo"][0].xSTRKAmount.decimals
-    ) / 100;
-  const strkfarmSTRKAmount =
-    Number(
-      Number(data["strkfarmEkubo"][0].STRKAmount.bigNumber * 100) /
-        10 ** data["strkfarmEkubo"][0].STRKAmount.decimals
-    ) / 100;
-
-  dbObject.strkfarmAmount = (
-    Number(dbObject.strkfarmAmount) + strkfarmEkuboAmount
-  ).toString();
-
-  dbObject.total_amount = totalAmount.toString();
   return {
     xSTRKHoldings: dbObject,
     strkHoldings: {
-      strkfarmEkuboAmount: strkfarmEkuboAmount.toString(),
-      nostraDexAmount: strkAmountsObject.nostraDexAmount,
-      ekuboAmount: strkAmountsObject.ekuboAmount,
+      strkfarmEkuboAmount: (BigInt(data.byProtocol.strkfarmEkubo.STRKAmount) / BigInt(10**18)).toString(),
+      nostraDexAmount: (BigInt(data.byProtocol.nostraDex.STRKAmount) / BigInt(10**18)).toString(),
+      ekuboAmount: (BigInt(data.byProtocol.ekubo.STRKAmount) / BigInt(10**18)).toString(),
     },
   };
 }

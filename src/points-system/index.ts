@@ -33,7 +33,7 @@ async function runPointsInit() {
     console.log("Points initialization completed successfully!");
   } catch (error) {
     console.error("Error running points initialization:", error);
-    process.exit(1);
+    throw error;
   }
 }
 

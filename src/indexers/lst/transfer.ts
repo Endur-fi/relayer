@@ -21,7 +21,7 @@ export const config: Config<Starknet, Postgres> = {
     events: [
       {
         fromAddress: getAddresses(getNetwork()).LST as FieldElement,
-        includeTransaction: true,
+        includeTransaction: false,
         keys: [hash.getSelectorFromName("Transfer") as FieldElement],
       },
     ],
@@ -51,18 +51,13 @@ export default function transform({ header, events }: Block) {
     new Date(timestamp as string).getTime() / 1000
   );
 
-  return (events || []).map(({ event, transaction }) => {
+  return (events || []).map((fullInfo) => {
+    const { event, receipt } = fullInfo;
     if (!event || !event.data || !event.keys) {
       throw new Error("tranfers:Expected event with data");
     }
 
-    if (!transaction || !transaction.meta) return null;
-
-    console.log(
-      "event keys and data length",
-      event.keys.length,
-      event.data.length
-    );
+    if (!receipt || !receipt.transactionHash) return null;
 
     // The 0th key is the selector(name of the event)
     // The following are those that are indexed using #[key] macro
@@ -73,11 +68,10 @@ export default function transform({ header, events }: Block) {
     // Assuming the second felt is zero
     // TODO: Update this later to properly handle using sn.js
     const value = toBigInt(event?.data?.[0]).toString();
-
-    const transactionHash = transaction.meta.hash;
+    const transactionHash = receipt.transactionHash;
     const transferData = {
       block_number: blockNumber,
-      tx_index: transaction.meta?.transactionIndex ?? 0,
+      tx_index: receipt.transactionIndex ?? 0,
       event_index: event.index ?? 0,
       txHash: transactionHash,
       timestamp: timestamp_unix,
@@ -86,7 +80,6 @@ export default function transform({ header, events }: Block) {
       value,
     };
 
-    console.log("transfer event data", transferData);
     return transferData;
   });
 }

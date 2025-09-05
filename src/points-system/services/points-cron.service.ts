@@ -39,6 +39,7 @@ export class PointsCronService {
       await this.dexScoreService.saveBonusPoints();
     } catch (error) {
       console.error("Error during initialization:", error);
+      throw error;
     }
   }
 }
