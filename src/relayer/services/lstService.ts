@@ -37,17 +37,17 @@ export class LSTService implements ILSTService {
   ) {
     console.log("LSTService initialized with config:", config);
     this.config = config;
-    this.LST = new Contract(
-      LSTAbi,
-      getAddresses(getNetwork()).LST,
-      config.get("account")
-    ).typedv2(LSTAbi);
+    this.LST = new Contract({
+      abi: LSTAbi,
+      address: getAddresses(getNetwork()).LST,
+      providerOrAccount: config.get("account")
+    }).typedv2(LSTAbi);
 
-    this.Strk = new Contract(
-      StrkAbi,
-      getAddresses(getNetwork()).Strk,
-      config.get("account")
-    ).typedv2(StrkAbi);
+    this.Strk = new Contract({
+      abi: StrkAbi,
+      address: getAddresses(getNetwork()).Strk,
+      providerOrAccount: config.get("account")
+    }).typedv2(StrkAbi);
 
     this.prismaService = prismaService;
   }
@@ -162,11 +162,11 @@ export class LSTService implements ILSTService {
       .getClassAt(getAddresses(getNetwork()).Delgator[0]);
     const delegatorStakes = await Promise.all(
       getAddresses(getNetwork()).Delgator.map(async (delegator) => {
-        const contract = new Contract(
-          delegatorCls.abi,
-          delegator,
-          this.config.provider()
-        );
+        const contract = new Contract({
+          abi: delegatorCls.abi,
+          address: delegator,
+          providerOrAccount: this.config.provider()
+        });
         const poolConfigRes: any = await contract.call(
           "get_pool_member_info",
           []

@@ -108,7 +108,7 @@ export class CronService {
       const provider = this.config.get("provider");
       const ARB_ADDR = getAddresses(getNetwork()).ARB_CONTRACT;
       const cls = await provider.getClassAt(ARB_ADDR);
-      this.arbContract = new Contract(cls.abi, ARB_ADDR, provider as any);
+      this.arbContract = new Contract({abi: cls.abi, address: ARB_ADDR, providerOrAccount: provider as any});
     }
 
     // Run on init
@@ -250,13 +250,7 @@ export class CronService {
 
       // send transactions to claim withdrawals
       // note: nonce is set to 'pending' to get the next nonce
-      const nonce = await account.getNonce("pending");
-      this.logger.debug(
-        `Claiming ${calls.length} withdrawals with nonce ${nonce}`
-      );
-      const res = await account.execute(calls, {
-        nonce: nonce,
-      });
+      const res = await account.execute(calls);
       this.notifService.sendMessage(
         `Claimed ${res.transaction_hash} withdrawals`
       );
@@ -583,7 +577,7 @@ export class CronService {
       );
 
       let totalUnstakeAmount = 0;
-      const calls = delegators
+      const calls: Call[] = delegators
         .map((del) => {
           if (del.unPoolTime && del.unPoolTime <= now) {
             this.logger.log(
@@ -605,7 +599,7 @@ export class CronService {
           }
           return null;
         })
-        .filter((call) => call !== null);
+        .filter((call) => call !== null) as Call[];
 
       if (calls.length == 0) {
         this.logger.log(`No unstake actions to perform`);

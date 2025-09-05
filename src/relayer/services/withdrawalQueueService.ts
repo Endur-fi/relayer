@@ -36,17 +36,17 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
     @Inject(forwardRef(() => PrismaService))
     prismaService: PrismaService
   ) {
-    this.WQ = new Contract(
-      WQAbi,
-      getAddresses(getNetwork()).WithdrawQueue,
-      config.get("account")
-    ).typedv2(WQAbi);
+    this.WQ = new Contract({
+      abi: WQAbi,
+      address: getAddresses(getNetwork()).WithdrawQueue,
+      providerOrAccount: config.get("account")
+    }).typedv2(WQAbi);
 
-    this.Strk = new Contract(
-      StrkAbi,
-      getAddresses(getNetwork()).Strk,
-      config.get("account")
-    ).typedv2(StrkAbi);
+    this.Strk = new Contract({
+      abi: StrkAbi,
+      address: getAddresses(getNetwork()).Strk,
+      providerOrAccount: config.get("account")
+    }).typedv2(StrkAbi);
 
     this.prismaService = prismaService;
   }

@@ -1,6 +1,7 @@
 import assert from "assert";
 
 import { ApolloClient, DefaultOptions, InMemoryCache } from "@apollo/client";
+import { HttpLink } from "@apollo/client";
 import { Logger } from "@nestjs/common";
 import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 import * as dotenv from "dotenv";
@@ -192,12 +193,17 @@ const defaultOptions: DefaultOptions = {
   },
 };
 
-export const apolloClient = new ApolloClient({
+
+const httpLink = new HttpLink({
   uri:
     getNetwork() == Network.mainnet
       ? "https://graphql.mainnet.endur.fi"
       : "https://graphql.sepolia.endur.fi",
   // uri: "http://localhost:4000",
+});
+
+export const apolloClient = new ApolloClient({
+  link: httpLink,
   cache: new InMemoryCache(),
   defaultOptions,
 });
