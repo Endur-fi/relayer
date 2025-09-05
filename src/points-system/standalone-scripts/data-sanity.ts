@@ -15,7 +15,7 @@ const globalLimit = pLimit(GLOBAL_CONCURRENCY_LIMIT);
 async function totalSupply(blockNumber: number) {
   const lst =
     "0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
-  const contract = new Contract(LSTAbi, lst, getProvider());
+  const contract = new Contract({abi: LSTAbi, address: lst, providerOrAccount: getProvider()});
   const supply: any = await contract.call("total_supply", [], {
     blockIdentifier: blockNumber,
   });
@@ -26,7 +26,7 @@ async function totalSupply(blockNumber: number) {
 async function getXSTRKBalance(userAddress: string, blockNumber: number) {
   const lst =
     "0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
-  const contract = new Contract(LSTAbi, lst, getProvider());
+  const contract = new Contract({abi: LSTAbi, address: lst, providerOrAccount: getProvider()});
   const balance: any = await contract.call("balance_of", [userAddress], {
     blockIdentifier: blockNumber,
   });
@@ -37,7 +37,7 @@ async function getvxSTRKBalance(userAddress: string, blockNumber: number) {
   // const lst = '0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a'
   const v2 =
     "0x040f67320745980459615f4f3e7dd71002dbe6c68c8249c847c82dbe327b23cb";
-  const contract = new Contract(LSTAbi, v2, getProvider());
+  const contract = new Contract({abi: LSTAbi, address: v2, providerOrAccount: getProvider()});
   const balance: any = await contract.call("balance_of", [userAddress], {
     blockIdentifier: blockNumber,
   });
@@ -70,7 +70,7 @@ async function checkBalance(
 async function nostraXSTRKDebt(blockNumber: number) {
   const dToken =
     "0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d";
-  const contract = new Contract(LSTAbi, dToken, getProvider());
+  const contract = new Contract({abi: LSTAbi, address: dToken, providerOrAccount: getProvider()});
   const debt: any = await contract.call("total_supply", [], {
     blockIdentifier: blockNumber,
   });

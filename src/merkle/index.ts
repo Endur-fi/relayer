@@ -41,7 +41,7 @@ async function checkProofValidity(
     nodeUrl: "https://starknet-sepolia.public.blastapi.io",
   });
   const cls = await provider.getClassAt(addr);
-  const contract = new Contract(cls.abi, addr, provider);
+  const contract = new Contract({abi: cls.abi, address: addr, providerOrAccount: provider});
 
   // returns root as expected by the contract
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -214,7 +214,7 @@ export class DexScoreService implements IDexScoreService {
   @TryCatchAsync(3, 10000) // attempts, retry delay in ms
   async getCurrentPrice(blockNumber: number) {
     const addr = EKUBO_POSITION_ADDRESS;
-    const contract = new Contract(EkuboAbi, addr, getProvider());
+    const contract = new Contract({abi: EkuboAbi, address: addr, providerOrAccount: getProvider()});
 
     // 0.01%, 200 tick spacing pool
     const poolKey = {
@@ -356,7 +356,7 @@ export class DexScoreService implements IDexScoreService {
     const provider = getProvider();
     const addr =
       "0x01f083b98674bc21effee29ef443a00c7b9a500fd92cf30341a3da12c73f2324";
-    const contract = new Contract(STRKFarmEkuboAbi, addr, provider);
+    const contract = new Contract({abi: STRKFarmEkuboAbi, address: addr, providerOrAccount: provider});
 
     const bal = await contract.call("balance_of", [userAddress], {
       blockIdentifier: blockNumber,
@@ -477,11 +477,11 @@ export class DexScoreService implements IDexScoreService {
       extension: string;
     }[] = ekuboPositionsResp.data.getEkuboPositionsByUser;
 
-    const positionContract = new Contract(
-      ekuboPositionAbi,
-      EKUBO_POSITION_ADDRESS,
-      provider
-    );
+    const positionContract = new Contract({
+      abi: ekuboPositionAbi,
+      address: EKUBO_POSITION_ADDRESS,
+      providerOrAccount: provider
+    });
 
     const positionsInfo: dex_positions[] = [];
 
