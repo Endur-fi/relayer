@@ -33,7 +33,7 @@ export class DelegatorService implements IDelegatorService {
   ) {
     this.delegators = getAddresses(config.get("network")).Delgator.map(
       (del) => {
-        return new Contract(DelegatorAbi, del, config.provider());
+        return new Contract({abi: DelegatorAbi, address: del, providerOrAccount: config.provider()});
       }
     );
   }

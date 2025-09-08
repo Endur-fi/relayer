@@ -533,7 +533,7 @@ export class PointsSystemService implements IPointsSystemService {
   async nostraXSTRKDebt(blockNumber: number) {
     const dToken =
       "0x0424638c9060d08b4820aabbb28347fc7234e2b7aadab58ad0f101e2412ea42d";
-    const contract = new Contract(LSTAbi, dToken, getProvider());
+    const contract = new Contract({abi: LSTAbi, address: dToken, providerOrAccount: getProvider()});
     const debt: any = await contract.call("total_supply", [], {
       blockIdentifier: blockNumber,
     });
@@ -547,7 +547,7 @@ export class PointsSystemService implements IPointsSystemService {
   async totalSupply(blockNumber: number) {
     const lst =
       "0x028d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a";
-    const contract = new Contract(LSTAbi, lst, getProvider());
+    const contract = new Contract({abi: LSTAbi, address: lst, providerOrAccount: getProvider()});
     const supply: any = await contract.call("total_supply", [], {
       blockIdentifier: blockNumber,
     });

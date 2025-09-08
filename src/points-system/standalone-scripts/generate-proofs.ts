@@ -150,7 +150,7 @@ async function getRoot(user: string, amount: string, proof: string[]) {
     nodeUrl: "https://starknet-mainnet.public.blastapi.io",
   });
   const cls = await provider.getClassAt(addr);
-  const contract = new Contract(cls.abi, addr, provider);
+  const contract = new Contract({abi: cls.abi, address: addr, providerOrAccount: provider});
   const res: any = await contract.call("get_root_for", [
     user,
     amount,
