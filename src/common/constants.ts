@@ -7,6 +7,14 @@ export enum Network {
 export const getLSTDecimals = () => 18;
 
 type NetworkAddresses = {
+  // V3 config
+  LSTs: {
+    LST: string;
+    WithdrawQueue: string;
+    Asset: string;
+  }[];
+
+  // previous config still maintained for backward compatibility
   LST: string;
   WithdrawQueue: string;
   Strk: string;
@@ -15,6 +23,19 @@ type NetworkAddresses = {
 };
 
 const sepolia: NetworkAddresses = {
+  LSTs: [{
+    LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
+    WithdrawQueue: "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
+    Asset: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+  },{
+    LST: "0x036A2c3C56ae806B12A84bB253cBc1a009e3da5469e6a736C483303B864C8e2B",
+    WithdrawQueue: "0x06259eC265D650C3Edd85d6B5f563603aA247c360879437D2372AeA7e2148eda",
+    Asset: "0x044aD07751Ad782288413C7DB42C48e1c4f6195876BCa3B6CAEF449bb4Fb8d36",
+  }, {
+    LST: "0x0226324F63D994834E4729dd1bab443fe50Af8E97C608b812ee1f950ceaE68c7",
+    WithdrawQueue: "0x0502B976EC50e85cE7E71997605a7DDbB70386844670ef270b9c721Db1cbE9c0",
+    Asset: "0x07E97477601e5606359303cf50C050FD3bA94F66Bd041F4ed504673BA2b81696",
+  }],
   LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
   WithdrawQueue:
     "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
@@ -26,7 +47,13 @@ const sepolia: NetworkAddresses = {
   ARB_CONTRACT: "",
 };
 
+
 const mainnet: NetworkAddresses = {
+  LSTs: [{
+    LST: "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a",
+    WithdrawQueue: "0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6",
+    Asset: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+  }],
   LST: "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a",
   WithdrawQueue:
     "0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6",

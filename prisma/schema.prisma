@@ -1,16 +1,28 @@
 // standard path for graphql (Node)
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  schemas  = ["public", "airfoil"]
 }
 
 // standard path for graphql (Node)
 generator typegraphql {
   provider = "typegraphql-prisma"
+  previewFeatures = ["multiSchema"]
+  schemas  = ["public", "airfoil"]
+}
+
+generator drizzle {
+  provider = "drizzle-prisma-generator"
+  previewFeatures = ["multiSchema"]
+  output   = "./indexers/drizzle" // Where to put generated Drizle tables
+  schemas  = ["public", "airfoil"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "airfoil"]
 }
 
 model deposits {
@@ -27,6 +39,7 @@ model deposits {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model deposits_with_referral {
@@ -43,6 +56,7 @@ model deposits_with_referral {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model transfer {
@@ -59,32 +73,60 @@ model transfer {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
-model withdraw_queue {
+model withdraw_queue_events {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   block_number Int
   tx_index     Int    @default(0)
   event_index  Int    @default(0)
   tx_hash      String
 
-  caller                               String
-  amount_strk                          String
-  amount_kstrk                         String
+  // Withdraw queue addresses
+  queue_contract                                String
+  amount                          String
+  amount_lst                         String
   request_id                           BigInt
   is_claimed                           Boolean
   claim_time                           Int
   receiver                             String
+  caller                               String
   cumulative_requested_amount_snapshot String
-  is_rejected                          Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
-
-  // tracks if unstake initiation event was sent to bot
-  is_notified Boolean @default(false)
 
   timestamp Int
   cursor    BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
+}
+
+//
+// processed events
+//
+model withdraw_queue {
+  tx_hash      String
+  // Withdraw queue addresses
+  queue_contract                                String
+  amount                          String
+  amount_lst                         String
+  request_id                           BigInt
+  is_claimed                           Boolean
+  claim_time                           Int
+  receiver                             String
+  caller                               String
+  cumulative_requested_amount_snapshot String
+
+  is_rejected                          Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
+
+  // tracks if unstake initiation event was sent to bot
+  is_notified Boolean @default(false)
+
+  timestamp Int
+
+  @@unique([receiver, queue_contract, request_id])
+  @@schema("public")
 }
 
 model received_funds {
@@ -100,6 +142,7 @@ model received_funds {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model dispatch_to_stake {
@@ -113,6 +156,7 @@ model dispatch_to_stake {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model dispatch_to_withdraw_queue {
@@ -124,6 +168,7 @@ model dispatch_to_withdraw_queue {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model unstake_action {
@@ -135,6 +180,7 @@ model unstake_action {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model unstake_intent_started {
@@ -146,6 +192,7 @@ model unstake_intent_started {
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
+  @@schema("public")
 }
 
 model users {
@@ -157,6 +204,8 @@ model users {
   email        String?
   timestamp    Int
   cursor       BigInt? @map("_cursor")
+
+  @@schema("public")
 }
 
 // xSTRK balances
@@ -176,6 +225,7 @@ model user_balances {
   timestamp    Int
 
   @@unique([block_number, user_address])
+  @@schema("public")
 }
 
 enum UserPointsType {
@@ -183,6 +233,8 @@ enum UserPointsType {
   Priority
   Bonus
   Referrer
+
+  @@schema("public")
 }
 
 model user_points {
@@ -194,6 +246,7 @@ model user_points {
   remarks      String?
 
   @@unique(name: "id", fields: [block_number, user_address, type])
+  @@schema("public")
 }
 
 model points_aggregated {
@@ -205,6 +258,7 @@ model points_aggregated {
   updated_on   DateTime @updatedAt
 
   user_allocation user_allocation? @relation(fields: [user_address], references: [user_address])
+  @@schema("public")
 }
 
 model user_allocation {
@@ -214,12 +268,16 @@ model user_allocation {
   created_at        DateTime           @default(now())
   updated_at        DateTime           @updatedAt
   points_aggregated points_aggregated?
+
+  @@schema("public")
 }
 
 model blocks {
   block_number Int     @unique
   timestamp    Int
   cursor       BigInt? @map("_cursor")
+
+  @@schema("public")
 }
 
 model price_info {
@@ -232,6 +290,7 @@ model price_info {
   updated_at DateTime @updatedAt
 
   @@index([block_number])
+  @@schema("public")
 }
 
 model dex_positions {
@@ -250,6 +309,7 @@ model dex_positions {
   timestamp    Int
 
   @@unique(name: "id", fields: [user_address, pool_key, timestamp])
+  @@schema("public")
 }
 
 model ekubo_positions {
@@ -277,6 +337,7 @@ model ekubo_positions {
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
   @@index([timestamp(sort: Desc)])
+  @@schema("public")
 }
 
 model ekubo_nfts {
@@ -294,6 +355,7 @@ model ekubo_nfts {
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
   @@index([nft_id], type: Hash)
+  @@schema("public")
 }
 
 model ekubo_position_timeseries {
@@ -336,4 +398,5 @@ model ekubo_position_timeseries {
   @@index([owner_address])
   @@index([timestamp(sort: Desc)])
   @@index([block_number(sort: Desc), tx_index(sort: Desc), event_index(sort: Desc)], name: "block_tx_event_idx")
+  @@schema("public")
 }

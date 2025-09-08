@@ -6,3 +6,4 @@ prisma/generated/
 prisma2
 accounts.json
 ./*.state
+.apibara

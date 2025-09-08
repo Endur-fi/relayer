@@ -25,10 +25,10 @@ export const config: Config<Starknet, Postgres> = {
   filter: {
     header: { weak: false },
     events: [
-      {
-        fromAddress: getAddresses(getNetwork()).WithdrawQueue as FieldElement,
+      ...getAddresses(getNetwork()).LSTs.map((lst) => ({
+        fromAddress: lst.WithdrawQueue as FieldElement,
         keys: [hash.getSelectorFromName("WithdrawQueue") as FieldElement],
-      },
+      })),
     ],
   },
   sinkType: "postgres",
@@ -85,11 +85,12 @@ export default function transform({ header, events }: Block) {
             event_index: event.index ?? 0,
             tx_hash: transactionHash,
 
+            asset: standariseAddress(event.address),
             receiver: standariseAddress(event.keys.at(1)),
             caller: standariseAddress(event.keys.at(2)),
             request_id: toNumber(event.data.at(0)).toString(),
-            amount_strk: toBigInt(event.data.at(1)).toString(),
-            amount_kstrk: toBigInt(event.data.at(3)).toString(),
+            amount: toBigInt(event.data.at(1)).toString(),
+            amount_lst: toBigInt(event.data.at(3)).toString(),
             is_claimed: toBoolean(event.data.at(5)),
             claim_time: toNumber(event.data.at(7)),
             cumulative_requested_amount_snapshot: toBigInt(
