@@ -6,3 +6,5 @@ prisma/generated/
 prisma2
 accounts.json
 ./*.state
+.apibara
+.DS_Store
