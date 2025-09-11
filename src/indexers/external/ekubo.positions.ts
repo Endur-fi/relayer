@@ -38,7 +38,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "ekubo_positions", // look for ekubo_positions_view in triggers/migraitons.sql to understand this table
-    noTls: Deno.env.get("IS_TLS"), // true for private urls, false for public urls
+    noTls: Deno.env.get("IS_TLS") == 'true', // true for private urls, false for public urls
   },
 };
 

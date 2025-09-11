@@ -33,7 +33,7 @@ export const config: Config<Starknet, Postgres> = {
   sinkOptions: {
     connectionString: Deno.env.get("DATABASE_URL"),
     tableName: "deposits_with_referral",
-    noTls: Deno.env.get("IS_TLS"), // true for private urls, false for public urls
+    noTls: Deno.env.get("IS_TLS") == 'true', // true for private urls, false for public urls
   },
 };
 
