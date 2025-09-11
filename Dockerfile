@@ -3,7 +3,7 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 
 WORKDIR /app
 ADD src /app/src
-COPY .env package.json tsconfig.json /app/
+COPY .env package.json pnpm-lock.yaml tsconfig.json /app/
 RUN mkdir /app/prisma
 COPY prisma/* /app/prisma
 COPY deployment/* /app
@@ -43,8 +43,8 @@ RUN apt-get install -y nodejs
 RUN node -v && npm -v
 
 # yarn install
-RUN npm install -g yarn
-RUN yarn install
+RUN npm install -g pnpm
+RUN pnpm install --frozen-lockfile
 
 RUN npm install -g pm2
 RUN echo "checking pm2 version"
