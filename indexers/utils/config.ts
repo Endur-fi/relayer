@@ -53,7 +53,7 @@ export const CONFIG: EventConfig[] = [
     eventName: "WithdrawQueue",
     contracts: [
       ...getAddresses(getNetwork()).LSTs.map((lst) => ({
-        address: standariseAddress(lst.WithdrawQueue),
+        address: standariseAddress(lst.WithdrawQueue.address),
       })),
     ],
     defaultKeys: [withdrawKey],

@@ -22,7 +22,6 @@ export default function (runtimeConfig: ApibaraRuntimeConfig) {
   });
 }
 
-console.log(process.env.STARTING_BLOCK!)
 export function createIndexer<
   TQueryResult extends PgQueryResultHKT,
   TFullSchema extends Record<string, unknown> = Record<string, never>,

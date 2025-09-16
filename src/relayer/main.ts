@@ -7,10 +7,7 @@ dotenv.config();
 
 import { CronService } from "./cron.service";
 
-import { LstController } from "./controllers/lst.controller";
-import { PrismaController } from "./controllers/prisma.controller";
 import { StatusController } from "./controllers/status.controller";
-import { WqController } from "./controllers/wq.controller";
 import { ConfigService } from "./services/configService";
 import { DelegatorService } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
@@ -18,6 +15,8 @@ import { NotifService } from "./services/notifService";
 import { PrismaService } from "./services/prismaService";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { BotService } from "../common/services/bot.service";
+import { ValidatorRegistryService } from "./services/validatorRegistryService";
+import { RPCWrapper } from "./services/RPCWrapper";
 
 @Module({
   imports: [ScheduleModule.forRoot()],
@@ -29,13 +28,12 @@ import { BotService } from "../common/services/bot.service";
     DelegatorService,
     NotifService,
     BotService,
+    ValidatorRegistryService,
+    RPCWrapper,
     CronService,
   ],
   controllers: [
     StatusController,
-    // PrismaController,
-    // LstController,
-    // WqController,
   ],
 })
 class AppModule {}

@@ -1,0 +1,13 @@
+{
+  "mainnet": [{
+    "validator": "0x072543946080646d1aac08bb4ba6f6531b2b29ce41ebfe72b8a6506500d5220e",
+    "name": "Karnot"
+  }],
+  "sepolia": [{
+    "validator": "0x03dae69f6cd59d6a401c2f2208766a601538da6b30285c8e2bb1ea77da04f926",
+    "name": "Argent"
+  }, {
+    "validator": "0x68b5f8e8eb23a42ad290800f229f09b1bcc8d43537dd27a127769ffa13b59f1",
+    "name": "Teku"
+  }]
+}

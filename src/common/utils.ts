@@ -6,13 +6,14 @@ import { Logger } from "@nestjs/common";
 import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 import * as dotenv from "dotenv";
 import { Account, BlockIdentifier, num, RpcProvider } from "starknet";
-
-import { Network } from "./constants";
-import { ConfigService } from "../relayer/services/configService";
-import { NotifService } from "../relayer/services/notifService";
 dotenv.config();
 
-export const STRK_DECIMALS = 18;
+export enum Network {
+  mainnet = "mainnet",
+  sepolia = "sepolia",
+  devnet = "devnet",
+}
+
 export const STRK_TOKEN =
   "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d" as const;
 export const xSTRK_TOKEN_MAINNET =
@@ -59,7 +60,6 @@ export function getAccount(): Account {
 
 export function getNetwork(): Network {
   assert(process.env.NETWORK, "Network not configured in .env");
-
   const network = process.env.NETWORK as string;
   if (network == Network.sepolia) {
     return Network.sepolia;
@@ -180,6 +180,11 @@ export function standariseAddress(address: string | bigint) {
   }
   const a = num.getHexString(num.getDecimalString(_a.toString()));
   return a;
+}
+
+export function get64BitAddress(address: string | bigint) {
+  const h = BigInt(num.getDecimalString(address.toString()));
+  return `0x${h.toString(16).padStart(64, "0")}`;
 }
 
 const defaultOptions: DefaultOptions = {

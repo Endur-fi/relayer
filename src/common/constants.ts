@@ -1,93 +1,129 @@
-export enum Network {
-  mainnet = "mainnet",
-  sepolia = "sepolia",
-  devnet = "devnet",
+import { ContractAddr, Global, TokenInfo, Web3Number } from "@strkfarm/sdk";
+import { getNetwork, Network } from "./utils";
+
+/**
+ * Returns the decimals of the LST asset
+ * @param lstAddress 
+ * @returns 
+ */
+export const getLSTDecimals = (lstAddress: ContractAddr) => {
+  const addresses = getAddresses(getNetwork());
+  const lstAsset = addresses.LSTs.find((lst) => lst.LST.eq(lstAddress))?.Asset;
+  if (!lstAsset) {
+    throw new Error(`LST asset not found for address: ${lstAddress.address}`);
+  }
+  return getTokenDecimals(lstAsset);
+};
+
+export const getTokenInfoFromAddr = async (tokenAddress: ContractAddr) => {
+  if (getNetwork() === Network.mainnet) {
+    return await Global.getTokenInfoFromAddr(tokenAddress);
+  } else {
+    const tokensInfo: TokenInfo[] = getAllSupportedTokens()
+      .map((token, index) => {
+        const lstInfo = getLSTInfo(token);
+        return {
+          address: token,
+          decimals: lstInfo.minWithdrawalAutoProcessAmount.decimals,
+          symbol: lstInfo.Asset.address.endsWith('c938d') ? 'STRK' : `TBTC${index + 1}`,
+          name: lstInfo.Asset.address.endsWith('c938d') ? 'STRK' : `TBTC${index + 1}`,
+          logo: '',
+          displayDecimals: 4,
+        }
+      });
+    const output = tokensInfo.find((token) => token.address.eq(tokenAddress));
+    if (!output) {
+      throw new Error(`Sepolia:: Token info not found for address: ${tokenAddress.address}`);
+    }
+    return output;
+  }
 }
 
-export const getLSTDecimals = () => 18;
+/**
+ * Returns the decimals of the token
+ * @param tokenAddress 
+ * @returns 
+ */
+export const getTokenDecimals = async (tokenAddress: ContractAddr) => {
+  return (await getTokenInfoFromAddr(tokenAddress)).decimals;
+}
+
+/**
+ * Returns all the supported tokens for the network
+ * @returns 
+ */
+export const getAllSupportedTokens = () => {
+  return [
+    ...getAddresses(getNetwork()).LSTs.map((lst) => lst.Asset),
+  ]
+}
+
+export const getLSTInfo = (lstAddress: ContractAddr) => {
+  let output = getAddresses(getNetwork()).LSTs.find((lst) => lst.LST.eq(lstAddress));
+  if (!output) {
+    // try using asset address
+    output = getAddresses(getNetwork()).LSTs.find((lst) => lst.Asset.eq(lstAddress));
+    if (!output) {
+      throw new Error(`LST info not found for address: ${lstAddress.address}`);
+    }
+  }
+  return output;
+}
 
 type NetworkAddresses = {
   // V3 config
   LSTs: {
-    LST: string;
-    WithdrawQueue: string;
-    Asset: string;
+    LST: ContractAddr;
+    WithdrawQueue: ContractAddr;
+    Asset: ContractAddr;
+    minWithdrawalAutoProcessAmount: Web3Number;
+    maxWithdrawalsPerDay: number;
+    maxStakePerTx: number; // in a given tx, max stake amount to avoid sending too much to one random validator
   }[];
-
-  // previous config still maintained for backward compatibility
-  LST: string;
-  WithdrawQueue: string;
-  Strk: string;
-  Delgator: string[];
-  ARB_CONTRACT: string;
+  ARB_CONTRACT: ContractAddr;
+  ValidatorRegistry: ContractAddr;
 };
 
 const sepolia: NetworkAddresses = {
   LSTs: [{
-    LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
-    WithdrawQueue: "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
-    Asset: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-  },{
-    LST: "0x036A2c3C56ae806B12A84bB253cBc1a009e3da5469e6a736C483303B864C8e2B",
-    WithdrawQueue: "0x06259eC265D650C3Edd85d6B5f563603aA247c360879437D2372AeA7e2148eda",
-    Asset: "0x044aD07751Ad782288413C7DB42C48e1c4f6195876BCa3B6CAEF449bb4Fb8d36",
+    LST: ContractAddr.from("0x036A2c3C56ae806B12A84bB253cBc1a009e3da5469e6a736C483303B864C8e2B"),
+    WithdrawQueue: ContractAddr.from("0x06259eC265D650C3Edd85d6B5f563603aA247c360879437D2372AeA7e2148eda"),
+    Asset: ContractAddr.from("0x044aD07751Ad782288413C7DB42C48e1c4f6195876BCa3B6CAEF449bb4Fb8d36"),
+    minWithdrawalAutoProcessAmount: new Web3Number("0.00001", 8),
+    maxWithdrawalsPerDay: 1, // 1BTC
+    maxStakePerTx: 100, // 1BTC
   }, {
-    LST: "0x0226324F63D994834E4729dd1bab443fe50Af8E97C608b812ee1f950ceaE68c7",
-    WithdrawQueue: "0x0502B976EC50e85cE7E71997605a7DDbB70386844670ef270b9c721Db1cbE9c0",
-    Asset: "0x07E97477601e5606359303cf50C050FD3bA94F66Bd041F4ed504673BA2b81696",
+    LST: ContractAddr.from("0x0226324F63D994834E4729dd1bab443fe50Af8E97C608b812ee1f950ceaE68c7"),
+    WithdrawQueue: ContractAddr.from("0x0502B976EC50e85cE7E71997605a7DDbB70386844670ef270b9c721Db1cbE9c0"),
+    Asset: ContractAddr.from("0x07E97477601e5606359303cf50C050FD3bA94F66Bd041F4ed504673BA2b81696"),
+    minWithdrawalAutoProcessAmount: new Web3Number("0.00001", 8),
+    maxWithdrawalsPerDay: 1,
+    maxStakePerTx: 100, // 0.1BTC
+  }, {
+    LST: ContractAddr.from("0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb"),
+    WithdrawQueue: ContractAddr.from("0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6"),
+    Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
+    minWithdrawalAutoProcessAmount: new Web3Number("0.001", 18),
+    maxWithdrawalsPerDay: 2_000_000,
+    maxStakePerTx: 100, // 10 STRK
   }],
-  LST: "0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb",
-  WithdrawQueue:
-    "0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6",
-  Strk: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-  Delgator: [
-    "0x7fc5c5b4c6f30e9914322954750a59a44cf46ae935e6e4bdc7e74f688546041",
-    "0x246f8bf539817de93d5fac4eca0052ba40e684a5ddddd7b7027f1744e3d927f",
-  ],
-  ARB_CONTRACT: "",
+  ARB_CONTRACT: ContractAddr.from(""),
+  ValidatorRegistry: ContractAddr.from("0x05dacc2836c931a9aa7c3011f64f0299b0e91d102bdb527e8d7a52c73fe7af40"),
 };
 
 
 const mainnet: NetworkAddresses = {
   LSTs: [{
-    LST: "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a",
-    WithdrawQueue: "0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6",
-    Asset: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+    LST: ContractAddr.from("0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a"),
+    WithdrawQueue: ContractAddr.from("0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6"),
+    Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
+    minWithdrawalAutoProcessAmount: new Web3Number("0.1", 18),
+    maxWithdrawalsPerDay: 2_000_000,
+    maxStakePerTx: 100_000, // 100k STRK
   }],
-  LST: "0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a",
-  WithdrawQueue:
-    "0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6",
-  Strk: "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-  Delgator: [
-    "0x76d15a66bec239c54a727056a8ab04b14f5441a2f559e6eb471cc7e8e878d99", // 1
-    "0x4c1408cd9653f282794de18241031b6a1acff17f1fc6603654877c34ce859ba", // 3
-    "0x56f71331dab1e0d790c364fc365118f479648e963e89101725ccbb24083e787", // 2
-    "0x4ee7a2dfcd28c4f10af12999004714f0a56753cfe1f35d683edd8016fc18710", // 4
-    "0x2e57d9d68e839a510b2b5839bff6b9d3bae46d0548b7867779e41e11e86b2d4", // 5
-
-    "0x7c4955cfb224ba140c8668efa61c3323ef6c07e642f2565f3bece40cdefe74f", // 14
-    "0x472f5bef8f656bca4fbff5f509ab9d52179091c3f900586216a54b9c4515ea8", // 16
-    "0x2421c00f63b6e46f350088275484123512e07ffac333fe5070907cc22694325", // 18
-    "0x6427a04f1dd6d758013e3c236974fc522592d559f571f97ead8c9d55b115d6a", // 20
-    "0x59f865098956219987ab460830f683aeb9a1d9d043a185eef0a3cc806703bfc", // 22
-    "0x4a8821a816493f167ed76d1d4b310e27d2198069b76d3d98cf1d8b5cc7712e", // 24
-    "0xe2bb28bccc03974e8f5ba5acc1602a5f11bcc14cf9e8fa1eb0bd059789dd06", // 23
-    "0x337f817840006725f49daf2e60fc52b23f2103fe1b99955506a3cef88ec0f0e", // 21
-    "0x1a011b2c425da74f1f5ca93d4977beafb2d3950ab2f7e5c4c9e01baac23d7d8", // 19
-    "0x64f1c1a55192d647e8607ac460b282fab2cdccf8bd7d4e7c183cd9aca5fec47", // 17
-    "0x4d932dec5a10fac7fa7b34bff85735c0854033779ede5b572e36e35735dca91", // 15
-    "0x2067dab5d5b5d44a559f5dbd69f9bef1729c0b58ae2ad5b7e63fee815919d44",
-    "0x11e9ce5e132fa6559e361519149577ede3d7eba6f8429c571bc26547d7c8624", // 13
-    "0x4480aecc7926b1505ff42af6322b2f20a5b5677422bae65b74e8fbc3f2e72f7", // 12
-    "0x6d897b991367d436ce181ca295bd48c5247912514d798523b67ee0bbe1a8c78", // 11
-    "0x189d44e13bb402aa8e218f57ae468e769e31975122c741944e223a6310504b1", // 10
-    "0x3870d1982d49dc4c08d2c20f58d9bc341248096809fd701b555ff481aa7cc1f", // 7
-    "0x3a991153c411fac7e90f22ba2b70020965272fec27c0182a0562fc43a4a6646", // 8
-    "0x79c18260689a8d1adcee4e2258cdead1c375ade973b4f65b018b15e03c11d04", // 9
-    "0x2c6433caaa6d98b888d16cfa3c3f00cab522d351b51abbcbb3f2973d2b040e9", // 6
-  ],
   ARB_CONTRACT:
-    "0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f",
+    ContractAddr.from("0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f"),
+  ValidatorRegistry: ContractAddr.from(""),
 };
 
 export function getAddresses(network: Network): NetworkAddresses {
