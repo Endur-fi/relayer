@@ -76,104 +76,104 @@ export const CONFIG: EventConfig[] = [
   //   defaultKeys: [eventKey("Transfer")],
   //   onEvent: onEventEkuboLPLst
   // },
-  {
-    tableName: "ekubo_positions_events",
-    eventName: "PositionUpdated",
-    includeSiblings: true,
-    contracts: [
-      {
-        address: "0x00000005dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b",
-      }
-    ],
-    keyFields: [
-    ],
-    dataFields: [
-      { name: "locker", type: "ContractAddress", sqlType: "text" },
-      { name: "token0", type: "ContractAddress", sqlType: "text" },
-      { name: "token1", type: "ContractAddress", sqlType: "text" },
-      { name: "pool_fee", type: "u128", sqlType: "numeric(78,0)" },
-      { name: "pool_tick_spacing", type: "u64", sqlType: "numeric(20,0)" },
-      { name: "extension", type: "text", sqlType: "text" },
-      { name: "position_id", type: "u128", sqlType: "numeric(78,0)" },
-    ],
-    additionalFields: [{
-      name: "contract_address",
-      source: "custom",
-      sqlType: "text",
-      customLogic: (event) => {
-        return event.address;
-      },
-    }, {
-      name: "lower_bound",
-      source: "custom",
-      sqlType: "numeric(20,0)",
-      customLogic: (event) => {
-        return Number(BigInt(event.data[7]) * (BigInt(BigInt(event.data[8]) == 0n ? 1 : -1)));
-      },
-    }, {
-      name: "upper_bound",
-      source: "custom",
-      sqlType: "numeric(20,0)",
-      customLogic: (event) => {
-        return Number(BigInt(event.data[9]) * (BigInt(BigInt(event.data[10]) == 0n ? 1 : -1)));
-      },
-    }, {
-      name: "liquidity_delta",
-      source: "custom",
-      sqlType: "numeric(78,0)",
-      customLogic: (event) => {
-        return (BigInt(event.data[11]) * (BigInt(BigInt(event.data[12]) == 0n ? 1 : -1))).toString();
-      },
-    }, {
-      name: "amount0_delta",
-      source: "custom",
-      sqlType: "numeric(78,0)",
-      customLogic: (event) => {
-        return (BigInt(event.data[13]) * (BigInt(BigInt(event.data[14]) == 0n ? 1 : -1))).toString();
-      },
-    }, {
-      name: "amount1_delta",
-      source: "custom",
-      sqlType: "numeric(78,0)",
-      customLogic: (event) => {
-        return (BigInt(event.data[15]) * (BigInt(BigInt(event.data[16]) == 0n ? 1 : -1))).toString();
-      },
-    }],
-    defaultKeys: [eventKey("PositionUpdated")],
-    onEvent: onEventEkuboLPLst
-  }
   // {
-  //   tableName: "withdraw_queue_events",
-  //   eventName: "WithdrawQueue",
+  //   tableName: "ekubo_positions_events",
+  //   eventName: "PositionUpdated",
+  //   includeSiblings: true,
   //   contracts: [
-  //     ...getAddresses(getNetwork()).LSTs.map((lst) => ({
-  //       address: standariseAddress(lst.WithdrawQueue.address),
-  //     })),
+  //     {
+  //       address: "0x00000005dd3d2f4429af886cd1a3b08289dbcea99a294197e9eb43b0e0325b4b",
+  //     }
   //   ],
-  //   defaultKeys: [withdrawKey],
   //   keyFields: [
-  //     { name: "receiver", type: "ContractAddress", sqlType: "text" },
-  //     { name: "caller", type: "ContractAddress", sqlType: "text" },
   //   ],
   //   dataFields: [
-  //     { name: "request_id", type: "u128", sqlType: "numeric(20,0)" },
-  //     { name: "amount", type: "u256", sqlType: "numeric(78,0)" },
-  //     { name: "amount_lst", type: "u256", sqlType: "numeric(78,0)" },
-  //     { name: "is_claimed", type: "bool", sqlType: "boolean" },
-  //     { name: "timestamp", type: "u64", sqlType: "numeric(20,0)" },
-  //     { name: "claim_time", type: "u64", sqlType: "numeric(20,0)" },
-  //     { name: "cumulative_requested_amount_snapshot", type: "u256", sqlType: "numeric(78,0)" },
-  //     { name: "timestamp", type: "u64", sqlType: "numeric(20,0)" },
+  //     { name: "locker", type: "ContractAddress", sqlType: "text" },
+  //     { name: "token0", type: "ContractAddress", sqlType: "text" },
+  //     { name: "token1", type: "ContractAddress", sqlType: "text" },
+  //     { name: "pool_fee", type: "u128", sqlType: "numeric(78,0)" },
+  //     { name: "pool_tick_spacing", type: "u64", sqlType: "numeric(20,0)" },
+  //     { name: "extension", type: "text", sqlType: "text" },
+  //     { name: "position_id", type: "u128", sqlType: "numeric(78,0)" },
   //   ],
-  //   additionalFields: [
-  //     {
-  //       name: "queue_contract",
-  //       source: "custom",
-  //       sqlType: "text",
-  //       customLogic: (event) => {
-  //         return event.address;
-  //       },
+  //   additionalFields: [{
+  //     name: "contract_address",
+  //     source: "custom",
+  //     sqlType: "text",
+  //     customLogic: (event) => {
+  //       return event.address;
   //     },
-  //   ],
-  // },
+  //   }, {
+  //     name: "lower_bound",
+  //     source: "custom",
+  //     sqlType: "numeric(20,0)",
+  //     customLogic: (event) => {
+  //       return Number(BigInt(event.data[7]) * (BigInt(BigInt(event.data[8]) == 0n ? 1 : -1)));
+  //     },
+  //   }, {
+  //     name: "upper_bound",
+  //     source: "custom",
+  //     sqlType: "numeric(20,0)",
+  //     customLogic: (event) => {
+  //       return Number(BigInt(event.data[9]) * (BigInt(BigInt(event.data[10]) == 0n ? 1 : -1)));
+  //     },
+  //   }, {
+  //     name: "liquidity_delta",
+  //     source: "custom",
+  //     sqlType: "numeric(78,0)",
+  //     customLogic: (event) => {
+  //       return (BigInt(event.data[11]) * (BigInt(BigInt(event.data[12]) == 0n ? 1 : -1))).toString();
+  //     },
+  //   }, {
+  //     name: "amount0_delta",
+  //     source: "custom",
+  //     sqlType: "numeric(78,0)",
+  //     customLogic: (event) => {
+  //       return (BigInt(event.data[13]) * (BigInt(BigInt(event.data[14]) == 0n ? 1 : -1))).toString();
+  //     },
+  //   }, {
+  //     name: "amount1_delta",
+  //     source: "custom",
+  //     sqlType: "numeric(78,0)",
+  //     customLogic: (event) => {
+  //       return (BigInt(event.data[15]) * (BigInt(BigInt(event.data[16]) == 0n ? 1 : -1))).toString();
+  //     },
+  //   }],
+  //   defaultKeys: [eventKey("PositionUpdated")],
+  //   onEvent: onEventEkuboLPLst
+  // }
+  {
+    tableName: "withdraw_queue_events",
+    eventName: "WithdrawQueue",
+    contracts: [
+      ...getAddresses(getNetwork()).LSTs.map((lst) => ({
+        address: standariseAddress(lst.WithdrawQueue.address),
+      })),
+    ],
+    defaultKeys: [withdrawKey],
+    keyFields: [
+      { name: "receiver", type: "ContractAddress", sqlType: "text" },
+      { name: "caller", type: "ContractAddress", sqlType: "text" },
+    ],
+    dataFields: [
+      { name: "request_id", type: "u128", sqlType: "numeric(20,0)" },
+      { name: "amount", type: "u256", sqlType: "numeric(78,0)" },
+      { name: "amount_lst", type: "u256", sqlType: "numeric(78,0)" },
+      { name: "is_claimed", type: "bool", sqlType: "boolean" },
+      { name: "timestamp", type: "u64", sqlType: "numeric(20,0)" },
+      { name: "claim_time", type: "u64", sqlType: "numeric(20,0)" },
+      { name: "cumulative_requested_amount_snapshot", type: "u256", sqlType: "numeric(78,0)" },
+      { name: "timestamp", type: "u64", sqlType: "numeric(20,0)" },
+    ],
+    additionalFields: [
+      {
+        name: "queue_contract",
+        source: "custom",
+        sqlType: "text",
+        customLogic: (event) => {
+          return event.address;
+        },
+      },
+    ],
+  },
 ];

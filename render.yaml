@@ -1,0 +1,48 @@
+# Exported from Render on 2025-09-17T19:04:33Z
+version: "1"
+services:
+- type: web
+  name: endur-indexers-v2
+  runtime: node
+  repo: https://github.com/Endur-fi/relayer
+  plan: starter
+  envVars:
+  - key: .env
+    sync: false
+  region: oregon
+  buildCommand: pnpm install; npm install --global pm2; pnpm i dotenv; npx apibara
+    build
+  startCommand: pm2 start "npx apibara start --indexer common" --name indexers &&
+    cp deployment/index.js . && node index.js
+  healthCheckPath: /
+  autoDeployTrigger: off
+- type: web
+  name: endur-relayer-v2
+  runtime: node
+  repo: https://github.com/Endur-fi/relayer
+  plan: starter
+  envVars:
+  - key: .env
+    sync: false
+  - key: accounts.json
+    sync: false
+  region: oregon
+  buildCommand: pnpm install --frozen-lockfile; npx prisma generate
+  startCommand: mkdir -p /opt/render/.starknet-store; cp accounts.json /opt/render/.starknet-store/accounts.json;
+    npx tsx src/relayer/main.ts
+  healthCheckPath: /
+  autoDeployTrigger: off
+- type: web
+  name: endur-graphql-api-v2
+  runtime: node
+  repo: https://github.com/Endur-fi/relayer
+  plan: starter
+  envVars:
+  - key: .env
+    sync: false
+  region: oregon
+  buildCommand: pnpm install drizzle-prisma-generator; pnpm install; npx prisma generate
+  startCommand: npx tsx src/graphql
+  domains:
+  - graphql.sepolia.endur.fi
+  autoDeployTrigger: "off"
