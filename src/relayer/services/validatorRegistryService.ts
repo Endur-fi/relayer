@@ -225,9 +225,8 @@ export class ValidatorRegistryService implements IValidatorRegistryService {
     const validatorTokenInfo = await this.rpcWrapper.aggregateViewCall<any>({
       ...this.validatorRegistry.populate("get_validator_token_info", [validatorAddress.address, tokenAddress.address]), abi: ValidatorRegistryAbi
     });
-    this.logger.verbose(`getValidatorTokenInfo: ${JSON.stringify(validatorTokenInfo)}`);
     const tokenMetadata = await getTokenInfoFromAddr(tokenAddress);
-    return {
+    const output = {
       isSupported: validatorTokenInfo.is_supported,
       stakedAmount: Web3Number.fromWei(validatorTokenInfo.staked_amount, tokenMetadata.decimals),
       pendingStakeAmount: Web3Number.fromWei(validatorTokenInfo.pending_stake_amount, tokenMetadata.decimals),
@@ -235,6 +234,8 @@ export class ValidatorRegistryService implements IValidatorRegistryService {
       tokenAddress: tokenAddress,
       delegators: [],
     }
+    this.logger.verbose(`getValidatorTokenInfo: ${JSON.stringify(output)}`);
+    return output;
   }
 
   private async logValidatorsAsTable() {

@@ -45,7 +45,7 @@ export function createIndexer<
           events.push({
             address: contract.address as `0x${string}`,
             keys: keySet,
-            includeReceipt: false,
+            includeSiblings: eventConfig.includeSiblings,
           });
         }
       } else {
@@ -58,7 +58,7 @@ export function createIndexer<
           events.push({
             address: contract.address as `0x${string}`,
             keys: [key],
-            includeReceipt: false,
+            includeSiblings: eventConfig.includeSiblings,
           });
         }
       }
@@ -79,7 +79,7 @@ export function createIndexer<
     ],
     finality: "pending",
     filter: {
-      header: "on_data",
+      header: "on_data_or_on_new_block",
       events,
     },
     // @ts-ignore

@@ -82,14 +82,15 @@ export class PrismaService implements IPrismaService {
     // filter out withdrawals that are less than minAmount
     // also isolate the rejected ones and mark them as rejected
     const rejected_ids: bigint[] = [];
-    const filteredWithdraws = await Promise.all(pendingWithdraws.filter(async (withdraw: any) => {
-      const amount = Web3Number.fromWei(withdraw.amount, await getTokenDecimals(assetAddress));
+    const decimals = await getTokenDecimals(assetAddress);
+    const filteredWithdraws = pendingWithdraws.filter((withdraw: any) => {
+      const amount = Web3Number.fromWei(withdraw.amount, decimals);
       if (amount.lt(minAmount)) {
         rejected_ids.push(withdraw.request_id);
         return false;
       }
       return true;
-    }));
+    });
 
     if (rejected_ids.length > 0) {
       this.logger.log(`${tokenInfo.symbol} Rejecting ${rejected_ids.length} withdrawals`);

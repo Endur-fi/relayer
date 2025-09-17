@@ -119,13 +119,13 @@ const mainnet: NetworkAddresses = {
     LST: ContractAddr.from("0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a"),
     WithdrawQueue: ContractAddr.from("0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6"),
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
-    minWithdrawalAutoProcessAmount: new Web3Number("0.1", 18),
+    minWithdrawalAutoProcessAmount: new Web3Number("10", 18),
     maxWithdrawalsPerDay: 2_000_000,
     maxStakePerTx: 100_000, // 100k STRK
   }],
   ARB_CONTRACT:
     ContractAddr.from("0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f"),
-  ValidatorRegistry: ContractAddr.from(""),
+  ValidatorRegistry: ContractAddr.from("0x029edbca81c979decd6ee02205127e8b10c011bca1d337141170095eba690931"),
 };
 
 export function getAddresses(network: Network): NetworkAddresses {

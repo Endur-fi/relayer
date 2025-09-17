@@ -146,6 +146,7 @@ export class CronService {
     }
 
     // Run on init
+    await this.claimUnstakedFunds();
     await this.processWithdrawQueue();
     await this.sendStats();
     // await this.checkAndExecuteArbitrage();
@@ -154,7 +155,6 @@ export class CronService {
     // await this.stakeFunds();
     // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
-    // await this.claimUnstakedFunds();
   }
 
   private async waitForValidatorRegistryService() {
@@ -162,7 +162,7 @@ export class CronService {
     
     // Wait for validators to be loaded (indicates service is ready)
     let attempts = 0;
-    const maxAttempts = 30; // 30 seconds timeout
+    const maxAttempts = 120; // 120 seconds timeout
     const checkInterval = 1000; // 1 second
     
     while (attempts < maxAttempts) {
@@ -209,6 +209,7 @@ export class CronService {
       tokenInfo.decimals
     );
 
+    this.logger.log(`Processing withdrawal ID#${w.request_id} with amount ${amount.toString()}, balanceLeft: ${balanceLeft.toString()}, allowedCummulativeLimit: ${allowedCummulativeLimit.toString()}, requestCum: ${requestCum.toString()}`);
     // Ensure if we have enough balance and allowed cumulative limit
     if (
       amount.gt(balanceLeft) ||
@@ -220,6 +221,11 @@ export class CronService {
       this.logger.warn(
         `request amount: ${amount.toString()}, req time: ${new Date(w.timestamp * 1000).toLocaleString()}`
       );
+      return {
+        call: null,
+        balanceLeft: balanceLeft,
+        processedWithdrawalsInLast24HoursDecimalAdjusted: processedWithdrawalsInLast24HoursDecimalAdjusted,
+      }
     }
 
     // limit max automated withdrawals per day
@@ -300,6 +306,18 @@ export class CronService {
     this.logger.log(
       `${tokenInfo.symbol} Processed withdrawals in last 24 hours: ${processedWithdrawalsInLast24HoursDecimalAdjusted.toString()}`
     );
+
+    console.table([{
+      token: tokenInfo.symbol,
+      processedWithdrawalsInLast24HoursDecimalAdjusted: processedWithdrawalsInLast24HoursDecimalAdjusted.toString(),
+      allowedCummulativeLimit: allowedLimit.toString(),
+      balanceLeftInWQ: balanceLeft.toString(),
+      pendingWithdrawals: pendingWithdrawals.length,
+      pendingAmount: pendingWithdrawals.reduce((acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)), new Web3Number("0", tokenInfo.decimals)).toString(),
+      rejected_ids: rejected_ids.length,
+      MAX_WITHDRAWALS_PER_DAY: MAX_WITHDRAWALS_PER_DAY,
+      processedWithdrawalsInLast24Hours: processedWithdrawalsInLast24Hours.toString(),
+    }])
 
     // claim withdrawals
     // send 10 at a time
@@ -755,6 +773,7 @@ export class CronService {
 
       // generate calls to unstake
       let totalUnstakeAmount = 0;
+      const logInfo: any[] = [];
       const calls: Call[] = delegators
         .map((del) => {
           if (del.unPoolTime && del.unPoolTime <= now) {
@@ -762,21 +781,34 @@ export class CronService {
               `${tokenInfo.symbol} Unstake time reached for ${del.delegator.address}`,
               'log'
             );
+            logInfo.push({
+              delegator: del.delegator.address,
+              unPoolAmount: del.unPoolAmount.toString(),
+              unPoolTime: del.unPoolTime,
+              unPoolTimeReached: true,
+            });
             const call = del.delegator.populate("unstake_action", [assetAddress.address]);
             totalUnstakeAmount += Number(del.unPoolAmount.toString());
             return call;
           } else if (!del.unPoolTime) {
-
+            // nothing to do
           } else {
             this.logAndSendMessage(
               `${tokenInfo.symbol} Unstake time not reached for ${del.delegator.address}`,
               'log'
             );
+            logInfo.push({
+              delegator: del.delegator.address,
+              unPoolAmount: del.unPoolAmount.toString(),
+              unPoolTime: del.unPoolTime,
+              unPoolTimeReached: false,
+            });
           }
           return null;
         })
         .filter((call) => call !== null) as Call[];
 
+      console.table(logInfo);
       if (calls.length == 0) {
         this.logAndSendMessage(`No unstake actions to perform`, 'log');
         return;
@@ -804,7 +836,7 @@ export class CronService {
   @TryCatchAsync(3, 10000)
   async updateEkuboPositionsTimeseries() {
     if (getNetwork() != Network.mainnet) return;
-    await populateEkuboTimeseries(true);
+    // await populateEkuboTimeseries(true);
   }
 
   // todo swap handling

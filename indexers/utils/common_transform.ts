@@ -36,6 +36,8 @@ async function performAtomicBatchInsert<T extends Record<string, any>>(
     recordsByTable.get(tableName)!.push(record);
   }
 
+  console.log("recordsByTable", recordsByTable);
+
   logger.info(`Starting atomic batch insert of ${recordsToInsert.length} records across ${recordsByTable.size} tables`);
 
   // Use database transaction to ensure atomicity
@@ -47,7 +49,7 @@ async function performAtomicBatchInsert<T extends Record<string, any>>(
         
         logger.info(`Inserting ${records.length} records into ${tableName}`);
         
-        await tx
+         await tx
           .insert(schema[tableName])
           .values(records)
           .execute();
@@ -123,6 +125,8 @@ export async function commonTransform<T extends Record<string, any>>(
     throw new Error(`Expected block with blockNumber`);
   }
 
+  console.log("events", events);
+
   // Parse the timestamp correctly - convert to Unix timestamp (seconds)
   const timestamp = Math.round(header.timestamp.getTime() / 1000);
   const timestampISO = header.timestamp.toISOString();
@@ -138,8 +142,14 @@ export async function commonTransform<T extends Record<string, any>>(
       (c) => eventKey(c.eventName) == eventKeyValue
     );
     if (!config) {
-      logger.error("Unknown event key:", event.transactionHash, event.keys);
-      throw new Error(`Unknown event key: ${eventKeyValue}`);
+      const isSibling = event.filterIds.some((id) => CONFIG[id].includeSiblings);
+      if (!isSibling) {
+        logger.error("Unknown event key:", event.transactionHash, event.keys);
+        throw new Error(`Unknown event key: ${eventKeyValue}`);
+      } else {
+        console.log("Sibling event found, skipping", event.transactionHash, event.keys);
+        continue;
+      }
     }
     logger.info("Processing block:", header.blockNumber, config.eventName);
 
@@ -147,7 +157,7 @@ export async function commonTransform<T extends Record<string, any>>(
       throw new Error(`${config.eventName}: Expected event with data`);
     }
 
-    const result: Record<string, any> = {};
+    let result: Record<string, any> = {};
 
     // Parse keys
     config.keyFields.forEach((key, index) => {
@@ -159,6 +169,10 @@ export async function commonTransform<T extends Record<string, any>>(
     for (let index = 0; index < event.data.length; index++) {
       const dataField = event.data[index];
       const field = config.dataFields[index - indexAdjustment];
+      if (!field) {
+        index++;
+        continue;
+      }
       result[field.name] = convertToSqlFormat(dataField, field);
 
       if (config.dataFields[index - indexAdjustment].type == 'u256') {
@@ -193,6 +207,17 @@ export async function commonTransform<T extends Record<string, any>>(
     result.cursor = BigInt(header.blockNumber);
 
     console.log("result", result);
+
+    // process any custom logic
+    if (config.onEvent) {
+      const _output = await config.onEvent(event, result, events, block);
+      if (_output) {
+        result = _output;
+      } else {
+        logger.warn("Custom logic returned null, skipping record");
+        continue;
+      }
+    }
 
     // Convert all BigInt values to strings
     for (const key in result) {

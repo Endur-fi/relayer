@@ -3,22 +3,8 @@ import { bigint, boolean, decimal, foreignKey, integer, pgEnum, pgTable, text, t
 
 export const UserPointsType = pgEnum('UserPointsType', ['Early', 'Priority', 'Bonus', 'Referrer'])
 
-export const deposits = pgTable('deposits', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	timestamp: integer('timestamp').notNull(),
-	sender: text('sender').notNull(),
-	owner: text('owner').notNull(),
-	assets: text('assets').notNull(),
-	shares: text('shares').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (deposits) => ({
-	'deposits_block_number_tx_index_event_index_unique_idx': uniqueIndex('deposits_block_number_tx_index_event_index_key')
-		.on(deposits.block_number, deposits.tx_index, deposits.event_index)
-}));
-
-export const deposits_with_referral = pgTable('deposits_with_referral', {
+export const deposits_with_referral_events = pgTable('deposits_with_referral_events', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
 	block_number: integer('block_number').notNull(),
 	tx_index: integer('tx_index').notNull(),
 	event_index: integer('event_index').notNull(),
@@ -27,24 +13,26 @@ export const deposits_with_referral = pgTable('deposits_with_referral', {
 	referee: text('referee').notNull(),
 	assets: text('assets').notNull(),
 	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (deposits_with_referral) => ({
-	'deposits_with_referral_block_number_tx_index_event_index_unique_idx': uniqueIndex('deposits_with_referral_block_number_tx_index_event_index_key')
-		.on(deposits_with_referral.block_number, deposits_with_referral.tx_index, deposits_with_referral.event_index)
+}, (deposits_with_referral_events) => ({
+	'deposits_with_referral_events_block_number_tx_index_event_index_unique_idx': uniqueIndex('deposits_with_referral_events_block_number_tx_index_event_index_key')
+		.on(deposits_with_referral_events.block_number, deposits_with_referral_events.tx_index, deposits_with_referral_events.event_index)
 }));
 
-export const transfer = pgTable('transfer', {
+export const transfer_events = pgTable('transfer_events', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
 	block_number: integer('block_number').notNull(),
 	tx_index: integer('tx_index').notNull(),
 	event_index: integer('event_index').notNull(),
 	timestamp: integer('timestamp').notNull(),
 	txHash: text('txHash').notNull(),
+	contract_address: text('contract_address').notNull(),
 	from: text('from').notNull(),
 	to: text('to').notNull(),
 	value: decimal('value', { precision: 65, scale: 30 }).notNull(),
 	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (transfer) => ({
-	'transfer_block_number_tx_index_event_index_unique_idx': uniqueIndex('transfer_block_number_tx_index_event_index_key')
-		.on(transfer.block_number, transfer.tx_index, transfer.event_index)
+}, (transfer_events) => ({
+	'transfer_events_block_number_tx_index_event_index_unique_idx': uniqueIndex('transfer_events_block_number_tx_index_event_index_key')
+		.on(transfer_events.block_number, transfer_events.tx_index, transfer_events.event_index)
 }));
 
 export const withdraw_queue_events = pgTable('withdraw_queue_events', {
@@ -69,6 +57,61 @@ export const withdraw_queue_events = pgTable('withdraw_queue_events', {
 		.on(withdraw_queue_events.block_number, withdraw_queue_events.tx_index, withdraw_queue_events.event_index)
 }));
 
+export const ekubo_positions_events = pgTable('ekubo_positions_events', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
+	block_number: integer('block_number').notNull(),
+	tx_index: integer('tx_index').notNull(),
+	event_index: integer('event_index').notNull(),
+	tx_hash: text('tx_hash').notNull(),
+	timestamp: integer('timestamp').notNull(),
+	contract_address: text('contract_address').notNull(),
+	token0: text('token0').notNull(),
+	token1: text('token1').notNull(),
+	pool_fee: text('pool_fee').notNull(),
+	pool_tick_spacing: text('pool_tick_spacing').notNull(),
+	extension: text('extension').notNull(),
+	position_id: text('position_id').notNull(),
+	lower_bound: integer('lower_bound').notNull(),
+	upper_bound: integer('upper_bound').notNull(),
+	liquidity_delta: text('liquidity_delta').notNull(),
+	amount0_delta: text('amount0_delta').notNull(),
+	amount1_delta: text('amount1_delta').notNull(),
+	cursor: bigint('_cursor', { mode: 'bigint' })
+}, (ekubo_positions_events) => ({
+	'block_tx_event_idx': uniqueIndex('block_tx_event_idx')
+		.on(ekubo_positions_events.block_number, ekubo_positions_events.tx_index, ekubo_positions_events.event_index)
+}));
+
+export const ekubo_nfts_events = pgTable('ekubo_nfts_events', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
+	block_number: integer('block_number').notNull(),
+	tx_index: integer('tx_index').notNull(),
+	event_index: integer('event_index').notNull(),
+	tx_hash: text('tx_hash').notNull(),
+	timestamp: integer('timestamp').notNull(),
+	from_address: text('from_address').notNull(),
+	to_address: text('to_address').notNull(),
+	nft_id: text('nft_id').notNull(),
+	cursor: bigint('_cursor', { mode: 'bigint' })
+}, (ekubo_nfts_events) => ({
+	'ekubo_nfts_events_ekubo_positions_events_fkey': foreignKey({
+		name: 'ekubo_nfts_events_ekubo_positions_events_fkey',
+		columns: [ekubo_nfts_events.block_number, ekubo_nfts_events.tx_index, ekubo_nfts_events.event_index],
+		foreignColumns: [ekubo_positions_events.block_number, ekubo_positions_events.tx_index, ekubo_positions_events.event_index]
+	})
+		.onDelete('cascade')
+		.onUpdate('cascade'),
+	'ekubo_nfts_events_block_number_tx_index_event_index_unique_idx': uniqueIndex('ekubo_nfts_events_block_number_tx_index_event_index_key')
+		.on(ekubo_nfts_events.block_number, ekubo_nfts_events.tx_index, ekubo_nfts_events.event_index)
+}));
+
+export const blocks = pgTable('blocks', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
+	block_number: integer('block_number').notNull().unique(),
+	timestamp: integer('timestamp').notNull(),
+	cursor: bigint('_cursor', { mode: 'bigint' })
+});
+
 export const withdraw_queue = pgTable('withdraw_queue', {
 	tx_hash: text('tx_hash').notNull(),
 	queue_contract: text('queue_contract').notNull(),
@@ -88,77 +131,21 @@ export const withdraw_queue = pgTable('withdraw_queue', {
 		.on(withdraw_queue.receiver, withdraw_queue.queue_contract, withdraw_queue.request_id)
 }));
 
-export const received_funds = pgTable('received_funds', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	amount: text('amount').notNull(),
-	sender: text('sender').notNull(),
-	unprocessed: text('unprocessed').notNull(),
-	intransit: text('intransit').notNull(),
-	timestamp: integer('timestamp').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (received_funds) => ({
-	'received_funds_block_number_tx_index_event_index_unique_idx': uniqueIndex('received_funds_block_number_tx_index_event_index_key')
-		.on(received_funds.block_number, received_funds.tx_index, received_funds.event_index)
-}));
-
-export const dispatch_to_stake = pgTable('dispatch_to_stake', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	delegator: text('delegator').notNull(),
-	amount: text('amount').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' }),
-	timestamp: text('timestamp').notNull()
-}, (dispatch_to_stake) => ({
-	'dispatch_to_stake_block_number_tx_index_event_index_unique_idx': uniqueIndex('dispatch_to_stake_block_number_tx_index_event_index_key')
-		.on(dispatch_to_stake.block_number, dispatch_to_stake.tx_index, dispatch_to_stake.event_index)
-}));
-
-export const dispatch_to_withdraw_queue = pgTable('dispatch_to_withdraw_queue', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	amount: text('amount').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (dispatch_to_withdraw_queue) => ({
-	'dispatch_to_withdraw_queue_block_number_tx_index_event_index_unique_idx': uniqueIndex('dispatch_to_withdraw_queue_block_number_tx_index_event_index_key')
-		.on(dispatch_to_withdraw_queue.block_number, dispatch_to_withdraw_queue.tx_index, dispatch_to_withdraw_queue.event_index)
-}));
-
-export const unstake_action = pgTable('unstake_action', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	amount: text('amount').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (unstake_action) => ({
-	'unstake_action_block_number_tx_index_event_index_unique_idx': uniqueIndex('unstake_action_block_number_tx_index_event_index_key')
-		.on(unstake_action.block_number, unstake_action.tx_index, unstake_action.event_index)
-}));
-
-export const unstake_intent_started = pgTable('unstake_intent_started', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	amount: text('amount').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (unstake_intent_started) => ({
-	'unstake_intent_started_block_number_tx_index_event_index_unique_idx': uniqueIndex('unstake_intent_started_block_number_tx_index_event_index_key')
-		.on(unstake_intent_started.block_number, unstake_intent_started.tx_index, unstake_intent_started.event_index)
-}));
-
 export const users = pgTable('users', {
+	id: text('id').notNull().primaryKey().default(sql`gen_random_uuid()`),
 	block_number: integer('block_number').notNull(),
 	tx_index: integer('tx_index').notNull(),
 	event_index: integer('event_index').notNull(),
 	tx_hash: text('tx_hash').notNull(),
-	user_address: text('user_address').notNull().unique(),
+	contract_address: text('contract_address').notNull(),
+	user_address: text('user_address').notNull(),
 	email: text('email'),
 	timestamp: integer('timestamp').notNull(),
 	cursor: bigint('_cursor', { mode: 'bigint' })
-});
+}, (users) => ({
+	'users_user_address_contract_address_unique_idx': uniqueIndex('users_user_address_contract_address_key')
+		.on(users.user_address, users.contract_address)
+}));
 
 export const user_balances = pgTable('user_balances', {
 	block_number: integer('block_number').notNull(),
@@ -214,12 +201,6 @@ export const user_allocation = pgTable('user_allocation', {
 	updated_at: timestamp('updated_at', { precision: 3 }).notNull()
 });
 
-export const blocks = pgTable('blocks', {
-	block_number: integer('block_number').notNull().unique(),
-	timestamp: integer('timestamp').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-});
-
 export const price_info = pgTable('price_info', {
 	block_number: integer('block_number').notNull().unique(),
 	dex_price: decimal('dex_price', { precision: 65, scale: 30 }).notNull(),
@@ -243,44 +224,6 @@ export const dex_positions = pgTable('dex_positions', {
 		.on(dex_positions.user_address, dex_positions.pool_key, dex_positions.timestamp)
 }));
 
-export const ekubo_positions = pgTable('ekubo_positions', {
-	pool_fee: text('pool_fee').notNull(),
-	pool_tick_spacing: text('pool_tick_spacing').notNull(),
-	extension: text('extension').notNull(),
-	position_id: text('position_id').notNull(),
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	timestamp: integer('timestamp').notNull(),
-	txHash: text('txHash').notNull(),
-	lower_bound: integer('lower_bound').notNull(),
-	upper_bound: integer('upper_bound').notNull(),
-	liquidity_delta: text('liquidity_delta').notNull(),
-	amount0_delta: text('amount0_delta').notNull(),
-	amount1_delta: text('amount1_delta').notNull(),
-	created_at: timestamp('created_at', { precision: 3 }).notNull().defaultNow(),
-	updated_at: timestamp('updated_at', { precision: 3 }).notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (ekubo_positions) => ({
-	'ekubo_positions_block_number_tx_index_event_index_unique_idx': uniqueIndex('ekubo_positions_block_number_tx_index_event_index_key')
-		.on(ekubo_positions.block_number, ekubo_positions.tx_index, ekubo_positions.event_index)
-}));
-
-export const ekubo_nfts = pgTable('ekubo_nfts', {
-	block_number: integer('block_number').notNull(),
-	tx_index: integer('tx_index').notNull(),
-	event_index: integer('event_index').notNull(),
-	timestamp: integer('timestamp').notNull(),
-	txHash: text('txHash').notNull(),
-	from_address: text('from_address').notNull(),
-	to_address: text('to_address').notNull(),
-	nft_id: text('nft_id').notNull(),
-	cursor: bigint('_cursor', { mode: 'bigint' })
-}, (ekubo_nfts) => ({
-	'ekubo_nfts_block_number_tx_index_event_index_unique_idx': uniqueIndex('ekubo_nfts_block_number_tx_index_event_index_key')
-		.on(ekubo_nfts.block_number, ekubo_nfts.tx_index, ekubo_nfts.event_index)
-}));
-
 export const ekubo_position_timeseries = pgTable('ekubo_position_timeseries', {
 	id: text('id').notNull().primaryKey().default(sql`uuid()`),
 	position_id: text('position_id').notNull(),
@@ -302,6 +245,20 @@ export const ekubo_position_timeseries = pgTable('ekubo_position_timeseries', {
 	created_at: timestamp('created_at', { precision: 3 }).notNull().defaultNow(),
 	updated_at: timestamp('updated_at', { precision: 3 }).notNull()
 });
+
+export const ekubo_positions_eventsRelations = relations(ekubo_positions_events, ({ many }) => ({
+	ekubo_nfts_events: many(ekubo_nfts_events, {
+		relationName: 'ekubo_nfts_eventsToekubo_positions_events'
+	})
+}));
+
+export const ekubo_nfts_eventsRelations = relations(ekubo_nfts_events, ({ one }) => ({
+	ekubo_positions_events: one(ekubo_positions_events, {
+		relationName: 'ekubo_nfts_eventsToekubo_positions_events',
+		fields: [ekubo_nfts_events.block_number, ekubo_nfts_events.tx_index, ekubo_nfts_events.event_index],
+		references: [ekubo_positions_events.block_number, ekubo_positions_events.tx_index, ekubo_positions_events.event_index]
+	})
+}));
 
 export const points_aggregatedRelations = relations(points_aggregated, ({ one }) => ({
 	user_allocation: one(user_allocation, {

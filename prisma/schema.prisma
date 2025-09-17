@@ -1,22 +1,22 @@
 // standard path for graphql (Node)
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
-  schemas  = ["public", "airfoil"]
+  schemas         = ["public", "airfoil"]
 }
 
 // standard path for graphql (Node)
 generator typegraphql {
-  provider = "typegraphql-prisma"
+  provider        = "typegraphql-prisma"
   previewFeatures = ["multiSchema"]
-  schemas  = ["public", "airfoil"]
+  schemas         = ["public", "airfoil"]
 }
 
 generator drizzle {
-  provider = "drizzle-prisma-generator"
+  provider        = "drizzle-prisma-generator"
   previewFeatures = ["multiSchema"]
-  output   = "./indexers/drizzle" // Where to put generated Drizle tables
-  schemas  = ["public", "airfoil"]
+  output          = "./indexers/drizzle" // Where to put generated Drizle tables
+  schemas         = ["public", "airfoil"]
 }
 
 datasource db {
@@ -25,27 +25,11 @@ datasource db {
   schemas  = ["public", "airfoil"]
 }
 
-model deposits {
+model deposits_with_referral_events {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
-
-  timestamp Int
-  sender    String
-  owner     String
-  assets    String
-  shares    String
-  cursor    BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
-model deposits_with_referral {
-  block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
 
   timestamp Int
   referrer  String
@@ -59,17 +43,19 @@ model deposits_with_referral {
   @@schema("public")
 }
 
-model transfer {
+model transfer_events {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   block_number Int
   tx_index     Int    @default(0)
   event_index  Int    @default(0)
   timestamp    Int
   txHash       String
 
-  from   String
-  to     String
-  value  Decimal @db.Decimal(30, 0)
-  cursor BigInt? @map("_cursor")
+  contract_address String
+  from             String
+  to               String
+  value            Decimal @db.Decimal(30, 0)
+  cursor           BigInt? @map("_cursor")
 
   @@unique([block_number, tx_index, event_index])
   @@index([cursor])
@@ -77,16 +63,16 @@ model transfer {
 }
 
 model withdraw_queue_events {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   block_number Int
   tx_index     Int    @default(0)
   event_index  Int    @default(0)
   tx_hash      String
 
   // Withdraw queue addresses
-  queue_contract                                String
-  amount                          String
-  amount_lst                         String
+  queue_contract                       String
+  amount                               String
+  amount_lst                           String
   request_id                           BigInt
   is_claimed                           Boolean
   claim_time                           Int
@@ -102,15 +88,80 @@ model withdraw_queue_events {
   @@schema("public")
 }
 
+model ekubo_positions_events {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  block_number Int
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  tx_hash      String
+  timestamp    Int
+
+  contract_address String
+
+  token0            String
+  token1            String
+  pool_fee          String
+  pool_tick_spacing String
+  extension         String
+
+  position_id     String
+  lower_bound     Int
+  upper_bound     Int
+  liquidity_delta String
+  amount0_delta   String
+  amount1_delta   String
+
+  cursor            BigInt?            @map("_cursor")
+  ekubo_nfts_events ekubo_nfts_events?
+
+  @@unique([block_number, tx_index, event_index], name: "block_tx_event_idx")
+  @@index([cursor])
+  @@index([timestamp(sort: Desc)])
+  @@schema("public")
+}
+
+model ekubo_nfts_events {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  block_number Int
+  tx_index     Int    @default(0)
+  event_index  Int    @default(0)
+  tx_hash      String
+  timestamp    Int
+
+  from_address String
+  to_address   String
+  nft_id       String
+
+  cursor BigInt? @map("_cursor")
+
+  // have a one to one match with ekubo_positions_events
+  // add relation to ekubo_positions_events
+  ekubo_positions_events ekubo_positions_events? @relation(fields: [block_number, tx_index, event_index], references: [block_number, tx_index, event_index])
+
+  @@unique([block_number, tx_index, event_index])
+  @@index([cursor])
+  @@index([nft_id], type: Hash)
+  @@schema("public")
+}
+
+model blocks {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  block_number Int     @unique
+  timestamp    Int
+  cursor       BigInt? @map("_cursor")
+
+  @@schema("public")
+}
+
 //
 // processed events
 //
 model withdraw_queue {
-  tx_hash      String
+  tx_hash                              String
   // Withdraw queue addresses
-  queue_contract                                String
-  amount                          String
-  amount_lst                         String
+  queue_contract                       String
+  amount                               String
+  amount_lst                           String
   request_id                           BigInt
   is_claimed                           Boolean
   claim_time                           Int
@@ -118,7 +169,7 @@ model withdraw_queue {
   caller                               String
   cumulative_requested_amount_snapshot String
 
-  is_rejected                          Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
+  is_rejected Boolean @default(false) // allows us to mark some withdraws as rejected (to avoid re-reading spammy txs)
 
   // tracks if unstake initiation event was sent to bot
   is_notified Boolean @default(false)
@@ -129,82 +180,19 @@ model withdraw_queue {
   @@schema("public")
 }
 
-model received_funds {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  amount       String
-  sender       String
-  unprocessed  String
-  intransit    String
-  timestamp    Int
-  cursor       BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
-model dispatch_to_stake {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  delegator    String
-  amount       String
-  cursor       BigInt? @map("_cursor")
-  timestamp    String // Not emitted in the actual event
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
-model dispatch_to_withdraw_queue {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  amount       String
-  cursor       BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
-model unstake_action {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  amount       String
-  cursor       BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
-model unstake_intent_started {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  amount       String
-  cursor       BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@schema("public")
-}
-
 model users {
-  block_number Int
-  tx_index     Int     @default(0)
-  event_index  Int     @default(0)
-  tx_hash      String
-  user_address String  @unique
-  email        String?
-  timestamp    Int
-  cursor       BigInt? @map("_cursor")
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  block_number     Int
+  tx_index         Int     @default(0)
+  event_index      Int     @default(0)
+  tx_hash          String
+  contract_address String
+  user_address     String
+  email            String?
+  timestamp        Int
+  cursor           BigInt? @map("_cursor")
 
+  @@unique([user_address, contract_address])
   @@schema("public")
 }
 
@@ -258,6 +246,7 @@ model points_aggregated {
   updated_on   DateTime @updatedAt
 
   user_allocation user_allocation? @relation(fields: [user_address], references: [user_address])
+
   @@schema("public")
 }
 
@@ -268,14 +257,6 @@ model user_allocation {
   created_at        DateTime           @default(now())
   updated_at        DateTime           @updatedAt
   points_aggregated points_aggregated?
-
-  @@schema("public")
-}
-
-model blocks {
-  block_number Int     @unique
-  timestamp    Int
-  cursor       BigInt? @map("_cursor")
 
   @@schema("public")
 }
@@ -312,88 +293,42 @@ model dex_positions {
   @@schema("public")
 }
 
-model ekubo_positions {
-  pool_fee String
-  pool_tick_spacing String
-  extension String
+model ekubo_position_timeseries {
+  id String @id @default(uuid())
+
+  // Position info (nft_id and position_id are the same)
   position_id String
 
-  block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
-  timestamp    Int
-  txHash String
+  // Pool info
+  pool_fee          String?
+  pool_tick_spacing String?
+  extension         String?
 
-  lower_bound Int
-  upper_bound Int
-  liquidity_delta String
-  amount0_delta String
-  amount1_delta String
+  // Position bounds (null when NFT is minted but position not yet created)
+  lower_bound Int?
+  upper_bound Int?
 
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  cursor       BigInt? @map("_cursor")
+  // Final calculated values (accumulated from deltas)
+  liquidity String? // Final liquidity value (cannot be negative)
+  amount0   String? // Final amount0 value (can be negative)
+  amount1   String? // Final amount1 value (can be negative)
 
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@index([timestamp(sort: Desc)])
-  @@schema("public")
-}
+  // Owner info
+  owner_address String
 
-model ekubo_nfts {
+  // Timing info
   block_number Int
   tx_index     Int    @default(0)
   event_index  Int    @default(0)
   timestamp    Int
   txHash       String
 
-  from_address   String
-  to_address     String
-  nft_id String
-  cursor BigInt? @map("_cursor")
-
-  @@unique([block_number, tx_index, event_index])
-  @@index([cursor])
-  @@index([nft_id], type: Hash)
-  @@schema("public")
-}
-
-model ekubo_position_timeseries {
-  id           String @id @default(uuid())
-  
-  // Position info (nft_id and position_id are the same)
-  position_id  String
-  
-  // Pool info
-  pool_fee          String?
-  pool_tick_spacing String?
-  extension         String?
-  
-  // Position bounds (null when NFT is minted but position not yet created)
-  lower_bound  Int?
-  upper_bound  Int?
-  
-  // Final calculated values (accumulated from deltas)
-  liquidity    String? // Final liquidity value (cannot be negative)
-  amount0      String? // Final amount0 value (can be negative)
-  amount1      String? // Final amount1 value (can be negative)
-  
-  // Owner info
-  owner_address String
-  
-  // Timing info
-  block_number Int
-  tx_index     Int @default(0)
-  event_index  Int @default(0)
-  timestamp    Int
-  txHash       String
-  
   // Record type
-  record_type  String // "nft_mint", "nft_transfer", "position_created", "position_updated"
-  
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  
+  record_type String // "nft_mint", "nft_transfer", "position_created", "position_updated"
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
   @@index([position_id])
   @@index([owner_address])
   @@index([timestamp(sort: Desc)])
