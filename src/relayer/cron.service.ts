@@ -31,13 +31,28 @@ import { populateEkuboTimeseries } from "../points-system/standalone-scripts/pop
 import { ValidatorRegistryService } from "./services/validatorRegistryService";
 import { RPCWrapper } from "./services/RPCWrapper";
 
-function getCronSettings(action: "process-withdraw-queue") {
+/***
+ * Sequence is important here
+ * - Unstake funds and withdraw queue handling can be more frequent. 
+ * They will automatically handle any available funds to process withdrawals
+ * - 
+ * 
+ */
+function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "unstake-intent") {
   const config = new ConfigService();
   switch (action) {
     case "process-withdraw-queue":
       return config.isSepolia()
         ? CronExpression.EVERY_5_MINUTES
         : CronExpression.EVERY_HOUR;
+    case "stake-funds":
+      return config.isSepolia()
+        ? CronExpression.EVERY_10_MINUTES
+        : "0 30 0 * * *"; // every day at 1:30 AM
+    case "unstake-intent":
+      return config.isSepolia()
+        ? CronExpression.EVERY_10_MINUTES
+        : "0 30 0 * * *"; // every day at 1:30 AM
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -132,7 +147,7 @@ export class CronService {
 
     // Run on init
     await this.processWithdrawQueue();
-    // await this.sendStats();
+    await this.sendStats();
     // await this.checkAndExecuteArbitrage();
 
     // Just for testing
@@ -172,7 +187,7 @@ export class CronService {
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync()
   async processWithdrawQueue() {
-    const supportedTokens = getAllSupportedTokens().filter((token) => token.eqString("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"));
+    const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
       await this._processWithdrawQueue(token);
     }
@@ -271,18 +286,14 @@ export class CronService {
       await this.prismaService.getPendingWithdraws(assetAddress, min_amount);
     this.logger.debug(`${tokenInfo.symbol} Found ${pendingWithdrawals.length} pending withdrawals`);
 
-    // load account
-    const account: Account = this.config.get("account");
-    const provider: RpcProvider = this.config.get("provider");
-
     let balanceLeft = await this.withdrawalQueueService.getAssetBalance(assetAddress);
-    this.logger.log(`Balance left: ${balanceLeft.toString()}`);
+    this.logger.log(`${tokenInfo.symbol} Balance left: ${balanceLeft.toString()}`);
 
     const allowedLimit = await this.getAllowedCummulativeLimit(assetAddress);
 
     const MAX_WITHDRAWALS_PER_DAY = lstInfo.maxWithdrawalsPerDay;
     const processedWithdrawalsInLast24Hours =
-      await this.prismaService.getWithdrawalsLastDay();
+      await this.prismaService.getWithdrawalsLastDay(assetAddress);
     let processedWithdrawalsInLast24HoursDecimalAdjusted = Number(
       processedWithdrawalsInLast24Hours / BigInt(10 ** tokenInfo.decimals)
     );
@@ -317,22 +328,21 @@ export class CronService {
         }
       }
 
-      // if no withdrawals to claim, break entire loop
+      // if no withdrawals to claim, continue
       if (
-        calls.length === 0 ||
-        i + MAX_WITHDRAWALS >= pendingWithdrawals.length
+        calls.length === 0
       ) {
         this.logger.warn(`${tokenInfo.symbol} No withdrawals to claim`);
-        break;
+        continue;
       }
 
       // send transactions to claim withdrawals
       // note: nonce is set to 'pending' to get the next nonce
-      const res = await account.execute(calls);
+      const res = await this.account.execute(calls);
       this.notifService.sendMessage(
         `${tokenInfo.symbol} Claimed ${res.transaction_hash} withdrawals`
       );
-      await provider.waitForTransaction(res.transaction_hash);
+      await this.provider.waitForTransaction(res.transaction_hash);
       this.notifService.sendMessage(
         `${tokenInfo.symbol} Transaction ${res.transaction_hash} confirmed`
       );
@@ -490,7 +500,7 @@ export class CronService {
     }
   }
 
-  @Cron("0 30 */6 * * *")
+  @Cron(getCronSettings("stake-funds"))
   @TryCatchAsync()
   async stakeFunds() {
     this.logger.log("Staking funds");
@@ -499,7 +509,8 @@ export class CronService {
     this.logger.log("Handling un-assigned stakes");
     for (const token of supportedTokens) {
       let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
-      if (unassignedAmount.gt(0)) {
+      const lstInfo = getLSTInfo(token);
+      if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
         const randomValidator = this.validatorRegistryService.chooseRandomValidator(token);
         await this._stakeFunds(token, randomValidator.address,  unassignedAmount, false);
       } else {
@@ -511,12 +522,14 @@ export class CronService {
     this.logger.log("Handling assigned stakes");
     for (const token of supportedTokens) {
       const validators = this.validatorRegistryService.getValidatorsForToken(token);
+      const lstInfo = getLSTInfo(token);
+      const tokenInfo = await getTokenInfoFromAddr(token);
       for (const validator of validators) {
         let validatorTokenInfo = await this.validatorRegistryService.getValidatorTokenInfo(validator.address, token);
-        if (validatorTokenInfo.pendingStakeAmount.gt(0)) {
+        if (validatorTokenInfo.pendingStakeAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
           await this._stakeFunds(token, validator.address, validatorTokenInfo.pendingStakeAmount, true);
         } else {
-          this.logger.log(`No pending stake amount for validator ${validator.address.address} ${token.address}`);
+          this.logger.log(`${tokenInfo.symbol} No pending stake amount for validator ${validator.address.address} ${token.address}`);
         }
       }
     }
@@ -752,6 +765,8 @@ export class CronService {
             const call = del.delegator.populate("unstake_action", [assetAddress.address]);
             totalUnstakeAmount += Number(del.unPoolAmount.toString());
             return call;
+          } else if (!del.unPoolTime) {
+
           } else {
             this.logAndSendMessage(
               `${tokenInfo.symbol} Unstake time not reached for ${del.delegator.address}`,
@@ -791,4 +806,9 @@ export class CronService {
     if (getNetwork() != Network.mainnet) return;
     await populateEkuboTimeseries(true);
   }
+
+  // todo swap handling
+  // todo unstake intent handling
+  // todo cancel unstake intents if deposits are available (before staking them)
+  // todo, get unstaking requests older than 12 hours, still pending, use this amount to create intent
 }

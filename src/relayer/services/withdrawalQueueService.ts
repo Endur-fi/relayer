@@ -64,8 +64,7 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
   }
 
   getAssetContract(assetAddress: ContractAddr) {
-    const lstInfo = getLSTInfo(assetAddress);
-    const output = this.WQs.find((wq) => lstInfo.Asset.eq(assetAddress))?.Asset;
+    const output = this.WQs.find((wq) => assetAddress.eqString(wq.Asset.address))?.Asset;
     if (!output) {
       throw new Error(`Asset contract not found for address: ${assetAddress.address}`);
     }

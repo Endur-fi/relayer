@@ -7,9 +7,9 @@ import { getLSTInfo, getTokenDecimals, getTokenInfoFromAddr } from "../../common
 import { get64BitAddress } from "../../common/utils";
 
 interface IPrismaService {
-  getWithdrawalsLastDay(isRolling: boolean): Promise<bigint>;
+  getWithdrawalsLastDay(assetAddress: ContractAddr, isRolling: boolean): Promise<bigint>;
   getPendingWithdraws(assetAddress: ContractAddr, minAmount: Web3Number): Promise<[PendingWithdraws[], bigint[]]>;
-  markWithdrawalAsNotified(requestId: bigint): Promise<void>;
+  markWithdrawalAsNotified(assetAddress: ContractAddr, requestId: bigint): Promise<void>;
 }
 
 export interface PendingWithdraws {
@@ -29,14 +29,16 @@ export class PrismaService implements IPrismaService {
     this.prisma = prisma;
   }
 
-  async getWithdrawalsLastDay(isRolling = false): Promise<bigint> {
+  async getWithdrawalsLastDay(assetAddress: ContractAddr, isRolling = false): Promise<bigint> {
     const timeNow = Date.now();
     const timeInUnix = isRolling
       ? new Date(timeNow - 86400000).getTime()
       : Math.floor(Math.floor(timeNow / 1000) / 86400) * 86400;
 
+    const lstInfo = getLSTInfo(assetAddress);
     const withdrawals = await this.prisma.withdraw_queue.findMany({
       where: {
+        queue_contract: get64BitAddress(lstInfo.WithdrawQueue.address),
         timestamp: {
           gt: timeInUnix,
         },
@@ -106,10 +108,12 @@ export class PrismaService implements IPrismaService {
     return [filteredWithdraws, rejected_ids];
   }
 
-  async markWithdrawalAsNotified(requestId: bigint): Promise<void> {
+  async markWithdrawalAsNotified(assetAddress: ContractAddr, requestId: bigint): Promise<void> {
+    const lstInfo = getLSTInfo(assetAddress);
     await this.prisma.withdraw_queue.updateMany({
       where: {
         request_id: requestId,
+        queue_contract: get64BitAddress(lstInfo.WithdrawQueue.address),
       },
       data: {
         is_notified: true,

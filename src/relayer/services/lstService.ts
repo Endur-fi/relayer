@@ -10,10 +10,11 @@ import { ABI as LSTAbi } from "../../../abis/LST";
 import { ABI as AssetAbi } from "../../../abis/Strk";
 import { getAddresses, getLSTInfo, getTokenDecimals } from "../../common/constants";
 import { getNetwork } from "../../common/utils";
+import { ValidatorRegistryService } from "./validatorRegistryService";
 
 interface ILSTService {
   sendToWithdrawQueue(assetAddress: ContractAddr, amount: Web3Number): void;
-  getAssetBalance(assetAddress: ContractAddr): Promise<Web3Number>;
+  getAssetBalance(assetAddress: ContractAddr, lstAddress: string): Promise<Web3Number>;
   exchangeRate(assetAddress: ContractAddr): Promise<number>;
 }
 
@@ -22,6 +23,7 @@ export class LSTService implements ILSTService {
   private readonly logger = new Logger(LSTService.name);
   readonly prismaService: PrismaService;
   readonly config: ConfigService;
+  readonly validatorRegistryService: ValidatorRegistryService;
   readonly LSTs: {
     LST: Contract;
     Asset: Contract;
@@ -31,9 +33,12 @@ export class LSTService implements ILSTService {
     @Inject(forwardRef(() => ConfigService))
     config: ConfigService,
     @Inject(forwardRef(() => PrismaService))
-    prismaService: PrismaService
+    prismaService: PrismaService,
+    @Inject(forwardRef(() => ValidatorRegistryService))
+    validatorRegistryService: ValidatorRegistryService
   ) {
     this.config = config;
+    this.validatorRegistryService = validatorRegistryService;
     this.LSTs = getAddresses(getNetwork()).LSTs.map((lst) => ({
       LST: new Contract({
         abi: LSTAbi,
@@ -69,8 +74,9 @@ export class LSTService implements ILSTService {
 
   async sendToWithdrawQueue(assetAddress: ContractAddr, amount: Web3Number) {
     try {
-      const lstBalance = await this.getAssetBalance(assetAddress);
       const lst = this.getLSTContract(assetAddress);
+      const lstBalance = await this.validatorRegistryService.getUnassignedAmount(assetAddress);
+      this.logger.log(`Sending ${amount.toString()} to withdraw queue for ${assetAddress.address}, lst balance: ${lstBalance.toString()}`);
       assert(
         lstBalance.gte(amount),
         "Not enough balance to send to Withdrawqueue"
@@ -87,9 +93,9 @@ export class LSTService implements ILSTService {
     }
   }
 
-  async getAssetBalance(assetAddress: ContractAddr) {
+  async getAssetBalance(assetAddress: ContractAddr, lstAddress: string) {
     const asset = this.getAssetContract(assetAddress);
-    const amount = await asset.balanceOf(assetAddress.address);
+    const amount = await asset.balanceOf(lstAddress);
     return Web3Number.fromWei(amount.toString(), await getTokenDecimals(assetAddress));
   }
 

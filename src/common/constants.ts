@@ -76,6 +76,8 @@ type NetworkAddresses = {
     LST: ContractAddr;
     WithdrawQueue: ContractAddr;
     Asset: ContractAddr;
+    // - amounts below this are not auto processed for withdrawals
+    // - 100x this amount will only be processed for stake
     minWithdrawalAutoProcessAmount: Web3Number;
     maxWithdrawalsPerDay: number;
     maxStakePerTx: number; // in a given tx, max stake amount to avoid sending too much to one random validator

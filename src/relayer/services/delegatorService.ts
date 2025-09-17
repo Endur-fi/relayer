@@ -48,37 +48,51 @@ export class DelegatorService implements IDelegatorService {
   }
 
   async getPoolMemberInfo(delegatorAddress: ContractAddr, tokenAddress: ContractAddr): Promise<PoolMemberInfo> {
-    const result: any = await this.rpcWrapper.aggregateViewCall({
-      ...this.getDelegator(delegatorAddress).populate("get_pool_member_info", [tokenAddress.address]), abi: DelegatorAbi
-    });
-
-    // {
-    //   reward_address: 1254925468566415475020808191746114863081461075213051000422250263239065616617n,
-    //   amount: 9011093044960616394675n,
-    //   unclaimed_rewards: 61882242543753629n,
-    //   commission: 0n,
-    //   unpool_amount: 261000000000000000000000n,
-    //   unpool_time: CairoOption { Some: { seconds: 1750930665n }, None: undefined }
-    // }
     const tokenDecimals = await getTokenDecimals(tokenAddress);
-    const unPoolTimeOption: CairoOption<{ seconds: bigint }> =
-      result.unpool_time;
-    return {
-      delegator: this.getDelegator(delegatorAddress),
-      rewardAddress: result.reward_address.toString(),
-      amount: Web3Number.fromWei(result.amount.toString(), tokenDecimals),
-      unclaimedRewards: Web3Number.fromWei(
-        result.unclaimed_rewards.toString(),
-        tokenDecimals
-      ),
-      unPoolAmount: Web3Number.fromWei(
-        result.unpool_amount.toString(),
-        tokenDecimals
-      ),
-      unPoolTime: unPoolTimeOption.Some
-        ? new Date(Number(unPoolTimeOption.Some.seconds.toString()) * 1000)
-        : null,
-    };
+    try {
+      const result: any = await this.rpcWrapper.aggregateViewCall({
+        ...this.getDelegator(delegatorAddress).populate("get_pool_member_info", [tokenAddress.address]), abi: DelegatorAbi
+      });
+
+      // {
+      //   reward_address: 1254925468566415475020808191746114863081461075213051000422250263239065616617n,
+      //   amount: 9011093044960616394675n,
+      //   unclaimed_rewards: 61882242543753629n,
+      //   commission: 0n,
+      //   unpool_amount: 261000000000000000000000n,
+      //   unpool_time: CairoOption { Some: { seconds: 1750930665n }, None: undefined }
+      // }
+      const unPoolTimeOption: CairoOption<{ seconds: bigint }> =
+        result.unpool_time;
+      return {
+        delegator: this.getDelegator(delegatorAddress),
+        rewardAddress: result.reward_address.toString(),
+        amount: Web3Number.fromWei(result.amount.toString(), tokenDecimals),
+        unclaimedRewards: Web3Number.fromWei(
+          result.unclaimed_rewards.toString(),
+          tokenDecimals
+        ),
+        unPoolAmount: Web3Number.fromWei(
+          result.unpool_amount.toString(),
+          tokenDecimals
+        ),
+        unPoolTime: unPoolTimeOption.Some
+          ? new Date(Number(unPoolTimeOption.Some.seconds.toString()) * 1000)
+          : null,
+      };
+    } catch (err: any) {
+      if (err.message.includes("Pool member does not exist")) {
+        return {
+          delegator: this.getDelegator(delegatorAddress),
+          rewardAddress: '',
+          amount: Web3Number.fromWei(0, tokenDecimals),
+          unclaimedRewards: Web3Number.fromWei(0, tokenDecimals),
+          unPoolAmount: Web3Number.fromWei(0, tokenDecimals),
+          unPoolTime: null,
+        }
+      }
+      throw err;
+    }
   }
 
   async getTotalUnclaimedRewards(tokenAddress: ContractAddr) {
@@ -141,19 +155,28 @@ export class DelegatorService implements IDelegatorService {
     if (!validatorDetails) {
       throw new Error(`Validator: ${validatorAddress.address} not found for token: ${tokenAddress.address}`);
     }
-    const delegators = this.validatorRegistryService.getValidatorDelegators(validatorAddress, tokenAddress);
+    const _delegators = this.validatorRegistryService.getValidatorDelegators(validatorAddress, tokenAddress);
+
+    // ! bad jugaad due to upgrade issue in sepolia. 
+    // Skip this delegator as there is no way to call enter_delegation as present. 
+    const delegators = _delegators.filter((delegator) => !delegator.address.eqString('0x246f8bf539817de93d5fac4eca0052ba40e684a5ddddd7b7027f1744e3d927f'));
 
     // get current staked amount distribution
     const delegatorStakes = await this.getDelegatorsStakeInfo(delegators, tokenAddress);
     const stakeDistributions = await this.getIdealAssetDistribution(delegatorStakes, amount, tokenAddress);
     this.logger.verbose(`${tokenAddress.address} Stake distributions: ${JSON.stringify(stakeDistributions)}`);
 
+    
     const calls = stakeDistributions.map((distribution) => this.validatorRegistryService.stakeToDelegator(distribution.delegator, tokenAddress, distribution.amount));
+    
     await this.rpcWrapper.executeTransactions(calls, `Staked to validator: ${validatorAddress.address} for token: ${tokenAddress.address} with amount: ${amount.toString()}`);
   }
 
   async getIdealAssetDistribution(delegators: PoolMemberInfo[], newAmount: Web3Number, tokenAddress: ContractAddr) {
     const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
+    const lstInfo = getLSTInfo(tokenAddress);
+    const minPerStakeAmount = lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100);
+
     const totalStakedAmount = delegators.reduce((acc, info) => acc.plus(info.amount), Web3Number.fromWei("0", tokenInfo.decimals));
     this.logger.verbose(`${tokenInfo.symbol} Total staked amount: ${totalStakedAmount.toString()}`);
 
@@ -188,9 +211,9 @@ export class DelegatorService implements IDelegatorService {
       }
       const idealAmount = orderedDelegators[i];
       const currentAmount = delegator.amount;
-      const addition = idealAmount.amount.minus(currentAmount);
+      const addition = idealAmount.amount.minus(currentAmount).minimum(remainingAmount);
       this.logger.verbose(`${tokenInfo.symbol} delegator: ${delegator.delegator.address} idealAmount: ${idealAmount.amount.toString()} currentAmount: ${currentAmount.toString()} addition: ${addition.toString()}`);
-      if (addition.gt(Web3Number.fromWei("0", tokenInfo.decimals))) {
+      if (addition.gt(minPerStakeAmount)) {
         distributions.push({
           delegator: ContractAddr.from(delegator.delegator.address),
           amount: addition,
@@ -208,10 +231,9 @@ export class DelegatorService implements IDelegatorService {
       });
     }
 
-    const lstInfo = getLSTInfo(tokenAddress);
     // minWithdrawalAutoProcessAmount is not the right variable name,
     // just needed a small enough value to compare, this seems good enough
-    if (remainingAmount.gt(lstInfo.minWithdrawalAutoProcessAmount)) {
+    if (remainingAmount.gt(minPerStakeAmount)) {
       throw new Error(`${tokenInfo.symbol} Remaining amount: ${remainingAmount.toString()} is greater than 0`);
     }
 
