@@ -43,6 +43,4 @@ services:
   region: oregon
   buildCommand: pnpm install drizzle-prisma-generator; pnpm install; npx prisma generate
   startCommand: npx tsx src/graphql
-  domains:
-  - graphql.sepolia.endur.fi
   autoDeployTrigger: "off"
