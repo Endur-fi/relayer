@@ -86,7 +86,7 @@ export function createIndexer<
     async transform({ block, finality, endCursor, context }) {
       const logger = useLogger();
       const { db } = useDrizzleStorage();
-      console.log("block", block);
+      // console.log("block", block);
       await commonTransform(
         block,
         finality,

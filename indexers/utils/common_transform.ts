@@ -36,7 +36,7 @@ async function performAtomicBatchInsert<T extends Record<string, any>>(
     recordsByTable.get(tableName)!.push(record);
   }
 
-  console.log("recordsByTable", recordsByTable);
+  // console.log("recordsByTable", recordsByTable);
 
   logger.info(`Starting atomic batch insert of ${recordsToInsert.length} records across ${recordsByTable.size} tables`);
 
@@ -125,7 +125,7 @@ export async function commonTransform<T extends Record<string, any>>(
     throw new Error(`Expected block with blockNumber`);
   }
 
-  console.log("events", events);
+  // console.log("events", events);
 
   // Parse the timestamp correctly - convert to Unix timestamp (seconds)
   const timestamp = Math.round(header.timestamp.getTime() / 1000);
@@ -206,7 +206,7 @@ export async function commonTransform<T extends Record<string, any>>(
     result.timestamp = timestamp;
     result.cursor = BigInt(header.blockNumber);
 
-    console.log("result", result);
+    // console.log("result", result);
 
     // process any custom logic
     if (config.onEvent) {

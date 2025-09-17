@@ -35,7 +35,7 @@ export const onEventEkuboLPLst: OnEvent = async (event: Event, processedRecord: 
       .filter((e) => e.eventIndexInTransaction < event.eventIndexInTransaction)
       .sort((a, b) => b.eventIndexInTransaction - a.eventIndexInTransaction);
 
-  console.log("filteredEvents", filteredEvents);
+  // console.log("filteredEvents", filteredEvents);
   // First PositionUpdated event
   const positionUpdateEvent = filteredEvents.find((e) => {
     const matchEvent = standariseAddress(e.keys[0]) == standariseAddress(num.getDecimalString(eventKey("Transfer")));
@@ -62,7 +62,7 @@ export const onEventEkuboLPLst: OnEvent = async (event: Event, processedRecord: 
       nft_id: Number(positionUpdateEvent.data[2]),
       cursor: processedRecord['cursor'],
     }
-    console.log("nftRecord", nftRecord, positionUpdateEvent);
+    // console.log("nftRecord", nftRecord, positionUpdateEvent);
     await db.insert(schema.ekubo_nfts_events).values(nftRecord as any).execute();
 
     return null; // to avoid re-insert
