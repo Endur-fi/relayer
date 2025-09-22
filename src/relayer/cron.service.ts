@@ -1,13 +1,18 @@
 import assert from "assert";
 
 import {
+  AvnuOptions,
+  BASE_URL,
   fetchBuildExecuteTransaction,
   fetchQuotes,
+  fetchSources,
+  fetchTokens,
   QuoteRequest,
+  SEPOLIA_BASE_URL,
 } from "@avnu/avnu-sdk";
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { ContractAddr, Global, Web3Number } from "@strkfarm/sdk";
+import { AvnuWrapper, ContractAddr, getMainnetConfig, Global, PricerFromApi, Web3Number } from "@strkfarm/sdk";
 import {
   Account,
   Call,
@@ -22,7 +27,7 @@ import { getAddresses, getAllSupportedTokens, getLSTDecimals, getLSTInfo, getTok
 import { BotService } from "../common/services/bot.service";
 import { getNetwork, Network, STRK_TOKEN, TryCatchAsync } from "../common/utils";
 import { ConfigService } from "./services/configService";
-import { DelegatorService } from "./services/delegatorService";
+import { DelegatorService, PoolMemberInfo } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PendingWithdraws, PrismaService } from "./services/prismaService";
@@ -30,6 +35,7 @@ import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 import { ValidatorRegistryService } from "./services/validatorRegistryService";
 import { RPCWrapper } from "./services/RPCWrapper";
+import {ABI as SwapExtensionAbi} from "../../abis/SwapExtensionAbi";
 
 /***
  * Sequence is important here
@@ -48,11 +54,11 @@ function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "uns
     case "stake-funds":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
-        : "0 30 0 * * *"; // every day at 1:30 AM
+        : "0 30 0 * * *"; // every day at 12:30 AM
     case "unstake-intent":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
-        : "0 30 0 * * *"; // every day at 1:30 AM
+        : "0 30 1 * * *"; // every day at 1:30 AM
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -155,6 +161,8 @@ export class CronService {
     // await this.stakeFunds();
     // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
+    // await this.swapRewardsToUnderlyingToken()
+    await this.handleUnstakeIntents();
   }
 
   private async waitForValidatorRegistryService() {
@@ -572,8 +580,8 @@ export class CronService {
   // async checkAndExecuteArbitrage() {
   //   if (getNetwork() != Network.mainnet) return;
 
-  //   // todo modify arb contract to take flash loan from vesu and
-  //   // execute swap using avnu swap (so that more routes can be used)
+    // todo modify arb contract to take flash loan from vesu and
+    // execute swap using avnu swap (so that more routes can be used)
   //   const strkBalanceLST = await this.lstService.getSTRKBalance();
   //   const account: Account = this.config.get("account");
   //   const queueStats =
@@ -839,8 +847,164 @@ export class CronService {
     // await populateEkuboTimeseries(true);
   }
 
-  // todo swap handling
-  // todo unstake intent handling
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  @TryCatchAsync(3, 10000)
+  async swapRewardsToUnderlyingToken() {
+    const supportedTokens = getAllSupportedTokens();
+    for (const token of supportedTokens) {
+      // nothing to swap for STRK token
+      if (token.eqString(STRK_TOKEN)) continue;
+      
+      // swap rewards to underlying token
+      await this._swapRewardsToUnderlyingToken(token);
+
+      // send received BTC to VR
+      await this._sendBTCFromSwapExtensionToVR(token);
+    }
+
+  }
+
+  async _swapRewardsToUnderlyingToken(assetAddress: ContractAddr) {
+    const tokenInfo = await getTokenInfoFromAddr(assetAddress);
+    const lstInfo = getLSTInfo(assetAddress);
+    const swapExtension = lstInfo.swapExtension;
+    const strkBalance = await this.lstService.getAssetBalance(ContractAddr.from(STRK_TOKEN), swapExtension.address);
+    const isMainnet = getNetwork() == Network.mainnet;
+    const avnuOptions: AvnuOptions = {
+      baseUrl: isMainnet ? BASE_URL : SEPOLIA_BASE_URL,
+    }
+
+    if (strkBalance.lt(10)) {
+      this.logger.log(`STRK => ${tokenInfo.symbol} Strk balance (${strkBalance.toString()}) is less than 10, skipping swap`);
+      return;
+    }
+    
+    // get quotes
+    this.logger.log(`STRK => ${tokenInfo.symbol} Swapping ${strkBalance.toString()} STRK to ${assetAddress.address}`);
+    const quotes = await fetchQuotes({
+      sellTokenAddress: STRK_TOKEN,
+      buyTokenAddress: assetAddress.address,
+      sellAmount: BigInt(strkBalance.toWei()),
+      takerAddress: swapExtension.address,
+    }, avnuOptions);
+
+    if (quotes.length == 0) {
+      if (isMainnet) {
+        this.notifService.sendMessage(`Swap Extension: No quotes found for STRK to ${tokenInfo.symbol}`);
+      }
+      return;
+    }
+
+    const avnuWrapper = new AvnuWrapper();
+    const pricer = new PricerFromApi(getMainnetConfig(process.env.RPC_URL!), Global.getDefaultTokens());
+    const strkPrice = await pricer.getPrice("STRK");
+    const btcPrice = await pricer.getPrice("WBTC");
+    const minAmount = new Web3Number((Number(strkBalance.toFixed(12)) * strkPrice.price / btcPrice.price).toFixed(12), tokenInfo.decimals).toWei();
+    this.logger.log(`STRK => ${tokenInfo.symbol} Min amount: ${minAmount.toString()}`);
+    const swapInfo = await avnuWrapper.getSwapInfo(quotes[0], swapExtension.address, 0, swapExtension.address, isMainnet ? minAmount.toString() : "1", avnuOptions);
+  
+    const swapContract = new Contract({abi: SwapExtensionAbi, address: swapExtension.address, providerOrAccount: this.provider});
+    const call = swapContract.populate("swap", {
+      swap_params: swapInfo,
+    });
+    const tx = await this.rpcWrapper.executeTransactions([call], `Swap STRK to ${tokenInfo.symbol}`);
+    this.logger.log(`STRK => ${tokenInfo.symbol} Swap tx confirmed: ${tx.transaction_hash}`);
+    await this.provider.waitForTransaction(tx.transaction_hash, {
+      successStates: [TransactionExecutionStatus.SUCCEEDED],
+    });
+    this.logger.log(`STRK => ${tokenInfo.symbol} Swap tx confirmed`);
+  }
+
+  async _sendBTCFromSwapExtensionToVR(assetAddress: ContractAddr) {
+    const tokenInfo = await getTokenInfoFromAddr(assetAddress);
+    const lstInfo = getLSTInfo(assetAddress);
+    const swapExtension = lstInfo.swapExtension;
+    const btcBalance = await this.lstService.getAssetBalance(assetAddress, swapExtension.address);
+ 
+    if (btcBalance.lt(0.000001)) {
+      this.logger.log(`STRK => ${tokenInfo.symbol} BTC balance (${btcBalance.toString()}) is less than 0.000001, skipping pull`);
+      return;
+    }
+    
+    const swapContract = new Contract({abi: SwapExtensionAbi, address: swapExtension.address, providerOrAccount: this.provider});
+    const call = swapContract.populate("pull", {
+      amount: btcBalance.toWei(),
+    })
+    const tx = await this.rpcWrapper.executeTransactions([call], `Pull BTC from Swap Extension to VR`);
+    this.logger.log(`STRK => ${tokenInfo.symbol} Pull BTC from Swap Extension to VR tx confirmed: ${tx.transaction_hash}`);
+    await this.provider.waitForTransaction(tx.transaction_hash, {
+      successStates: [TransactionExecutionStatus.SUCCEEDED],
+    });
+    this.logger.log(`STRK => ${tokenInfo.symbol} Pull BTC from Swap Extension to VR tx confirmed`);
+  }
+
+  @Cron(getCronSettings('unstake-intent'))
+  @TryCatchAsync(3, 10000)
+  async handleUnstakeIntents() {
+    const supportedTokens = getAllSupportedTokens();
+    for (const token of supportedTokens) {
+      try {
+        await this._handleUnstakeIntents(token);
+      } catch (err) {
+        this.logger.error(`handleUnstakeIntents::${token.address} Error handling unstake intents: ${err}`, err);
+        this.notifService.sendMessage(`handleUnstakeIntents::${token.address} Error handling unstake intents: ${err}`);
+      }
+    }
+  }
+
+  async _handleUnstakeIntents(assetAddress: ContractAddr) {
+    // Eligible unstake amount
+    // Unprocessed amount before 12hrs
+    // i.e. pending unstake amounts - intransit amount - unstaked in 12hrs
+    const tokenInfo = await getTokenInfoFromAddr(assetAddress);
+    const lstInfo = getLSTInfo(assetAddress);
+    const [pendingUnstakeAmounts, _] = await this.prismaService.getPendingWithdraws(assetAddress, lstInfo.minWithdrawalAutoProcessAmount);
+    console.table(pendingUnstakeAmounts);
+    const totalPendingUnstakeAmount = pendingUnstakeAmounts.reduce((acc, curr) => acc.plus(Web3Number.fromWei(curr.amount, tokenInfo.decimals)), new Web3Number(0, tokenInfo.decimals));
+    const totalUnstakedIn12hrs = pendingUnstakeAmounts
+      .filter((withdraw) => withdraw.timestamp >= (Date.now() - 12 * 60 * 60 * 1000) / 1000)
+      .reduce((acc, curr) => acc.plus(Web3Number.fromWei(curr.amount, tokenInfo.decimals)), new Web3Number(0, tokenInfo.decimals));
+    this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Total pending unstake amount: ${totalPendingUnstakeAmount.toFixed(12)}, Total unstaked in 12hrs: ${totalUnstakedIn12hrs.toFixed(12)}`);
+    const withdrawQueueState = await this.withdrawalQueueService.getWithdrawalQueueState(assetAddress);
+    const intransitAmount = withdrawQueueState.intransit_amount;
+    const unprocessedWithdrawQueueAmount = withdrawQueueState.unprocessed_withdraw_queue_amount;
+    this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} In transit amount: ${intransitAmount.toFixed(12)}, Unprocessed withdraw queue amount: ${unprocessedWithdrawQueueAmount.toFixed(12)}`);
+    const eligibleUnstakeAmount = (totalPendingUnstakeAmount.minus(intransitAmount).minus(totalUnstakedIn12hrs)).minimum(unprocessedWithdrawQueueAmount);
+    this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Eligible unstake amount: ${eligibleUnstakeAmount.toString()}`);
+
+    // if too small, skip
+    const minUnstakeAmount = getLSTInfo(assetAddress).minUnstakeAmount;
+    this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Min unstake amount: ${minUnstakeAmount.toFixed(12)}`);
+    if (eligibleUnstakeAmount.lt(minUnstakeAmount)) {
+      this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Eligible unstake amount is less than min unstake amount, skipping`);
+      return;
+    }
+    
+    // choose random validator
+    // Randomly choose validators and search for delegator till we find
+    let retry = 0;
+    let suitableDelegator: PoolMemberInfo | null = null;
+    while (retry < 3) {
+      try {
+        const randomValidator = this.validatorRegistryService.chooseStakeWeightedValidator(assetAddress);
+        suitableDelegator = await this.delegatorService.chooseSuitableDelegatorToUnstake(randomValidator.address, assetAddress, eligibleUnstakeAmount);
+        break;
+      } catch (err) {
+        this.logger.error(`handleUnstakeIntents::${tokenInfo.symbol} Error choosing suitable delegator: ${err}`, err);
+        retry++;
+      }
+    }
+
+    if (!suitableDelegator) {
+      this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} No suitable delegator found, skipping`);
+      return;
+    }
+
+    // create unstake intent
+    await this.delegatorService.createUnstakeIntent(ContractAddr.from(suitableDelegator.delegator.address), assetAddress, eligibleUnstakeAmount);
+  }
+
+  // // todo unstake intent handling
   // todo cancel unstake intents if deposits are available (before staking them)
-  // todo, get unstaking requests older than 12 hours, still pending, use this amount to create intent
+  // // todo, get unstaking requests older than 12 hours, still pending, use this amount to create intent
 }

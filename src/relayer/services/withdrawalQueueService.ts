@@ -108,7 +108,6 @@ export class WithdrawalQueueService implements IWithdrawalQueueService {
 
   async getWithdrawalQueueState(assetAddress: ContractAddr) {
     const res = await this.getWQContract(assetAddress).get_queue_state();
-    console.log("WithdrawalQueueState", res);
     return {
       max_request_id: Number(res.max_request_id),
       unprocessed_withdraw_queue_amount: Web3Number.fromWei(

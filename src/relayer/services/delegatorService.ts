@@ -8,7 +8,7 @@ import { getAddresses, getLSTDecimals, getLSTInfo, getTokenDecimals, getTokenInf
 import { RPCWrapper } from "./RPCWrapper";
 import { DelegatorInfo, ValidatorRegistryService } from "./validatorRegistryService";
 
-interface PoolMemberInfo {
+export interface PoolMemberInfo {
   delegator: Contract;
   rewardAddress: string;
   amount: Web3Number;
@@ -257,5 +257,49 @@ export class DelegatorService implements IDelegatorService {
       unPoolTime: r.unPoolTime,
     })))}`);
     return result;
+  }
+
+  async chooseSuitableDelegatorToUnstake(validatorAddress: ContractAddr, tokenAddress: ContractAddr, unstakeAmount: Web3Number) {
+    // Conditions:
+    // 1. No pending unstake amount for the delegator
+    // 2. Delegator that can max utilize the stake to unstake 
+    // (i.e. if two delegators with 100 and 200 stake each, if unstake is 99, use first one)
+    const delegators = this.validatorRegistryService.getValidatorDelegators(validatorAddress, tokenAddress);
+    if (delegators.length === 0) {
+      throw new Error(`No delegators found for validator: ${validatorAddress.address}`);
+    }
+    const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
+
+    const delegatorStakes = await this.getDelegatorsStakeInfo(delegators, tokenAddress);
+    
+    this.logger.log(`chooseSuitableDelegatorToUnstake::${tokenInfo.symbol} - unstake amount: ${unstakeAmount.toString()}`);
+    console.table(delegatorStakes);
+
+    const suitableDelegators = delegatorStakes
+      // pools without any pending unstake
+      .filter((d) => !d.unPoolAmount || d.unPoolAmount.isZero())
+      // 
+      .filter((d) => d.amount.greaterThanOrEqualTo(unstakeAmount))
+      .sort((a, b) => {
+        return a.amount.toNumber() - b.amount.toNumber();
+      });
+    
+    this.logger.log(`chooseSuitableDelegatorToUnstake::${tokenInfo.symbol}`);
+    console.table(suitableDelegators);
+
+    const suitableDelegator = suitableDelegators[0];
+    if (!suitableDelegator) {
+      throw new Error(`No suitable delegator found for validator: ${validatorAddress.address}`);
+    }
+
+    this.logger.log(`Suitable delegator found for validator: ${validatorAddress.address} is ${suitableDelegator.delegator.address}`);
+    return suitableDelegator;
+  }
+
+  async createUnstakeIntent(delegatorAddress: ContractAddr, tokenAddress: ContractAddr, unstakeAmount: Web3Number) {
+    const delegator = this.getDelegator(delegatorAddress);
+    const call = delegator.populate("start_unstake_intent", [tokenAddress.address, unstakeAmount.toWei()]);
+    const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
+    await this.rpcWrapper.executeTransactions([call], `Unstaking from delegator: ${delegatorAddress.address} for token: ${tokenAddress.address} with amount: ${unstakeAmount.toString()} ${tokenInfo.symbol}`);
   }
 }

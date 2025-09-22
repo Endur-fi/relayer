@@ -93,9 +93,9 @@ export class LSTService implements ILSTService {
     }
   }
 
-  async getAssetBalance(assetAddress: ContractAddr, lstAddress: string) {
+  async getAssetBalance(assetAddress: ContractAddr, address: string) {
     const asset = this.getAssetContract(assetAddress);
-    const amount = await asset.balanceOf(lstAddress);
+    const amount = await asset.balanceOf(address);
     return Web3Number.fromWei(amount.toString(), await getTokenDecimals(assetAddress));
   }
 

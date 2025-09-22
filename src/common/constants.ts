@@ -76,11 +76,13 @@ type NetworkAddresses = {
     LST: ContractAddr;
     WithdrawQueue: ContractAddr;
     Asset: ContractAddr;
+    swapExtension: ContractAddr;
     // - amounts below this are not auto processed for withdrawals
     // - 100x this amount will only be processed for stake
     minWithdrawalAutoProcessAmount: Web3Number;
     maxWithdrawalsPerDay: number;
     maxStakePerTx: number; // in a given tx, max stake amount to avoid sending too much to one random validator
+    minUnstakeAmount: Web3Number;
   }[];
   ARB_CONTRACT: ContractAddr;
   ValidatorRegistry: ContractAddr;
@@ -91,22 +93,28 @@ const sepolia: NetworkAddresses = {
     LST: ContractAddr.from("0x036A2c3C56ae806B12A84bB253cBc1a009e3da5469e6a736C483303B864C8e2B"),
     WithdrawQueue: ContractAddr.from("0x06259eC265D650C3Edd85d6B5f563603aA247c360879437D2372AeA7e2148eda"),
     Asset: ContractAddr.from("0x044aD07751Ad782288413C7DB42C48e1c4f6195876BCa3B6CAEF449bb4Fb8d36"),
+    swapExtension: ContractAddr.from("0x1b1558cc3b76a95488f4a971f546683e13b68e4095de352453119ec5964d3e6"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.00001", 8),
     maxWithdrawalsPerDay: 1, // 1BTC
     maxStakePerTx: 100, // 1BTC
+    minUnstakeAmount: new Web3Number("0.00001", 8),
   }, {
     LST: ContractAddr.from("0x0226324F63D994834E4729dd1bab443fe50Af8E97C608b812ee1f950ceaE68c7"),
     WithdrawQueue: ContractAddr.from("0x0502B976EC50e85cE7E71997605a7DDbB70386844670ef270b9c721Db1cbE9c0"),
     Asset: ContractAddr.from("0x07E97477601e5606359303cf50C050FD3bA94F66Bd041F4ed504673BA2b81696"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.00001", 8),
+    swapExtension: ContractAddr.from("0x6d74c2334e08d66921f6578a6e0d382536c308da8d8b43e6f44d7ae6d57f91c"),
     maxWithdrawalsPerDay: 1,
+    minUnstakeAmount: new Web3Number("0.00001", 8),
     maxStakePerTx: 100, // 0.1BTC
   }, {
     LST: ContractAddr.from("0x42de5b868da876768213c48019b8d46cd484e66013ae3275f8a4b97b31fc7eb"),
     WithdrawQueue: ContractAddr.from("0x254cbdaf8275cb1b514ae63ccedb04a3a9996b1489829e5d6bbaf759ac100b6"),
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
+    swapExtension: ContractAddr.from("0x0"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.001", 18),
     maxWithdrawalsPerDay: 2_000_000,
+    minUnstakeAmount: new Web3Number("0.00001", 8),
     maxStakePerTx: 100, // 10 STRK
   }],
   ARB_CONTRACT: ContractAddr.from(""),
@@ -119,8 +127,10 @@ const mainnet: NetworkAddresses = {
     LST: ContractAddr.from("0x28d709c875c0ceac3dce7065bec5328186dc89fe254527084d1689910954b0a"),
     WithdrawQueue: ContractAddr.from("0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6"),
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
+    swapExtension: ContractAddr.from("0x0"),
     minWithdrawalAutoProcessAmount: new Web3Number("10", 18),
     maxWithdrawalsPerDay: 2_000_000,
+    minUnstakeAmount: new Web3Number("50000", 18),
     maxStakePerTx: 100_000, // 100k STRK
   }],
   ARB_CONTRACT:

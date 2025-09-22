@@ -138,6 +138,31 @@ export class ValidatorRegistryService implements IValidatorRegistryService {
     throw new Error(`No validator found for token: ${tokenAddress.address}`);
   }
 
+  chooseStakeWeightedValidator(tokenAddress: ContractAddr) {
+    const validValidators = this.getValidatorsForToken(tokenAddress);
+    if (validValidators.length === 0) {
+      throw new Error(`No validators found for token: ${tokenAddress.address}`);
+    }
+
+    // use stake amounts on validator for the given token to use as weight
+    const totalWeights = validValidators.map((val) => {
+      return val.supportedTokens.find((token) => token.tokenAddress.eqString(tokenAddress.address))?.stakedAmount.toNumber() || 0;
+    })
+    const totalWeight = totalWeights.reduce((acc, weight) => acc + weight, 0);
+    const randomWeight = Math.random() * totalWeight;
+    this.logger.verbose(`chooseStakeWeightedValidator randomWeight: ${randomWeight} for token: ${tokenAddress.address} and totalWeight: ${totalWeight}`);
+    let cumulativeWeight = 0;
+    for (let index = 0; index < validValidators.length; index++) {
+      const validator = validValidators[index];
+      cumulativeWeight += totalWeights[index];
+      if (randomWeight <= cumulativeWeight) {
+        this.logger.verbose(`chooseStakeWeightedValidator: Validator chosen ${validator.address.address} with weight: ${totalWeights[index]}`);
+        return validator;
+      }
+    }
+    throw new Error(`No validator found for token: ${tokenAddress.address}`);
+  }
+
   async claimRewards(validatorAddress: ContractAddr, tokenAddress: ContractAddr) {
     const call = this.validatorRegistry.populate("claim_rewards_for_validator", [validatorAddress.address, tokenAddress.address]);
     await this.rpcWrapper.executeTransactions([call], `Claim rewards for validator: ${validatorAddress.address} and token: ${tokenAddress.address}`);
