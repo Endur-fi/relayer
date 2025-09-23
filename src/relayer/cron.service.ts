@@ -162,7 +162,7 @@ export class CronService {
     // await this.updateEkuboPositionsTimeseries();
     // await this.claimRewards();
     // await this.swapRewardsToUnderlyingToken()
-    await this.handleUnstakeIntents();
+    // await this.handleUnstakeIntents();
   }
 
   private async waitForValidatorRegistryService() {
