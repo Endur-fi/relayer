@@ -1,13 +1,13 @@
-import assert from "assert";
+// import assert from "assert";
 
 import {
   AvnuOptions,
   BASE_URL,
-  fetchBuildExecuteTransaction,
+  // fetchBuildExecuteTransaction,
   fetchQuotes,
-  fetchSources,
-  fetchTokens,
-  QuoteRequest,
+  // fetchSources,
+  // fetchTokens,
+  // QuoteRequest,
   SEPOLIA_BASE_URL,
 } from "@avnu/avnu-sdk";
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
@@ -19,11 +19,12 @@ import {
   Contract,
   RpcProvider,
   TransactionExecutionStatus,
-  Uint256,
-  uint256,
+  // Uint256,
+  // uint256,
 } from "starknet";
 
-import { getAddresses, getAllSupportedTokens, getLSTDecimals, getLSTInfo, getTokenDecimals, getTokenInfoFromAddr } from "../common/constants";
+import RelayerMonitoring from "./relayer.monitoring";
+import { getAddresses, getAllSupportedTokens, getLSTInfo, getTokenInfoFromAddr } from "../common/constants";
 import { BotService } from "../common/services/bot.service";
 import { getNetwork, Network, STRK_TOKEN, TryCatchAsync } from "../common/utils";
 import { ConfigService } from "./services/configService";
@@ -31,10 +32,9 @@ import { DelegatorService, PoolMemberInfo } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PendingWithdraws, PrismaService } from "./services/prismaService";
-import { WithdrawalQueueService } from "./services/withdrawalQueueService";
-import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
-import { ValidatorRegistryService } from "./services/validatorRegistryService";
 import { RPCWrapper } from "./services/RPCWrapper";
+import { ValidatorRegistryService } from "./services/validatorRegistryService";
+import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import {ABI as SwapExtensionAbi} from "../../abis/SwapExtensionAbi";
 
 /***
@@ -64,25 +64,15 @@ function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "uns
   }
 }
 
-interface Route {
-  token_from: string;
-  token_to: string;
-  exchange_address: string;
-  percent: number;
-  additional_swap_params: string[];
-}
+// interface Route {
+//   token_from: string;
+//   token_to: string;
+//   exchange_address: string;
+//   percent: number;
+//   additional_swap_params: string[];
+// }
 
-interface SwapInfo {
-  token_from_address: string;
-  token_from_amount: Uint256;
-  token_to_address: string;
-  token_to_amount: Uint256;
-  token_to_min_amount: Uint256;
-  beneficiary: string;
-  integrator_fee_amount_bps: number;
-  integrator_fee_recipient: string;
-  routes: Route[];
-}
+// Deprecated local SwapInfo (kept in comments for reference)
 
 @Injectable()
 export class CronService {
@@ -300,6 +290,11 @@ export class CronService {
       await this.prismaService.getPendingWithdraws(assetAddress, min_amount);
     this.logger.debug(`${tokenInfo.symbol} Found ${pendingWithdrawals.length} pending withdrawals`);
 
+    // metrics: total pending requests, amount, max pending time
+    const totalPendingAmount = pendingWithdrawals.reduce((acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)), new Web3Number("0", tokenInfo.decimals));
+    const oldestTs = pendingWithdrawals.length > 0 ? Math.min(...pendingWithdrawals.map(w => Number(w.timestamp))) : undefined;
+    RelayerMonitoring.recordPendingRequests(tokenInfo.symbol, pendingWithdrawals.length, Number(totalPendingAmount.toString()), oldestTs);
+
     let balanceLeft = await this.withdrawalQueueService.getAssetBalance(assetAddress);
     this.logger.log(`${tokenInfo.symbol} Balance left: ${balanceLeft.toString()}`);
 
@@ -350,7 +345,7 @@ export class CronService {
         if (call) {
           calls.push(call);
           balanceLeft = _balanceLeft;
-          processedWithdrawalsInLast24HoursDecimalAdjusted = processedWithdrawalsInLast24HoursDecimalAdjusted;
+          processedWithdrawalsInLast24HoursDecimalAdjusted = _processedAmount;
         }
       }
 
@@ -534,7 +529,7 @@ export class CronService {
     // handled un-assigned stakes
     this.logger.log("Handling un-assigned stakes");
     for (const token of supportedTokens) {
-      let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
+    const unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
       const lstInfo = getLSTInfo(token);
       if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
         const randomValidator = this.validatorRegistryService.chooseRandomValidator(token);
@@ -551,7 +546,7 @@ export class CronService {
       const lstInfo = getLSTInfo(token);
       const tokenInfo = await getTokenInfoFromAddr(token);
       for (const validator of validators) {
-        let validatorTokenInfo = await this.validatorRegistryService.getValidatorTokenInfo(validator.address, token);
+        const validatorTokenInfo = await this.validatorRegistryService.getValidatorTokenInfo(validator.address, token);
         if (validatorTokenInfo.pendingStakeAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
           await this._stakeFunds(token, validator.address, validatorTokenInfo.pendingStakeAmount, true);
         } else {
@@ -565,11 +560,12 @@ export class CronService {
     const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
     const lstInfo = getLSTInfo(tokenAddress);
 
-    let stakeAmount = amount.gt(lstInfo.maxStakePerTx) ? new Web3Number(lstInfo.maxStakePerTx, tokenInfo.decimals) : amount;
+    const stakeAmount = amount.gt(lstInfo.maxStakePerTx) ? new Web3Number(lstInfo.maxStakePerTx, tokenInfo.decimals) : amount;
     this.logger.log(`Staking ${stakeAmount.toString()}, totalAmount: ${amount.toString()} ${tokenInfo.symbol} to validator ${validatorAddress.address}, isAssignedStake: ${isAssignedStake}`);
     await this.delegatorService.stakeToValidator(validatorAddress, tokenAddress, stakeAmount, isAssignedStake);
+    RelayerMonitoring.recordStakeAction(tokenInfo.symbol, validatorAddress.address, isAssignedStake, Number(stakeAmount.toString()));
 
-    let remainingAmount = amount.minus(stakeAmount);
+    const remainingAmount = amount.minus(stakeAmount);
     if (remainingAmount.gt(0)) {
       await this._stakeFunds(tokenAddress, validatorAddress, remainingAmount, true);
     }
@@ -755,6 +751,7 @@ export class CronService {
         continue;
       } 
       await this.validatorRegistryService.claimRewards(reward.validatorAddress, assetAddress);
+      RelayerMonitoring.recordRewardsClaimed(tokenInfo.symbol, reward.validatorAddress.address);
       this.notifService.sendMessage(
         `Claimed rewards: ${reward.amount.toString()} ${tokenInfo.symbol} for validator ${reward.validatorAddress}`
       );
@@ -876,6 +873,7 @@ export class CronService {
 
     if (strkBalance.lt(10)) {
       this.logger.log(`STRK => ${tokenInfo.symbol} Strk balance (${strkBalance.toString()}) is less than 10, skipping swap`);
+      RelayerMonitoring.recordRewardSwap(tokenInfo.symbol, Number(strkBalance.toString()), "skipped");
       return;
     }
     
@@ -913,6 +911,7 @@ export class CronService {
       successStates: [TransactionExecutionStatus.SUCCEEDED],
     });
     this.logger.log(`STRK => ${tokenInfo.symbol} Swap tx confirmed`);
+    RelayerMonitoring.recordRewardSwap(tokenInfo.symbol, Number(strkBalance.toString()), "swapped");
   }
 
   async _sendBTCFromSwapExtensionToVR(assetAddress: ContractAddr) {
@@ -977,6 +976,14 @@ export class CronService {
     this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Min unstake amount: ${minUnstakeAmount.toFixed(12)}`);
     if (eligibleUnstakeAmount.lt(minUnstakeAmount)) {
       this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Eligible unstake amount is less than min unstake amount, skipping`);
+      RelayerMonitoring.recordHandleUnstakeMetrics(tokenInfo.symbol, {
+        eligibleUnstakeAmount: Number(eligibleUnstakeAmount.toString()),
+        unprocessedWithdrawQueueAmount: Number(unprocessedWithdrawQueueAmount.toString()),
+        intransitAmount: Number(intransitAmount.toString()),
+        totalPendingUnstakeAmount: Number(totalPendingUnstakeAmount.toString()),
+        totalUnstakedIn12hrs: Number(totalUnstakedIn12hrs.toString()),
+        outcome: "skipped",
+      });
       return;
     }
     
@@ -1002,6 +1009,14 @@ export class CronService {
 
     // create unstake intent
     await this.delegatorService.createUnstakeIntent(ContractAddr.from(suitableDelegator.delegator.address), assetAddress, eligibleUnstakeAmount);
+    RelayerMonitoring.recordHandleUnstakeMetrics(tokenInfo.symbol, {
+      eligibleUnstakeAmount: Number(eligibleUnstakeAmount.toString()),
+      unprocessedWithdrawQueueAmount: Number(unprocessedWithdrawQueueAmount.toString()),
+      intransitAmount: Number(intransitAmount.toString()),
+      totalPendingUnstakeAmount: Number(totalPendingUnstakeAmount.toString()),
+      totalUnstakedIn12hrs: Number(totalUnstakedIn12hrs.toString()),
+      outcome: "done",
+    });
   }
 
   // // todo unstake intent handling
