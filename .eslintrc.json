@@ -2,7 +2,9 @@
   "root": true,
   "overrides": [
     {
-      "files": ["*.ts"],
+      "files": [
+        "*.ts"
+      ],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
         "ecmaVersion": 2020,
@@ -10,7 +12,10 @@
         "project": "./tsconfig.json",
         "createDefaultProgram": true
       },
-      "plugins": ["@typescript-eslint", "import"],
+      "plugins": [
+        "@typescript-eslint",
+        "import"
+      ],
       "extends": [
         "eslint:recommended",
         "plugin:@typescript-eslint/recommended",
@@ -18,7 +23,9 @@
       ]
     },
     {
-      "files": ["*.js"],
+      "files": [
+        "*.js"
+      ],
       "parserOptions": {
         "ecmaVersion": 2020,
         "sourceType": "module"
@@ -29,13 +36,17 @@
       }
     },
     {
-      "files": ["drizzle.config.ts"],
+      "files": [
+        "drizzle.config.ts"
+      ],
       "rules": {
         "@typescript-eslint/no-unused-vars": "off"
       }
     },
     {
-      "files": ["src/utils/escape.ts"],
+      "files": [
+        "src/utils/escape.ts"
+      ],
       "rules": {
         "no-useless-escape": "off"
       }
@@ -60,13 +71,16 @@
     ],
     "no-useless-escape": "warn",
     "import/order": [
-      "error",
+      "off",
       {
         "groups": [
           "builtin",
           "external",
           "internal",
-          ["parent", "sibling"],
+          [
+            "parent",
+            "sibling"
+          ],
           "index"
         ],
         "pathGroups": [

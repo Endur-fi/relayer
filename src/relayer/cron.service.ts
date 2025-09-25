@@ -5,6 +5,7 @@ import {
   fetchQuotes,
   QuoteRequest,
 } from "@avnu/avnu-sdk";
+import { CronMonitor } from "@hemantwasthere/monitoring-sdk";
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { Web3Number } from "@strkfarm/sdk";
@@ -21,14 +22,14 @@ import {
 import { getAddresses, getLSTDecimals, Network } from "../common/constants";
 import { BotService } from "../common/services/bot.service";
 import { getNetwork, STRK_TOKEN, TryCatchAsync } from "../common/utils";
+import { WeeklyPointsService } from "../points-system/services/weekly-points.service";
+import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 import { ConfigService } from "./services/configService";
 import { DelegatorService } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PrismaService } from "./services/prismaService";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
-import { WeeklyPointsService } from "../points-system/services/weekly-points.service";
-import { populateEkuboTimeseries } from "../points-system/standalone-scripts/populate-ekubo-timeseries";
 
 function getCronSettings(action: "process-withdraw-queue") {
   const config = new ConfigService();
@@ -129,6 +130,7 @@ export class CronService {
   }
 
   @Cron(getCronSettings("process-withdraw-queue"))
+  @CronMonitor.monitor("process-withdraw-queue")
   @TryCatchAsync()
   async processWithdrawQueue() {
     this.logger.log("Running processWithdrawQueue task");
@@ -288,6 +290,7 @@ export class CronService {
    * @description A separate cron job to emit unstake initiation event to bot, which will only consider last 5 minutes pending withdrawals
    */
   @Cron(CronExpression.EVERY_MINUTE)
+  @CronMonitor.monitor("emit-unstake-initiation-event")
   @TryCatchAsync()
   async emitUnstakeInitiationEvent() {
     const [pending_withdrawals] = await this.prismaService.getPendingWithdraws(
@@ -333,6 +336,7 @@ export class CronService {
   }
 
   @Cron(CronExpression.EVERY_6_HOURS)
+  @CronMonitor.monitor("populate-ekubo-timeseries")
   @TryCatchAsync()
   async sendStats() {
     const [pending_withdrawals, rejected_ids] =
@@ -398,6 +402,7 @@ export class CronService {
   }
 
   @Cron("0 30 */6 * * *")
+  @CronMonitor.monitor("stake-funds")
   @TryCatchAsync()
   async stakeFunds() {
     const amount = await this.lstService.bulkStake();
@@ -565,6 +570,7 @@ export class CronService {
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
+  @CronMonitor.monitor("claim-rewards")
   @TryCatchAsync(3, 100000)
   async claimRewards() {
     const unclaimedRewards = await this.lstService.unclaimedRewards();
@@ -580,6 +586,7 @@ export class CronService {
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_8AM)
+  @CronMonitor.monitor("claim-unstaked-funds")
   @TryCatchAsync(3, 100000)
   async claimUnstakedFunds() {
     try {
@@ -677,6 +684,7 @@ export class CronService {
   // }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
+  @CronMonitor.monitor("populate-ekubo-timeseries")
   @TryCatchAsync(3, 10000)
   async updateEkuboPositionsTimeseries() {
     await populateEkuboTimeseries(true);
