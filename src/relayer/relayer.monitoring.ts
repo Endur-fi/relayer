@@ -1,4 +1,4 @@
-import { metrics, logger } from "./monitoring";
+import { metrics } from "./monitoring";
 
 type Labels = Record<string, string>;
 
@@ -87,13 +87,45 @@ const handleUnstakeIntentsTotal = metrics.createCounter(
   ["token", "outcome"] // outcome: done|skipped
 );
 
+function initializeAllMetricsWithDefaults() {
+  // initialize gauges with 0 - these will show up in Grafana even when no data is recorded
+  pendingRequestsCount.set({}, 0);
+  pendingRequestsAmount.set({}, 0);
+  pendingMaxRequestPendingHours.set({}, 0);
+  lastStrkBalanceForSwap.set({}, 0);
+  eligibleUnstakeAmountGauge.set({}, 0);
+  unprocessedWithdrawQueueAmountGauge.set({}, 0);
+  intransitAmountGauge.set({}, 0);
+  totalPendingUnstakeAmountGauge.set({}, 0);
+  totalUnstakedIn12hrsGauge.set({}, 0);
+
+  // initialize histogram with 0
+  stakeAmountHistogram.observe({}, 0);
+
+  // initialize counters with 0
+  rewardsClaimedTotal.inc({}, 0);
+  stakeActionsTotal.inc({}, 0);
+  rewardSwapActionsTotal.inc({}, 0);
+  handleUnstakeIntentsTotal.inc({}, 0);
+}
+
+// initializeAllMetricsWithDefaults();
+
 export const RelayerMonitoring = {
-  recordPendingRequests(token: string, count: number, amount: number, oldestTimestampSec?: number) {
+  recordPendingRequests(
+    token: string,
+    count: number,
+    amount: number,
+    oldestTimestampSec?: number
+  ) {
     const labels: Labels = { token };
     pendingRequestsCount.set(labels, count);
     pendingRequestsAmount.set(labels, amount);
     if (oldestTimestampSec && oldestTimestampSec > 0) {
-      const hours = Math.max(0, (Date.now() - oldestTimestampSec * 1000) / (1000 * 60 * 60));
+      const hours = Math.max(
+        0,
+        (Date.now() - oldestTimestampSec * 1000) / (1000 * 60 * 60)
+      );
       pendingMaxRequestPendingHours.set(labels, hours);
     } else {
       pendingMaxRequestPendingHours.set(labels, 0);
@@ -104,37 +136,57 @@ export const RelayerMonitoring = {
     rewardsClaimedTotal.inc({ token, validator });
   },
 
-  recordStakeAction(token: string, validator: string, isAssigned: boolean, amount: number) {
-    const labels: Labels = { token, validator, is_assigned: String(isAssigned) };
+  recordStakeAction(
+    token: string,
+    validator: string,
+    isAssigned: boolean,
+    amount: number
+  ) {
+    const labels: Labels = {
+      token,
+      validator,
+      is_assigned: String(isAssigned),
+    };
     stakeActionsTotal.inc(labels);
     // ensure non-negative and finite
     const value = Number.isFinite(amount) && amount >= 0 ? amount : 0;
     stakeAmountHistogram.observe(labels, value);
   },
 
-  recordRewardSwap(token: string, strkBalance: number, outcome: "swapped" | "skipped") {
+  recordRewardSwap(
+    token: string,
+    strkBalance: number,
+    outcome: "swapped" | "skipped"
+  ) {
     lastStrkBalanceForSwap.set({ token }, strkBalance);
     rewardSwapActionsTotal.inc({ token, outcome });
   },
 
-  recordHandleUnstakeMetrics(token: string, params: {
-    eligibleUnstakeAmount: number;
-    unprocessedWithdrawQueueAmount: number;
-    intransitAmount: number;
-    totalPendingUnstakeAmount: number;
-    totalUnstakedIn12hrs: number;
-    outcome: "done" | "skipped";
-  }) {
+  recordHandleUnstakeMetrics(
+    token: string,
+    params: {
+      eligibleUnstakeAmount: number;
+      unprocessedWithdrawQueueAmount: number;
+      intransitAmount: number;
+      totalPendingUnstakeAmount: number;
+      totalUnstakedIn12hrs: number;
+      outcome: "done" | "skipped";
+    }
+  ) {
     const labels: Labels = { token };
     eligibleUnstakeAmountGauge.set(labels, params.eligibleUnstakeAmount);
-    unprocessedWithdrawQueueAmountGauge.set(labels, params.unprocessedWithdrawQueueAmount);
+    unprocessedWithdrawQueueAmountGauge.set(
+      labels,
+      params.unprocessedWithdrawQueueAmount
+    );
     intransitAmountGauge.set(labels, params.intransitAmount);
-    totalPendingUnstakeAmountGauge.set(labels, params.totalPendingUnstakeAmount);
+    totalPendingUnstakeAmountGauge.set(
+      labels,
+      params.totalPendingUnstakeAmount
+    );
     totalUnstakedIn12hrsGauge.set(labels, params.totalUnstakedIn12hrs);
     handleUnstakeIntentsTotal.inc({ token, outcome: params.outcome });
   },
 };
 
 export default RelayerMonitoring;
-
-

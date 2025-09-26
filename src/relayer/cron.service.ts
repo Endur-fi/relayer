@@ -10,6 +10,7 @@ import {
   // QuoteRequest,
   SEPOLIA_BASE_URL,
 } from "@avnu/avnu-sdk";
+import { CronMonitor } from '@hemantwasthere/monitoring-sdk'
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { AvnuWrapper, ContractAddr, getMainnetConfig, Global, PricerFromApi, Web3Number } from "@strkfarm/sdk";
@@ -182,6 +183,7 @@ export class CronService {
     throw new Error("ValidatorRegistryService failed to initialize within timeout period");
   }
 
+  @CronMonitor.monitor("process-withdraw-queue")
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync()
   async processWithdrawQueue() {
@@ -293,6 +295,7 @@ export class CronService {
     // metrics: total pending requests, amount, max pending time
     const totalPendingAmount = pendingWithdrawals.reduce((acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)), new Web3Number("0", tokenInfo.decimals));
     const oldestTs = pendingWithdrawals.length > 0 ? Math.min(...pendingWithdrawals.map(w => Number(w.timestamp))) : undefined;
+
     RelayerMonitoring.recordPendingRequests(tokenInfo.symbol, pendingWithdrawals.length, Number(totalPendingAmount.toString()), oldestTs);
 
     let balanceLeft = await this.withdrawalQueueService.getAssetBalance(assetAddress);
@@ -446,6 +449,8 @@ export class CronService {
   //   }
   // }
 
+
+  @CronMonitor.monitor("send-stats")
   @Cron(CronExpression.EVERY_6_HOURS)
   @TryCatchAsync()
   async sendStats() {
@@ -521,6 +526,7 @@ export class CronService {
     }
   }
 
+  @CronMonitor.monitor("stake-funds")
   @Cron(getCronSettings("stake-funds"))
   @TryCatchAsync()
   async stakeFunds() {
@@ -731,6 +737,7 @@ export class CronService {
   //   );
   // }
 
+  @CronMonitor.monitor("claim-rewards")
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync(3, 100000)
   async claimRewards() {
@@ -758,6 +765,7 @@ export class CronService {
     }
   }
 
+  @CronMonitor.monitor("claim-unstaked-funds")
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync(3, 100000)
   async claimUnstakedFunds() {
@@ -837,6 +845,7 @@ export class CronService {
     this.notifService.sendMessage(message);
   }
 
+  @CronMonitor.monitor("update-ekubo-positions-timeseries")
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync(3, 10000)
   async updateEkuboPositionsTimeseries() {
@@ -844,6 +853,7 @@ export class CronService {
     // await populateEkuboTimeseries(true);
   }
 
+  @CronMonitor.monitor("swap-rewards-to-underlying-token")
   @Cron(CronExpression.EVERY_5_MINUTES)
   @TryCatchAsync(3, 10000)
   async swapRewardsToUnderlyingToken() {
@@ -937,6 +947,7 @@ export class CronService {
     this.logger.log(`STRK => ${tokenInfo.symbol} Pull BTC from Swap Extension to VR tx confirmed`);
   }
 
+  @CronMonitor.monitor("unstake-intent")
   @Cron(getCronSettings('unstake-intent'))
   @TryCatchAsync(3, 10000)
   async handleUnstakeIntents() {
