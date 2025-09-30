@@ -142,14 +142,14 @@ const tokens = [
     testAmount: '0.00001',
     decimals: 18,
   },
-  // {
-  //   token: LBTC,
-  //   lst: '0x7dd3c80de9fcc5545f0cb83678826819c79619ed7992cc06ff81fc67cd2efe0',
-  //   wq: '0x293caaca81259f02f17bd85de5056624626fc7cb25ff79f104c3ef07a4649ec',
-  //   swapExtension: '0x2e7ffc3b47f6e39ef2abba1d061b7a481f69d61b22af288fd752d355976b258',
-  //   testAmount: '0.00001',
-  //   decimals: 8,
-  // },
+  {
+    token: LBTC,
+    lst: '0x7dd3c80de9fcc5545f0cb83678826819c79619ed7992cc06ff81fc67cd2efe0',
+    wq: '0x293caaca81259f02f17bd85de5056624626fc7cb25ff79f104c3ef07a4649ec',
+    swapExtension: '0x2e7ffc3b47f6e39ef2abba1d061b7a481f69d61b22af288fd752d355976b258',
+    testAmount: '0.00001',
+    decimals: 8,
+  },
   {
     token: solvBTC,
     lst: '0x580f3dc564a7b82f21d40d404b3842d490ae7205e6ac07b1b7af2b4a5183dc9',

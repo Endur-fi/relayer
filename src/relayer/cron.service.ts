@@ -54,7 +54,7 @@ function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "uns
     case "stake-funds":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
-        : "0 30 0 * * *"; // every day at 12:30 AM
+        : CronExpression.EVERY_30_MINUTES;
     case "unstake-intent":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
