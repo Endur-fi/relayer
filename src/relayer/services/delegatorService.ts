@@ -233,7 +233,7 @@ export class DelegatorService implements IDelegatorService {
 
     // minWithdrawalAutoProcessAmount is not the right variable name,
     // just needed a small enough value to compare, this seems good enough
-    if (remainingAmount.gt(minPerStakeAmount)) {
+    if (remainingAmount.gt(minPerStakeAmount.multipliedBy(10))) {
       throw new Error(`${tokenInfo.symbol} Remaining amount: ${remainingAmount.toString()} is greater than 0`);
     }
 

@@ -538,6 +538,7 @@ export class CronService {
       const lstInfo = getLSTInfo(token);
       if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
         const randomValidator = this.validatorRegistryService.chooseRandomValidator(token);
+        this.logger.log(`Staking unassigned stake ${unassignedAmount.toString()} ${token.address} to validator ${randomValidator.address.address}`);
         await this._stakeFunds(token, randomValidator.address,  unassignedAmount, false);
       } else {
         this.logger.log(`No unassigned amount for token ${token.address}`);
@@ -562,6 +563,7 @@ export class CronService {
   }
 
   async _stakeFunds(tokenAddress: ContractAddr, validatorAddress: ContractAddr, amount: Web3Number, isAssignedStake: boolean) {
+    this.logger.verbose(`Staking funds: ${amount.toString()}, tokenAddress: ${tokenAddress.address}, validatorAddress: ${validatorAddress.address}, isAssignedStake: ${isAssignedStake}`);
     const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
     const lstInfo = getLSTInfo(tokenAddress);
 
@@ -570,6 +572,7 @@ export class CronService {
     await this.delegatorService.stakeToValidator(validatorAddress, tokenAddress, stakeAmount, isAssignedStake);
 
     let remainingAmount = amount.minus(stakeAmount);
+    this.logger.verbose(`${tokenInfo.symbol} Remaining amount to stake: ${remainingAmount.toString()}`);
     if (remainingAmount.gt(0)) {
       await this._stakeFunds(tokenAddress, validatorAddress, remainingAmount, true);
     }

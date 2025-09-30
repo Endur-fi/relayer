@@ -166,7 +166,7 @@ const mainnet: NetworkAddresses = {
     WithdrawQueue: ContractAddr.from("0x518a66e579f9eb1603f5ffaeff95d3f013788e9c37ee94995555026b9648b6"),
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
     swapExtension: ContractAddr.from("0x0"),
-    minWithdrawalAutoProcessAmount: new Web3Number("10", 18),
+    minWithdrawalAutoProcessAmount: new Web3Number("0.1", 18),
     maxWithdrawalsPerDay: 2_000_000,
     minUnstakeAmount: new Web3Number("50000", 18),
     maxStakePerTx: 100_000, // 100k STRK
@@ -178,7 +178,7 @@ const mainnet: NetworkAddresses = {
     minWithdrawalAutoProcessAmount: new Web3Number("0.000001", 18),
     maxWithdrawalsPerDay: 2, // 2 BTC max auto processed per day
     minUnstakeAmount: new Web3Number("0.05", token.decimals),
-    maxStakePerTx: 0.1, // 0.1 BTC max stake per tx
+    maxStakePerTx: 0.5, // 0.1 BTC max stake per tx
   }))],
   ARB_CONTRACT:
     ContractAddr.from("0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f"),

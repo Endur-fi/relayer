@@ -79,7 +79,7 @@ export class RPCWrapper {
   async executeTransactions(calls: Call[], remark: string) {
     const account = this.config.get("account");
     let retries = 0;
-    while (retries < 3) {
+    while (retries < 10) {
       try {
         const tx = await account.execute(calls);
         this.logger.log(`executeTransactions tx: ${tx.transaction_hash} with remark: ${remark}`);
@@ -91,8 +91,9 @@ export class RPCWrapper {
       } catch (error) {
         this.logger.warn(`executeTransactions tx failed retry ${retries}: ${error}`);
         retries++;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
-    throw new Error(`executeTransactions tx failed after 3 retries`);
+    throw new Error(`executeTransactions tx failed after 10 retries`);
   }
 }
