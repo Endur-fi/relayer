@@ -902,7 +902,8 @@ export class CronService {
     const pricer = new PricerFromApi(getMainnetConfig(process.env.RPC_URL!), Global.getDefaultTokens());
     const strkPrice = await pricer.getPrice("STRK");
     const btcPrice = await pricer.getPrice("WBTC");
-    const minAmount = new Web3Number((Number(strkBalance.toFixed(12)) * strkPrice.price / btcPrice.price).toFixed(12), tokenInfo.decimals).toWei();
+    const btcAmount = new Web3Number((Number(strkBalance.toFixed(12)) * strkPrice.price / btcPrice.price).toFixed(12), tokenInfo.decimals);
+    const minAmount = btcAmount.multipliedBy(0.99).toWei();
     this.logger.log(`STRK => ${tokenInfo.symbol} Min amount: ${minAmount.toString()}`);
     const swapInfo = await avnuWrapper.getSwapInfo(quotes[0], swapExtension.address, 0, swapExtension.address, isMainnet ? minAmount.toString() : "1", avnuOptions);
   

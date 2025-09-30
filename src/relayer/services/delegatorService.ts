@@ -70,7 +70,7 @@ export class DelegatorService implements IDelegatorService {
         amount: Web3Number.fromWei(result.amount.toString(), tokenDecimals),
         unclaimedRewards: Web3Number.fromWei(
           result.unclaimed_rewards.toString(),
-          tokenDecimals
+          18
         ),
         unPoolAmount: Web3Number.fromWei(
           result.unpool_amount.toString(),
@@ -86,7 +86,7 @@ export class DelegatorService implements IDelegatorService {
           delegator: this.getDelegator(delegatorAddress),
           rewardAddress: '',
           amount: Web3Number.fromWei(0, tokenDecimals),
-          unclaimedRewards: Web3Number.fromWei(0, tokenDecimals),
+          unclaimedRewards: Web3Number.fromWei(0, 18),
           unPoolAmount: Web3Number.fromWei(0, tokenDecimals),
           unPoolTime: null,
         }
