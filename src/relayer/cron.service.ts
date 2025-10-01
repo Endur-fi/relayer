@@ -152,9 +152,9 @@ export class CronService {
     }
 
     // Run on init
-    await this.claimUnstakedFunds();
-    await this.processWithdrawQueue();
-    await this.sendStats();
+    // await this.claimUnstakedFunds();
+    // await this.processWithdrawQueue();
+    // await this.sendStats();
     // await this.checkAndExecuteArbitrage();
 
     // Just for testing
