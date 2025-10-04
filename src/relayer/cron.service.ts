@@ -364,14 +364,40 @@ export class CronService {
 
       // send transactions to claim withdrawals
       // note: nonce is set to 'pending' to get the next nonce
-      const res = await this.account.execute(calls);
-      this.notifService.sendMessage(
-        `${tokenInfo.symbol} Claimed ${res.transaction_hash} withdrawals`
-      );
-      await this.provider.waitForTransaction(res.transaction_hash);
-      this.notifService.sendMessage(
-        `${tokenInfo.symbol} Transaction ${res.transaction_hash} confirmed`
-      );
+      try {
+        const res = await this.account.execute(calls);
+        this.notifService.sendMessage(
+          `${tokenInfo.symbol} Claimed withdrawals ${res.transaction_hash}`
+        );
+        await this.provider.waitForTransaction(res.transaction_hash);
+        this.notifService.sendMessage(
+          `${tokenInfo.symbol} Transaction ${res.transaction_hash} confirmed`
+        );
+      } catch(error: any) {
+        if (error.message.includes('ERC721: invalid token ID')) {
+          // likely some withdrawals are already claimed
+          // try one by one
+          let successCount = 0;
+          let failureCount = 0;
+          for (const call of calls) {
+            try {
+              const res = await this.account.execute([call]);
+              await this.provider.waitForTransaction(res.transaction_hash);
+              successCount++;
+            } catch(error) {
+              this.logger.error(`${tokenInfo.symbol} Error in claim withdrawals:`, error);
+              this.logger.warn(`${tokenInfo.symbol} Error in claim withdrawal call: `, call);
+              failureCount++;
+            }
+          }
+          this.logger.log(`${tokenInfo.symbol} Claimed ${successCount} withdrawals, failed to claim ${failureCount} withdrawals`);
+          this.notifService.sendMessage(
+            `${tokenInfo.symbol} Claimed ${successCount} withdrawals, failed to claim ${failureCount} withdrawals`
+          );
+        } else {
+          throw error;
+        }
+      }
 
       // if less than MAX_WITHDRAWALS, break entire loop as there are no more withdrawals to claim
       if (
