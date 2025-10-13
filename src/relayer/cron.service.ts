@@ -195,6 +195,7 @@ export class CronService {
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync()
   async processWithdrawQueue() {
+    return; // halt autoprocessing for now (bcz some logs were missed)
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
       await this._processWithdrawQueue(token);
