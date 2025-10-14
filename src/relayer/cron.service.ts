@@ -198,7 +198,9 @@ export class CronService {
     return; // halt autoprocessing for now (bcz some logs were missed)
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
-      await this._processWithdrawQueue(token);
+      console.log(token.address, '0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac');
+      if (token.eqString('0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac'))
+        await this._processWithdrawQueue(token);
     }
   }
 
@@ -794,6 +796,7 @@ export class CronService {
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync(3, 100000)
   async claimUnstakedFunds() {
+    return;
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
       await this._claimUnstakedFunds(token);
