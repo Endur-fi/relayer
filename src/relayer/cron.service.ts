@@ -195,12 +195,13 @@ export class CronService {
   @Cron(getCronSettings("process-withdraw-queue"))
   @TryCatchAsync()
   async processWithdrawQueue() {
-    return; // halt autoprocessing for now (bcz some logs were missed)
+    // return; // halt autoprocessing for now (bcz some logs were missed)
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
-      console.log(token.address, '0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac');
-      if (token.eqString('0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac'))
-        await this._processWithdrawQueue(token);
+      // console.log(token.address, '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d');
+      // if (token.eqString('0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4'))
+      await this._processWithdrawQueue(token);
+      // return;
     }
   }
 
@@ -296,14 +297,14 @@ export class CronService {
 
     await this.withdrawToWQ(assetAddress);
     // note update this to 0.1 STRK or other min amounts for other tokens
-    const min_amount = lstInfo.minWithdrawalAutoProcessAmount;
+    let min_amount = lstInfo.minWithdrawalAutoProcessAmount;
 
     // get pending withdrawals
     const [pendingWithdrawals, rejected_ids] =
       await this.prismaService.getPendingWithdraws(assetAddress, min_amount);
     this.logger.debug(`${tokenInfo.symbol} Found ${pendingWithdrawals.length} pending withdrawals`);
 
-    let balanceLeft = await this.withdrawalQueueService.getAssetBalance(assetAddress);
+      let balanceLeft = (await this.withdrawalQueueService.getAssetBalance(assetAddress));
     this.logger.log(`${tokenInfo.symbol} Balance left: ${balanceLeft.toString()}`);
 
     const allowedLimit = await this.getAllowedCummulativeLimit(assetAddress);
@@ -330,10 +331,22 @@ export class CronService {
       processedWithdrawalsInLast24Hours: processedWithdrawalsInLast24Hours.toString(),
     }])
 
+    // Gather eligible delegators whose unstake time has arrived
+    const allDelegators = (await this.delegatorService.getUnstakeAmounts(assetAddress))
+    .filter((del) => del.unPoolTime && del.unPoolTime <= new Date());
+    const now = new Date();
+    const eligibleUnstakes = allDelegators.filter((del) => del.unPoolTime && del.unPoolTime <= now);
+    if (eligibleUnstakes.length > 0) {
+      this.logger.log(`${tokenInfo.symbol} Eligible delegators to unstake and batch with claims: ${eligibleUnstakes.length}`);
+    }
+
     // claim withdrawals
     // send 10 at a time
-    const MAX_WITHDRAWALS = 10;
+    const MAX_WITHDRAWALS = 30;
+    let isInsufficientBalance = false;
     for (let i = 0; i < pendingWithdrawals.length; i += MAX_WITHDRAWALS) {
+      if (isInsufficientBalance) break;
+
       const batch = pendingWithdrawals.slice(i, i + MAX_WITHDRAWALS);
       this.logger.log(
         `Claiming ${batch.length} withdrawals from ${i} to ${i + MAX_WITHDRAWALS - 1}`
@@ -341,6 +354,33 @@ export class CronService {
 
       // loop and generate SN Call objects
       const calls: Call[] = [];
+
+      // If current balanceLeft is insufficient for upcoming withdrawals, prepend unstake actions
+      // Consume eligible delegators one by one and increase balanceLeft accordingly
+      // This ensures the unstake and withdrawal claims go in the same tx
+      let prependedUnstakeCount = 0;
+      if (eligibleUnstakes.length > 0) {
+        // Peek minimal amount required in this batch to decide if we need more balance
+        const minNeededAmount = batch.reduce((acc, w) => {
+          const amt = Web3Number.fromWei(w.amount, tokenInfo.decimals);
+          return acc.plus(amt);
+        }, new Web3Number("0", tokenInfo.decimals));
+
+        while (eligibleUnstakes.length > 0 && balanceLeft.lt(minNeededAmount)) {
+          const del = eligibleUnstakes.shift()!;
+          // // todo undo
+          // if (!ContractAddr.from(del.delegator.address).eqString('0x7c4955cfb224ba140c8668efa61c3323ef6c07e642f2565f3bece40cdefe74f')) {
+          //   continue;
+          // }
+          // this.logger.log(`${tokenInfo.symbol} Prepending unstake_action for ${del.delegator.address}, amount ${del.unPoolAmount.toString()}. New balanceLeft: ${balanceLeft.toString()}`);
+          const unstakeCall = del.delegator.populate("unstake_action", [assetAddress.address]);
+          calls.push(unstakeCall);
+          balanceLeft = balanceLeft.plus(del.unPoolAmount.toString());
+          prependedUnstakeCount += 1;
+          this.logger.log(`${tokenInfo.symbol} Prepended unstake_action for ${del.delegator.address}, amount ${del.unPoolAmount.toString()}. New balanceLeft: ${balanceLeft.toString()}`);
+        }
+      }
+
       for (const w of batch) {
         // generate call object and update balance and processed amount
         const { call, balanceLeft: _balanceLeft, processedWithdrawalsInLast24HoursDecimalAdjusted: _processedAmount } = await this.processWithdrawal(
@@ -353,7 +393,11 @@ export class CronService {
         if (call) {
           calls.push(call);
           balanceLeft = _balanceLeft;
-          processedWithdrawalsInLast24HoursDecimalAdjusted = processedWithdrawalsInLast24HoursDecimalAdjusted;
+          processedWithdrawalsInLast24HoursDecimalAdjusted = _processedAmount;
+        } else {
+          this.logger.warn(`${tokenInfo.symbol} Ending withdraw queue processing due to lack of balance`);
+          isInsufficientBalance = true;
+          break;
         }
       }
 
@@ -365,9 +409,18 @@ export class CronService {
         continue;
       }
 
+      // just logging better debug stats
+      const IDs = calls.map(call => Number(call.calldata ? (call.calldata as Array<number>)[0] || 0 : 0));
+      this.logger.log(`${tokenInfo.symbol} Withdraw log IDs: ${IDs.join(', ')}`);
+      this.logger.log(`${tokenInfo.symbol} balance left: ${balanceLeft.toString()}`);
+   
+
       // send transactions to claim withdrawals
       // note: nonce is set to 'pending' to get the next nonce
       try {
+        // const gasEstimate = await this.account.estimateInvokeFee(calls);
+        // this.logger.log(`${tokenInfo.symbol} gas estimate: ${gasEstimate.toString()}`);
+        this.logger.log(`${tokenInfo.symbol} sending claim withdrawals tx: ${calls.length}`);
         const res = await this.account.execute(calls);
         this.notifService.sendMessage(
           `${tokenInfo.symbol} Claimed withdrawals ${res.transaction_hash}`
@@ -975,6 +1028,7 @@ export class CronService {
   @Cron(getCronSettings('unstake-intent'))
   @TryCatchAsync(3, 10000)
   async handleUnstakeIntents() {
+    return;
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
       try {
