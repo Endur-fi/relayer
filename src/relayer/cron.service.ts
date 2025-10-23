@@ -50,7 +50,8 @@ function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "uns
     case "process-withdraw-queue":
       return config.isSepolia()
         ? CronExpression.EVERY_5_MINUTES
-        : CronExpression.EVERY_HOUR;
+        // : CronExpression.EVERY_HOUR;
+        : "20 0-23/1 * * *"; // every 0 hour from 1am to 11pm
     case "stake-funds":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
@@ -286,6 +287,7 @@ export class CronService {
     }
   }
 
+  @TryCatchAsync(5, 10000)
   async _processWithdrawQueue(assetAddress: ContractAddr) {
     this.logger.log(`Running processWithdrawQueue task for ${assetAddress.address}`);
 
