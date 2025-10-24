@@ -55,11 +55,11 @@ function getCronSettings(action: "process-withdraw-queue" | "stake-funds" | "uns
     case "stake-funds":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
-        : CronExpression.EVERY_30_MINUTES;
+        : "20 0-23/12 * * *"; // 20th min of every 12 hours
     case "unstake-intent":
       return config.isSepolia()
         ? CronExpression.EVERY_10_MINUTES
-        : "0 30 1 * * *"; // every day at 1:30 AM
+        : "5 0-23/12 * * *"; // 5th min of every 12 hours
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -848,15 +848,15 @@ export class CronService {
     }
   }
 
-  @Cron(getCronSettings("process-withdraw-queue"))
-  @TryCatchAsync(3, 100000)
-  async claimUnstakedFunds() {
-    return;
-    const supportedTokens = getAllSupportedTokens();
-    for (const token of supportedTokens) {
-      await this._claimUnstakedFunds(token);
-    }
-  }
+  // @Cron(getCronSettings("process-withdraw-queue"))
+  // @TryCatchAsync(3, 100000)
+  // async claimUnstakedFunds() {
+  //   return;
+  //   const supportedTokens = getAllSupportedTokens();
+  //   for (const token of supportedTokens) {
+  //     await this._claimUnstakedFunds(token);
+  //   }
+  // }
   
   async _claimUnstakedFunds(assetAddress: ContractAddr) {
     const tokenInfo = await getTokenInfoFromAddr(assetAddress);
@@ -1030,7 +1030,6 @@ export class CronService {
   @Cron(getCronSettings('unstake-intent'))
   @TryCatchAsync(3, 10000)
   async handleUnstakeIntents() {
-    return;
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
       try {
