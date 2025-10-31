@@ -168,7 +168,7 @@ const mainnet: NetworkAddresses = {
     swapExtension: ContractAddr.from("0x0"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.1", 18),
     maxWithdrawalsPerDay: 2_000_000,
-    minUnstakeAmount: new Web3Number("50000", 18),
+    minUnstakeAmount: new Web3Number("10000", 18),
     maxStakePerTx: 100_000, // 100k STRK
   }, ...tokens.map((token) => ({
     LST: ContractAddr.from(token.lst),
@@ -176,8 +176,8 @@ const mainnet: NetworkAddresses = {
     Asset: ContractAddr.from(token.token),
     swapExtension: ContractAddr.from(token.swapExtension),
     minWithdrawalAutoProcessAmount: new Web3Number("0.000001", token.decimals),
-    maxWithdrawalsPerDay: 10, // 2 BTC max auto processed per day
-    minUnstakeAmount: new Web3Number("0.05", token.decimals),
+    maxWithdrawalsPerDay: 20, // 2 BTC max auto processed per day
+    minUnstakeAmount: new Web3Number("0.01", token.decimals),
     maxStakePerTx: 0.5, // 0.1 BTC max stake per tx
   }))],
   ARB_CONTRACT:
