@@ -93,7 +93,7 @@ app.get("/summary", async (_req, res) => {
     try {
       const status = await getIndexState(key);
       const isSynced =
-        Math.abs(currentBlock - Number(status.cursor.orderKey)) <= 100;
+        Math.abs(currentBlock - Number(status.cursor.orderKey)) <= 1000;
       results.push({
         file: key,
         status: { ...status, currentBlock },
