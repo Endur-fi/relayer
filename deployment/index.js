@@ -77,10 +77,7 @@ app.get("/summary", async (_req, res) => {
   const results = [];
   let isAllSynced = true;
   const provider = new RpcProvider({
-    nodeUrl:
-      process.env.NETWORK == "mainnet"
-        ? "https://starknet-mainnet.public.blastapi.io"
-        : "https://starknet-sepolia.public.blastapi.io",
+    nodeUrl: process.env.RPC_URL
   });
 
   let currentBlock = 0;
