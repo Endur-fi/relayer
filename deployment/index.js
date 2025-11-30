@@ -77,10 +77,7 @@ app.get("/summary", async (_req, res) => {
   const results = [];
   let isAllSynced = true;
   const provider = new RpcProvider({
-    nodeUrl:
-      process.env.NETWORK == "mainnet"
-        ? "https://starknet-mainnet.public.blastapi.io"
-        : "https://starknet-sepolia.public.blastapi.io",
+    nodeUrl: process.env.RPC_URL
   });
 
   let currentBlock = 0;
@@ -96,7 +93,7 @@ app.get("/summary", async (_req, res) => {
     try {
       const status = await getIndexState(key);
       const isSynced =
-        Math.abs(currentBlock - Number(status.cursor.orderKey)) <= 100;
+        Math.abs(currentBlock - Number(status.cursor.orderKey)) <= 1000;
       results.push({
         file: key,
         status: { ...status, currentBlock },
