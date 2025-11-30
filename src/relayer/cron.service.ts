@@ -27,7 +27,7 @@ import { getAddresses, getAllSupportedTokens, getLSTDecimals, getLSTInfo, getTok
 import { BotService } from "../common/services/bot.service";
 import { getNetwork, Network, STRK_TOKEN, TryCatchAsync } from "../common/utils";
 import { ConfigService } from "./services/configService";
-import { DelegatorService, PoolMemberInfo } from "./services/delegatorService";
+import { DelegatorService, PoolMemberInfo, UnstakeAllocation } from "./services/delegatorService";
 import { LSTService } from "./services/lstService";
 import { NotifService } from "./services/notifService";
 import { PendingWithdraws, PrismaService } from "./services/prismaService";
@@ -1072,11 +1072,11 @@ export class CronService {
     // choose random validator
     // Randomly choose validators and search for delegator till we find
     let retry = 0;
-    let suitableDelegator: PoolMemberInfo | null = null;
+    let unstakeAllocations: UnstakeAllocation[] | null = null;
     while (retry < 3) {
       try {
         const randomValidator = this.validatorRegistryService.chooseStakeWeightedValidator(assetAddress);
-        suitableDelegator = await this.delegatorService.chooseSuitableDelegatorToUnstake(randomValidator.address, assetAddress, eligibleUnstakeAmount);
+        unstakeAllocations = await this.delegatorService.chooseSuitableDelegatorToUnstake(randomValidator.address, assetAddress, eligibleUnstakeAmount);
         break;
       } catch (err) {
         this.logger.error(`handleUnstakeIntents::${tokenInfo.symbol} Error choosing suitable delegator: ${err}`, err);
@@ -1084,13 +1084,22 @@ export class CronService {
       }
     }
 
-    if (!suitableDelegator) {
+    if (!unstakeAllocations || unstakeAllocations.length === 0) {
       this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} No suitable delegator found, skipping`);
       return;
     }
 
-    // create unstake intent
-    await this.delegatorService.createUnstakeIntent(ContractAddr.from(suitableDelegator.delegator.address), assetAddress, eligibleUnstakeAmount);
+    // create unstake intent(s) for each allocation
+    this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Using ${unstakeAllocations.length} delegator(s) to fulfill unstake amount ${eligibleUnstakeAmount.toString()}`);
+    
+    for (const allocation of unstakeAllocations) {
+      this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Creating unstake intent for delegator ${allocation.poolMemberInfo.delegator.address} with amount ${allocation.amountToUnstake.toString()}`);
+      await this.delegatorService.createUnstakeIntent(
+        ContractAddr.from(allocation.poolMemberInfo.delegator.address), 
+        assetAddress, 
+        allocation.amountToUnstake
+      );
+    }
   }
 
   // // todo unstake intent handling
