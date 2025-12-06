@@ -113,7 +113,7 @@ const sepolia: NetworkAddresses = {
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
     swapExtension: ContractAddr.from("0x0"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.001", 18),
-    maxWithdrawalsPerDay: 2_000_000,
+    maxWithdrawalsPerDay: 6_000_000,
     minUnstakeAmount: new Web3Number("0.00001", 8),
     maxStakePerTx: 100, // 10 STRK
   }],
@@ -167,7 +167,7 @@ const mainnet: NetworkAddresses = {
     Asset: ContractAddr.from("0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"),
     swapExtension: ContractAddr.from("0x0"),
     minWithdrawalAutoProcessAmount: new Web3Number("0.1", 18),
-    maxWithdrawalsPerDay: 2_000_000,
+    maxWithdrawalsPerDay: 6_000_000,
     minUnstakeAmount: new Web3Number("10000", 18),
     maxStakePerTx: 100_000, // 100k STRK
   }, ...tokens.map((token) => ({
