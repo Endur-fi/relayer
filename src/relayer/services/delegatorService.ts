@@ -409,10 +409,20 @@ export class DelegatorService implements IDelegatorService {
     }
     const tokenInfo = await getTokenInfoFromAddr(tokenAddress);
 
-    const delegatorStakes = await this.getDelegatorsStakeInfo(
+    const _delegatorStakes = await this.getDelegatorsStakeInfo(
       delegators,
       tokenAddress
     );
+    const lstConfig = getLSTInfo(tokenAddress);
+    // if stake becomes totally 0, leads to 0 rewards, leading to failure of claim rewards
+    // as of contract state on 9th Dec, 2025. 
+    // - This is a workaround to avoid this issue.
+    const delegatorStakes = _delegatorStakes.map((del => {
+      return {
+        ...del,
+        amount: del.amount.minus(lstConfig.minWithdrawalAutoProcessAmount.multipliedBy(100)),
+      }
+    })).filter((del) => del.amount.gt(Web3Number.fromWei("0", tokenInfo.decimals)));
 
     this.logger.log(
       `chooseSuitableDelegatorToUnstake::${tokenInfo.symbol} - unstake amount: ${unstakeAmount.toString()}`

@@ -199,10 +199,15 @@ export class CronService {
     // return; // halt autoprocessing for now (bcz some logs were missed)
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
-      // console.log(token.address, '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d');
-      // if (token.eqString('0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4'))
-      await this._processWithdrawQueue(token);
-      // return;
+      try {
+        // console.log(token.address, '0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d');
+        // if (token.eqString('0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4'))
+        await this._processWithdrawQueue(token);
+        // return;
+      } catch (err: any) {
+        this.logger.error(`Error in processWithdrawQueue:`, err);
+        this.notifService.sendMessage(`Error in processWithdrawQueue: ${err.message}`);
+      }
     }
   }
 
@@ -618,30 +623,40 @@ export class CronService {
     // handled un-assigned stakes
     this.logger.log("Handling un-assigned stakes");
     for (const token of supportedTokens) {
-      let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
-      const lstInfo = getLSTInfo(token);
-      if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
-        const randomValidator = this.validatorRegistryService.chooseRandomValidator(token);
-        this.logger.log(`Staking unassigned stake ${unassignedAmount.toString()} ${token.address} to validator ${randomValidator.address.address}`);
-        await this._stakeFunds(token, randomValidator.address,  unassignedAmount, false);
-      } else {
-        this.logger.log(`No unassigned amount for token ${token.address}`);
+      try {
+        let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
+        const lstInfo = getLSTInfo(token);
+        if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
+          const randomValidator = this.validatorRegistryService.chooseRandomValidator(token);
+          this.logger.log(`Staking unassigned stake ${unassignedAmount.toString()} ${token.address} to validator ${randomValidator.address.address}`);
+          await this._stakeFunds(token, randomValidator.address,  unassignedAmount, false);
+        } else {
+          this.logger.log(`No unassigned amount for token ${token.address}`);
+        }
+      } catch (err: any) {
+        this.logger.error(`Error in stakeFunds (unassigned stakes):`, err);
+        this.notifService.sendMessage(`Error in stakeFunds (unassigned stakes): ${err.message}`);
       }
     }
 
     // handled assigned stakes
     this.logger.log("Handling assigned stakes");
     for (const token of supportedTokens) {
-      const validators = this.validatorRegistryService.getValidatorsForToken(token);
-      const lstInfo = getLSTInfo(token);
-      const tokenInfo = await getTokenInfoFromAddr(token);
-      for (const validator of validators) {
-        let validatorTokenInfo = await this.validatorRegistryService.getValidatorTokenInfo(validator.address, token);
-        if (validatorTokenInfo.pendingStakeAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
-          await this._stakeFunds(token, validator.address, validatorTokenInfo.pendingStakeAmount, true);
-        } else {
-          this.logger.log(`${tokenInfo.symbol} No pending stake amount for validator ${validator.address.address} ${token.address}`);
+      try {
+        const validators = this.validatorRegistryService.getValidatorsForToken(token);
+        const lstInfo = getLSTInfo(token);
+        const tokenInfo = await getTokenInfoFromAddr(token);
+        for (const validator of validators) {
+          let validatorTokenInfo = await this.validatorRegistryService.getValidatorTokenInfo(validator.address, token);
+          if (validatorTokenInfo.pendingStakeAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) { // min 100x of minWithdrawalAutoProcessAmount
+            await this._stakeFunds(token, validator.address, validatorTokenInfo.pendingStakeAmount, true);
+          } else {
+            this.logger.log(`${tokenInfo.symbol} No pending stake amount for validator ${validator.address.address} ${token.address}`);
+          }
         }
+      } catch (err: any) {
+        this.logger.error(`Error in stakeFunds (assigned stakes):`, err);
+        this.notifService.sendMessage(`Error in stakeFunds (assigned stakes): ${err.message}`);
       }
     }
   }
@@ -827,7 +842,12 @@ export class CronService {
   async claimRewards() {
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
-      await this._claimRewards(token);
+      try {
+        await this._claimRewards(token);
+      } catch (err: any) {
+        this.logger.error(`Error in claimRewards:`, err);
+        this.notifService.sendMessage(`Error in claimRewards: ${err.message}`);
+      }
     }
   }
 
@@ -940,14 +960,19 @@ export class CronService {
   async swapRewardsToUnderlyingToken() {
     const supportedTokens = getAllSupportedTokens();
     for (const token of supportedTokens) {
-      // nothing to swap for STRK token
-      if (token.eqString(STRK_TOKEN)) continue;
-      
-      // swap rewards to underlying token
-      await this._swapRewardsToUnderlyingToken(token);
+      try {
+        // nothing to swap for STRK token
+        if (token.eqString(STRK_TOKEN)) continue;
+        
+        // swap rewards to underlying token
+        await this._swapRewardsToUnderlyingToken(token);
 
-      // send received BTC to VR
-      await this._sendBTCFromSwapExtensionToVR(token);
+        // send received BTC to VR
+        await this._sendBTCFromSwapExtensionToVR(token);
+      } catch (err: any) {
+        this.logger.error(`Error in swapRewardsToUnderlyingToken:`, err);
+        this.notifService.sendMessage(`Error in swapRewardsToUnderlyingToken: ${err.message}`);
+      }
     }
 
   }
