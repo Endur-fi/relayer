@@ -623,6 +623,7 @@ export class CronService {
     // handled un-assigned stakes
     this.logger.log("Handling un-assigned stakes");
     for (const token of supportedTokens) {
+      // if (!token.eqString('0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4')) continue; // skip LBTC for now
       try {
         let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token);
         const lstInfo = getLSTInfo(token);
@@ -642,6 +643,7 @@ export class CronService {
     // handled assigned stakes
     this.logger.log("Handling assigned stakes");
     for (const token of supportedTokens) {
+      // if (!token.eqString('0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4')) continue; // skip LBTC for now
       try {
         const validators = this.validatorRegistryService.getValidatorsForToken(token);
         const lstInfo = getLSTInfo(token);

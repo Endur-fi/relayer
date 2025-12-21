@@ -7,3 +7,5 @@ prisma2
 accounts.json
 ./*.state
 .apibara
+season1-points
+.DS_Store

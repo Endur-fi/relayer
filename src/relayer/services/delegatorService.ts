@@ -194,6 +194,7 @@ export class DelegatorService implements IDelegatorService {
     amount: Web3Number,
     isAssignedStake: boolean = false
   ) {
+    // validatorAddress = ContractAddr.from('0x072543946080646d1aac08bb4ba6f6531b2b29ce41ebfe72b8a6506500d5220e');
     this.logger.log(
       `Staking to validator: ${validatorAddress.address} for token: ${tokenAddress.address} with amount: ${amount.toString()}, isAssignedStake: ${isAssignedStake}`
     );
@@ -230,10 +231,13 @@ export class DelegatorService implements IDelegatorService {
     );
 
     // get current staked amount distribution
-    const delegatorStakes = await this.getDelegatorsStakeInfo(
+    const _delegatorStakes = await this.getDelegatorsStakeInfo(
       delegators,
       tokenAddress
     );
+    // const delegatorStakes = _delegatorStakes.filter((del) => del.amount.isZero());
+    const delegatorStakes = _delegatorStakes;
+
     const stakeDistributions = await this.getIdealAssetDistribution(
       delegatorStakes,
       amount,
@@ -251,6 +255,9 @@ export class DelegatorService implements IDelegatorService {
       )
     );
 
+    // const account = this.config.get("account");
+    // const gas = await account.estimateInvokeFee(calls);
+    // console.log(gas);
     await this.rpcWrapper.executeTransactions(
       calls,
       `Staked to validator: ${validatorAddress.address} for token: ${tokenAddress.address} with amount: ${amount.toString()}`
