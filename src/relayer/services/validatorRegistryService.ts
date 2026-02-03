@@ -15,6 +15,10 @@ interface IValidatorRegistryService {
   stakeToDelegator(delegatorAddress: ContractAddr, tokenAddress: ContractAddr, amount: Web3Number): void;
 }
 
+export const VALIDATORS_TO_EXCLUDE: { address: string, exclusion: 'stake' | 'unstake' | 'all', name: string }[] = [
+  { address: '0x00d3b910d8c528bf0216866053c3821ac6c97983dc096bff642e9a3549210ee7', exclusion: 'all', name: 'Ready' },
+];
+
 export interface ValidatorInfo {
   address: ContractAddr,
   weight: number,
@@ -115,8 +119,12 @@ export class ValidatorRegistryService implements IValidatorRegistryService {
   }
 
   // use validator weights to choose a random validator
-  chooseRandomValidator(tokenAddress: ContractAddr) {
-    const validValidators = this.getValidatorsForToken(tokenAddress);
+  chooseRandomValidator(tokenAddress: ContractAddr, purpose: 'stake' | 'unstake' = 'stake') {
+    const validValidators = this.getValidatorsForToken(tokenAddress)
+      .filter((validator) => {
+        const exclusion = VALIDATORS_TO_EXCLUDE.find((v) => validator.address.eqString(v.address));
+        return !(exclusion && (exclusion.exclusion === 'all' || exclusion.exclusion === purpose));
+      });
     if (validValidators.length === 0) {
       throw new Error(`No validators found for token: ${tokenAddress.address}`);
     }
@@ -138,8 +146,12 @@ export class ValidatorRegistryService implements IValidatorRegistryService {
     throw new Error(`No validator found for token: ${tokenAddress.address}`);
   }
 
-  chooseStakeWeightedValidator(tokenAddress: ContractAddr) {
-    const validValidators = this.getValidatorsForToken(tokenAddress);
+  chooseStakeWeightedValidator(tokenAddress: ContractAddr, purpose: 'stake' | 'unstake') {
+    const validValidators = this.getValidatorsForToken(tokenAddress)
+      .filter((validator) => {
+        const exclusion = VALIDATORS_TO_EXCLUDE.find((v) => validator.address.eqString(v.address));
+        return !(exclusion && (exclusion.exclusion === 'all' || exclusion.exclusion === purpose));
+      });
     if (validValidators.length === 0) {
       throw new Error(`No validators found for token: ${tokenAddress.address}`);
     }
