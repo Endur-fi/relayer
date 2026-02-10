@@ -399,7 +399,7 @@ export class DelegatorService implements IDelegatorService {
     validatorAddress: ContractAddr,
     tokenAddress: ContractAddr,
     unstakeAmount: Web3Number
-  ): Promise<UnstakeAllocation[]> {
+  ): Promise<{ allocations: UnstakeAllocation[], remaining: Web3Number }> {
     // Conditions:
     // 1. No pending unstake amount for the delegator
     // 2. Delegator that can max utilize the stake to unstake
@@ -514,11 +514,12 @@ export class DelegatorService implements IDelegatorService {
       Web3Number.fromWei("0", tokenInfo.decimals)
     );
 
-    if (totalAllocated.lt(unstakeAmount)) {
-      throw new Error(
-        `Insufficient total stake across all delegators for validator: ${validatorAddress.address}. Required: ${unstakeAmount.toString()}, Available: ${totalAllocated.toString()}`
-      );
-    }
+    // dont throw error and allow partial unstake. any excess amount will be handled again later
+    // if (totalAllocated.lt(unstakeAmount)) {
+      // throw new Error(
+      //   `Insufficient total stake across all delegators for validator: ${validatorAddress.address}. Required: ${unstakeAmount.toString()}, Available: ${totalAllocated.toString()}`
+      // );
+    // }
 
     this.logger.log(
       `chooseSuitableDelegatorToUnstake::${tokenInfo.symbol} - Selected ${allocations.length} delegator(s)`
@@ -531,7 +532,7 @@ export class DelegatorService implements IDelegatorService {
       }))
     );
 
-    return allocations;
+    return { allocations, remaining: unstakeAmount.minus(totalAllocated).maximum(0) };
   }
 
   async createUnstakeIntent(

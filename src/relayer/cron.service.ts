@@ -1100,10 +1100,13 @@ export class CronService {
     // Randomly choose validators and search for delegator till we find
     let retry = 0;
     let unstakeAllocations: UnstakeAllocation[] | null = null;
+    let remainingUnstakeAmount: Web3Number | null = null;
     while (retry < 3) {
       try {
         const randomValidator = this.validatorRegistryService.chooseStakeWeightedValidator(assetAddress, 'unstake');
-        unstakeAllocations = await this.delegatorService.chooseSuitableDelegatorToUnstake(randomValidator.address, assetAddress, eligibleUnstakeAmount);
+        const { allocations: _unstakeAllocations, remaining: remainingAmount } = await this.delegatorService.chooseSuitableDelegatorToUnstake(randomValidator.address, assetAddress, eligibleUnstakeAmount);
+        unstakeAllocations = _unstakeAllocations;
+        remainingUnstakeAmount = remainingAmount;
         break;
       } catch (err) {
         this.logger.error(`handleUnstakeIntents::${tokenInfo.symbol} Error choosing suitable delegator: ${err}`, err);
@@ -1126,6 +1129,11 @@ export class CronService {
         assetAddress, 
         allocation.amountToUnstake
       );
+    }
+
+    if (remainingUnstakeAmount && remainingUnstakeAmount.gt(0)) {
+      // do check again
+      return this._handleUnstakeIntents(assetAddress);
     }
   }
 
