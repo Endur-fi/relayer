@@ -1068,7 +1068,7 @@ export class CronService {
     }
   }
 
-  async _handleUnstakeIntents(assetAddress: ContractAddr) {
+  async _handleUnstakeIntents(assetAddress: ContractAddr): Promise<void> {
     // Eligible unstake amount
     // Unprocessed amount before 12hrs
     // i.e. pending unstake amounts - intransit amount - unstaked in 12hrs

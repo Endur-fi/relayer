@@ -464,12 +464,15 @@ export class DelegatorService implements IDelegatorService {
       this.logger.log(
         `Suitable delegator found for validator: ${validatorAddress.address} is ${suitableDelegator.delegator.address}`
       );
-      return [
-        {
-          poolMemberInfo: suitableDelegator,
-          amountToUnstake: unstakeAmount,
-        },
-      ];
+      return {
+        allocations: [
+          {
+            poolMemberInfo: suitableDelegator,
+            amountToUnstake: unstakeAmount,
+          },
+        ],
+        remaining: Web3Number.fromWei("0", tokenInfo.decimals),
+      };
     }
 
     // No single delegator can fulfill the amount, try to use multiple delegators
