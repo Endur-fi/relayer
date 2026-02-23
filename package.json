@@ -77,8 +77,7 @@
     "ts-node": "^10.9.2",
     "tslib": "2.8.1",
     "type-graphql": "2.0.0-rc.2",
-    "typegraphql-prisma": "0.28.0",
-    "types@next": "link:apibara/types@next"
+    "typegraphql-prisma": "0.28.0"
   },
   "name": "relayer",
   "version": "1.0.0",

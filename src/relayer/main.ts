@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { CronService } from "./cron.service";
-
+import { CronServiceV2 } from "./cron.service.v2";
 import { StatusController } from "./controllers/status.controller";
 import { ConfigService } from "./services/configService";
 import { DelegatorService } from "./services/delegatorService";
@@ -16,6 +16,7 @@ import { PrismaService } from "./services/prismaService";
 import { WithdrawalQueueService } from "./services/withdrawalQueueService";
 import { BotService } from "../common/services/bot.service";
 import { ValidatorRegistryService } from "./services/validatorRegistryService";
+import { RelayerServiceV2 } from "./services/relayerServiceV2";
 import { RPCWrapper } from "./services/RPCWrapper";
 
 @Module({
@@ -30,7 +31,9 @@ import { RPCWrapper } from "./services/RPCWrapper";
     BotService,
     ValidatorRegistryService,
     RPCWrapper,
+    RelayerServiceV2,
     CronService,
+    CronServiceV2,
   ],
   controllers: [
     StatusController,

@@ -86,6 +86,8 @@ type NetworkAddresses = {
   }[];
   ARB_CONTRACT: ContractAddr;
   ValidatorRegistry: ContractAddr;
+  /** Relayer V2 contract; set for V2 cron jobs to work */
+  Relayer: ContractAddr;
 };
 
 const sepolia: NetworkAddresses = {
@@ -119,6 +121,7 @@ const sepolia: NetworkAddresses = {
   }],
   ARB_CONTRACT: ContractAddr.from(""),
   ValidatorRegistry: ContractAddr.from("0x05dacc2836c931a9aa7c3011f64f0299b0e91d102bdb527e8d7a52c73fe7af40"),
+  Relayer: ContractAddr.from("0x04d65a4409465c8ccaa4530367fd04ff80e0c8d3ebdfcb66a0e6ace1054396ed"),
 };
 
 const tBTC = "0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f"
@@ -183,6 +186,7 @@ const mainnet: NetworkAddresses = {
   ARB_CONTRACT:
     ContractAddr.from("0x5f764d67985cea755149fcc56a251a402ecc86fbc50db6849da91a84806065f"),
   ValidatorRegistry: ContractAddr.from("0x029edbca81c979decd6ee02205127e8b10c011bca1d337141170095eba690931"),
+  Relayer: ContractAddr.from(""),
 };
 
 export function getAddresses(network: Network): NetworkAddresses {
