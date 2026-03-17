@@ -70,11 +70,11 @@ export class CronServiceV2 {
   async onModuleInit() {
     console.log("Running task on application start")
 
-    // todo: not sure what to put here
+    await this.jobStake()
   }
 
-  @Cron(getCronSettingsV2("stake"))
-  @TryCatchAsync(3, 10000)
+  // @Cron(getCronSettingsV2("stake"))
+  // @TryCatchAsync(3, 10000)
   async jobStake() {
     if (!this.relayerServiceV2.isConfigured()) {
       this.logger.debug("Relayer V2 not configured, skipping stake job");
@@ -89,9 +89,13 @@ export class CronServiceV2 {
     for (let i = 0; i < len; i++) {
       try {
         let token = await this.relayerServiceV2.getSupportedToken(i)
+        console.log(token)
         const lstInfo = getLSTInfo(token);
+        console.log(lstInfo)
         let unassignedAmount = await this.validatorRegistryService.getUnassignedAmount(token)
+        console.log(unassignedAmount)
         if (unassignedAmount.gt(lstInfo.minWithdrawalAutoProcessAmount.multipliedBy(100))) {
+          console.log("enter unassigned amount check")
           this.logger.log(`Staking unassigned stake ${unassignedAmount.toString()} ${token.address}`);
           await this._stakeFundsRelayer(token, unassignedAmount)
         }
@@ -149,16 +153,18 @@ export class CronServiceV2 {
     let stakeAmount = amount.gt(maxStakeWeb3) ? maxStakeWeb3 : amount;
     this.logger.log(`Staking ${stakeAmount.toString()}, totalAmount: ${amount.toString()} ${tokenInfo.symbol} to validator`);
     await this.relayerServiceV2.stake(token, BigInt(stakeAmount.toWei()));
+    console.log("stake done")
 
     let remainingAmount = amount.minus(stakeAmount)
     this.logger.verbose(`${tokenInfo.symbol} Remaining amount to stake: ${remainingAmount.toString()}`);
     if (remainingAmount.gt(0)) {
+      console.log("enter for remaining")
       await this._stakeFundsRelayer(token, remainingAmount);
     }
   }
 
-  @Cron(getCronSettingsV2("update-unstake"))
-  @TryCatchAsync(3, 10000)
+  // @Cron(getCronSettingsV2("update-unstake"))
+  // @TryCatchAsync(3, 10000)
   async jobUpdateUnstake() {
     if (!this.relayerServiceV2.isConfigured()) {
       this.logger.debug("Relayer V2 not configured, skipping update-unstake job")
@@ -166,6 +172,7 @@ export class CronServiceV2 {
     }
     this.logger.log("Updating unstake for delegators ")
     const len = await this.relayerServiceV2.getSupportedTokensLength()
+    this.logger.log("len found", len)
     for (let i = 0; i<len; i++) {
       let token = await this.relayerServiceV2.getSupportedToken(i)
       await this._updateUnstake(token)
@@ -182,8 +189,8 @@ export class CronServiceV2 {
     }
   }
 
-  @Cron(getCronSettingsV2("start-unstake"))
-  @TryCatchAsync(3, 10000)
+  // @Cron(getCronSettingsV2("start-unstake"))
+  // @TryCatchAsync(3, 10000)
   async jobStartUnstake() {
     if (!this.relayerServiceV2.isConfigured()) {
       this.logger.debug("Relayer V2 not configured, skipping start_unstake job");
@@ -196,6 +203,7 @@ export class CronServiceV2 {
     }
     for (let i = 0; i < len; i++) {
       const token = await this.relayerServiceV2.getSupportedToken(i);
+      this.logger.log("token", token)
       try {
         await this._handleStartUnstake(token)
       } catch (err) {
@@ -207,21 +215,26 @@ export class CronServiceV2 {
 
   async _handleStartUnstake(token: ContractAddr) {
     const lstInfo = getLSTInfo(token);
+    this.logger.log("lst info got")
     const tokenInfo = await getTokenInfoFromAddr(token);
+    this.logger.log("token info from addr")
     const [pendingWithdraws] = await this.prismaService.getPendingWithdraws(
       token,
       lstInfo.minWithdrawalAutoProcessAmount,
     );
+    this.logger.log("pending withdraws")
     const totalPending = pendingWithdraws.reduce(
       (acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)),
       new Web3Number(0, tokenInfo.decimals),
     );
+    this.logger.log("total pending", totalPending)
     const totalUnstakedIn12hrs = pendingWithdraws
-      .filter((w) => w.timestamp >= (Date.now() - 12 * 60 * 60 * 1000) / 1000)
-      .reduce(
-        (acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)),
-        new Web3Number(0, tokenInfo.decimals),
-      );
+    .filter((w) => w.timestamp >= (Date.now() - 12 * 60 * 60 * 1000) / 1000)
+    .reduce(
+      (acc, w) => acc.plus(Web3Number.fromWei(w.amount, tokenInfo.decimals)),
+      new Web3Number(0, tokenInfo.decimals),
+    );
+    this.logger.log("total unstake 12 hrs", totalUnstakedIn12hrs)
     const wqState = await this.withdrawalQueueService.getWithdrawalQueueState(token);
     const intransit = wqState.intransit_amount;
     const unprocessed = wqState.unprocessed_withdraw_queue_amount;
@@ -235,8 +248,8 @@ export class CronServiceV2 {
     this.notifService.sendMessage(`Relayer V2 start_unstake token=${token.address} amount=${amountWei}`);
   }
 
-  @Cron(getCronSettingsV2("unstake-action"))
-  @TryCatchAsync(3, 10000)
+  // @Cron(getCronSettingsV2("unstake-action"))
+  // @TryCatchAsync(3, 10000)
   async jobUnstakeAction() {
     if (!this.relayerServiceV2.isConfigured()) {
       this.logger.debug("Relayer V2 not configured, skipping unstake_action job");

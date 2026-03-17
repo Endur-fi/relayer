@@ -1,6 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger, Provider } from "@nestjs/common";
 import { ConfigService } from "./configService";
-import { Abi, Call, CallData, Contract, hash, RpcProvider, TransactionExecutionStatus } from "starknet";
+import { Abi, Call, CallData, Contract, hash, RpcProvider, TransactionExecutionStatu, PaymasterDetails, TransactionExecutionStatus } from "starknet";
 import { ABI as AggregatedViewCallAbi } from "../../../abis/AggregatedViewCallAbi";
 import assert from "assert";
 
@@ -81,7 +81,10 @@ export class RPCWrapper {
     let retries = 0;
     while (retries < 10) {
       try {
-        const tx = await account.execute(calls);
+        const feeDetails: PaymasterDetails = {
+          feeMode: { mode: 'sponsored'}
+        }
+        const tx = await account.executePaymasterTransaction(calls, feeDetails);
         this.logger.log(`executeTransactions tx: ${tx.transaction_hash} with remark: ${remark}`);
         await this.provider.waitForTransaction(tx.transaction_hash, {
           successStates: [TransactionExecutionStatus.SUCCEEDED],

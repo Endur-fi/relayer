@@ -5,7 +5,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import { CronService } from "./cron.service";
+// import { CronService } from "./cron.service";
 import { CronServiceV2 } from "./cron.service.v2";
 import { StatusController } from "./controllers/status.controller";
 import { ConfigService } from "./services/configService";
@@ -32,7 +32,7 @@ import { RPCWrapper } from "./services/RPCWrapper";
     ValidatorRegistryService,
     RPCWrapper,
     RelayerServiceV2,
-    CronService,
+    // CronService,
     CronServiceV2,
   ],
   controllers: [

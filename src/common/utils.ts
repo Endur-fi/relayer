@@ -5,7 +5,7 @@ import { HttpLink } from "@apollo/client";
 import { Logger } from "@nestjs/common";
 import { getDefaultStoreConfig, IConfig, Store } from "@strkfarm/sdk";
 import * as dotenv from "dotenv";
-import { Account, BlockIdentifier, num, RpcProvider } from "starknet";
+import { Account, BlockIdentifier, num, PaymasterRpc, RpcProvider } from "starknet";
 dotenv.config();
 
 export enum Network {
@@ -49,13 +49,23 @@ export function getAccount(): Account {
   };
   // initialize provider
   const storeConfig = getDefaultStoreConfig(config.network);
-  // storeConfig.ACCOUNTS_FILE_NAME = 'account_sepolia.json'
+  storeConfig.ACCOUNTS_FILE_NAME = 'accounts-endur.json'
   const store = new Store(config, {
     ...storeConfig,
     PASSWORD: process.env.ACCOUNT_SECURE_PASSWORD || "",
   });
 
-  return store.getAccount(process.env.ACCOUNT_KEY, "0x3");
+  // return store.getAccount(process.env.ACCOUNT_KEY, "0x3");
+  const myPaymasterRpc = new PaymasterRpc({ 
+    nodeUrl: "https://api.cartridge.gg/x/starknet/sepolia",
+    headers: { "x-paymaster-api-key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidGVqYTk5OTkiLCJpc19hZG1pbiI6ZmFsc2UsImV4cCI6MTc3NTMxMzk4NH0.DG9pDqK2azGrRG8zdyMuPbN-Jvq9Y4DogrNh4JJ0AGw"}
+  })
+  return new Account({
+    address: process.env.ADDRESS!,
+    signer: process.env.ADDRESS_PK!,
+    provider: config.provider,
+    paymaster: myPaymasterRpc
+  })
 }
 
 export function getNetwork(): Network {

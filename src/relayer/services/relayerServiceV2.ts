@@ -1,7 +1,8 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import { Contract } from "starknet";
+import { Contract, CairoCustomEnum, CallData } from "starknet";
 import { ConfigService } from "./configService";
 import { ABI as RelayerAbi } from "../../../abis/RelayerAbi";
+import { ABI as VrfProviderAbi } from "../../../abis/VrfProviderAbi";
 import { getAddresses } from "../../common/constants";
 import { getNetwork as getNetworkUtil } from "../../common/utils";
 import { ContractAddr } from "@strkfarm/sdk";
@@ -20,6 +21,7 @@ export class RelayerServiceV2 {
   private readonly logger = new Logger(RelayerServiceV2.name);
   readonly relayerContract: Contract;
   readonly rpcWrapper: RPCWrapper;
+  private readonly config: ConfigService;
 
   constructor(
     @Inject(forwardRef(() => ConfigService))
@@ -27,6 +29,7 @@ export class RelayerServiceV2 {
     @Inject(forwardRef(() => RPCWrapper))
     rpcWrapper: RPCWrapper,
   ) {
+    this.config = config;
     const relayerAddr = getAddresses(getNetworkUtil()).Relayer;
     this.relayerContract = new Contract({
       abi: RelayerAbi as any,
@@ -34,6 +37,43 @@ export class RelayerServiceV2 {
       providerOrAccount: config.provider(),
     });
     this.rpcWrapper = rpcWrapper;
+  }
+
+  /**
+   * Builds the VRF request_random call.
+   * @param vrfAddress - VRF provider contract address
+   * @param caller - ContractAddress that will consume the random (e.g. relayer)
+   * @param source - Source enum: { Nonce: contractAddress } or { Salt: felt252 }
+   */
+  async getVrfRequestRandomCall(
+    vrfAddress: string,
+    caller: string,
+    source: CairoCustomEnum,
+  ) {
+    const vrfContract = new Contract({
+      abi: VrfProviderAbi as any,
+      address: vrfAddress,
+      providerOrAccount: this.config.provider(),
+    });
+    return vrfContract.populate("request_random", [caller, source]);
+    // const account = this.config.get("account");
+    // await account.execute([
+    //   {
+    //     contractAddress: vrfAddress,
+    //     entrypoint: 'request_random',
+    //     calldata: CallData.compile({
+    //       caller: caller,
+    //       // Using Source::Nonce(address)
+    //       source: source,
+    //       // Using Source::Salt(felt252)
+    //       // source: {type: 1, salt: 0x123}
+    //     }),
+    //   },
+    //   {
+    //     contractAddress: caller,
+    //     entrypoint: 'stake',
+    //   },
+    // ])
   }
 
   isConfigured(): boolean {
@@ -66,12 +106,24 @@ export class RelayerServiceV2 {
   }
 
   async stake(token: ContractAddr, amount: bigint | string): Promise<void> {
+    const config = await this.getConfig();
+    console.log("got config")
+    const vrfAddress = typeof config.vrf === "string" ? config.vrf : config.vrf.address;
+    const caller = getAddresses(getNetworkUtil()).Relayer.address;
+    console.log(caller)
+    console.log("got addresses")
     const amountWei = typeof amount === "string" ? BigInt(amount) : amount;
-    const call = this.relayerContract.populate("stake", [token.address, amountWei]);
+    const sourceEnum = new CairoCustomEnum({Nonce: caller})
+    const myAccount = this.config.get("account")
+    const reqVrfCall = await this.getVrfRequestRandomCall(vrfAddress, myAccount.address, sourceEnum);
+    console.log("random call")
+    const stakeCall = this.relayerContract.populate("stake", [token.address, amountWei]);
+    console.log("stake call", stakeCall)
     await this.rpcWrapper.executeTransactions(
-      [call],
+      [reqVrfCall, stakeCall],
       `Relayer stake token=${token.address} amount=${amountWei}`,
     );
+    console.log("stake executed")
   }
 
   async unstakeAction(delegator: ContractAddr, token: ContractAddr): Promise<void> {
@@ -86,10 +138,14 @@ export class RelayerServiceV2 {
   }
 
   async startUnstake(token: ContractAddr, amount: bigint | string): Promise<void> {
+    const config = await this.getConfig();
+    const vrfAddress = typeof config.vrf === "string" ? config.vrf : config.vrf.address;
+    const caller = getAddresses(getNetworkUtil()).Relayer.address;
     const amountWei = typeof amount === "string" ? BigInt(amount) : amount;
-    const call = this.relayerContract.populate("start_unstake", [token.address, amountWei]);
+    const requestRandomCall = this.getVrfRequestRandomCall(vrfAddress, caller, { Salt: 0n });
+    const startUnstakeCall = this.relayerContract.populate("start_unstake", [token.address, amountWei]);
     await this.rpcWrapper.executeTransactions(
-      [call],
+      [requestRandomCall, startUnstakeCall],
       `Relayer start_unstake token=${token.address} amount=${amountWei}`,
     );
   }
