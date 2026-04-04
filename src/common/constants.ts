@@ -176,7 +176,7 @@ const mainnet: NetworkAddresses = {
     Asset: ContractAddr.from(token.token),
     swapExtension: ContractAddr.from(token.swapExtension),
     minWithdrawalAutoProcessAmount: new Web3Number("0.000001", token.decimals),
-    maxWithdrawalsPerDay: 20, // 2 BTC max auto processed per day
+    maxWithdrawalsPerDay: 25, // 2 BTC max auto processed per day
     minUnstakeAmount: new Web3Number("0", token.decimals),
     maxStakePerTx: 0.5, // 0.1 BTC max stake per tx
   }))],

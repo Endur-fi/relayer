@@ -839,7 +839,7 @@ export class CronService {
   //   );
   // }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_6_HOURS)
   @TryCatchAsync(3, 100000)
   async claimRewards() {
     const supportedTokens = getAllSupportedTokens();
@@ -1124,11 +1124,13 @@ export class CronService {
     
     for (const allocation of unstakeAllocations) {
       this.logger.log(`handleUnstakeIntents::${tokenInfo.symbol} Creating unstake intent for delegator ${allocation.poolMemberInfo.delegator.address} with amount ${allocation.amountToUnstake.toString()}`);
-      await this.delegatorService.createUnstakeIntent(
-        ContractAddr.from(allocation.poolMemberInfo.delegator.address), 
-        assetAddress, 
-        allocation.amountToUnstake
-      );
+      if (allocation.amountToUnstake.gt(0)) {
+        await this.delegatorService.createUnstakeIntent(
+          ContractAddr.from(allocation.poolMemberInfo.delegator.address), 
+            assetAddress, 
+            allocation.amountToUnstake
+          );
+      }
     }
 
     if (remainingUnstakeAmount && remainingUnstakeAmount.gt(0)) {
