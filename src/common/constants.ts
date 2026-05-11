@@ -124,6 +124,7 @@ const sepolia: NetworkAddresses = {
 const tBTC = "0x4daa17763b286d1e59b97c283c0b8c949994c361e426a28f743c67bdfe9a32f"
 const solvBTC = '0x0593e034dda23eea82d2ba9a30960ed42cf4a01502cc2351dc9b9881f9931a68';
 const LBTC = '0x036834a40984312f7f7de8d31e3f6305b325389eaeea5b1c0664b2fb936461a4';
+const strkBTC = '0x0787150e306e6eae6e3f79dea881770e8bbff2c1b8eb490f969669ee945b3135';
 
 const tokens = [
   {
@@ -157,6 +158,14 @@ const tokens = [
     swapExtension: '0x36b28dd54cdf7be39071805e80030f484cfbf746a3fd24382e6aba7e63cc523',
     testAmount: '0.00001',
     decimals: 18,
+  },
+  {
+    token: strkBTC,
+    lst: '0x047751b3532fABCa89B0f2E35cA1cB45e5A7b11d5e3D3663dfA1F4406b45FD88',
+    wq: '0x0535B6a83818D3Ec384e90c1aD0bC05d7B2807Ad455903D91d64B6f75F4Ac11F',
+    swapExtension: '0x032eb4498663bf43c88d8c1b831dfbaca33984be7056cb1b417bb1bca0473d68',
+    testAmount: '0.00001',
+    decimals: 8,
   },
 ]
 
