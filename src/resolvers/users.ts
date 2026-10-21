@@ -510,29 +510,16 @@ export class UsersResolver {
   async addPointsToUser(
     @Arg("input", () => AddPointsInput) input: AddPointsInput
   ): Promise<AddPointsResult> {
-    try {
-      const result = await this.usersService.addPointsToUser(
-        input.userAddress,
-        "1000"
-      );
-
-      return {
-        success: result.success,
-        message: result.message,
-        userAddress: input.userAddress,
-        pointsAdded: result.success ? "1000" : "0",
-        newTotalPoints: result?.data?.newTotalPoints?.toString() ?? "0",
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message:
-          error instanceof Error ? error.message : "Failed to add points",
-        userAddress: input.userAddress,
-        pointsAdded: "0",
-        newTotalPoints: "0",
-      };
-    }
+    // The follow-on-X bonus is retired: the UI no longer offers it, and this
+    // endpoint took no signature, so anyone could claim 1000 points for any
+    // address. Kept in the schema so old clients get a clear answer.
+    return {
+      success: false,
+      message: "This bonus is no longer available",
+      userAddress: input.userAddress,
+      pointsAdded: "0",
+      newTotalPoints: "0",
+    };
   }
 
   @Mutation(() => SaveEmailResult)
