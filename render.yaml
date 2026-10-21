@@ -16,11 +16,30 @@ services:
     cp deployment/index.js . && node index.js
   healthCheckPath: /
   autoDeployTrigger: off
-- type: web
-  name: endur-relayer-v2
+# Replaced by endur-relayer-cron below (src/relayer/run-once.ts, hourly). Kept
+# suspended on Render as the rollback: resume it and suspend the cron.
+# - type: web
+#   name: endur-relayer-v2
+#   runtime: node
+#   repo: https://github.com/Endur-fi/relayer
+#   plan: starter
+#   envVars:
+#   - key: .env
+#     sync: false
+#   - key: accounts.json
+#     sync: false
+#   region: oregon
+#   buildCommand: pnpm install --frozen-lockfile; npx prisma generate
+#   startCommand: mkdir -p /opt/render/.starknet-store; cp accounts.json /opt/render/.starknet-store/accounts.json;
+#     npx tsx src/relayer/main.ts
+#   healthCheckPath: /
+#   autoDeployTrigger: off
+- type: cron
+  name: endur-relayer-cron
   runtime: node
   repo: https://github.com/Endur-fi/relayer
   plan: starter
+  schedule: "5 * * * *"
   envVars:
   - key: .env
     sync: false
@@ -29,8 +48,7 @@ services:
   region: oregon
   buildCommand: pnpm install --frozen-lockfile; npx prisma generate
   startCommand: mkdir -p /opt/render/.starknet-store; cp accounts.json /opt/render/.starknet-store/accounts.json;
-    npx tsx src/relayer/main.ts
-  healthCheckPath: /
+    npx tsx src/relayer/run-once.ts
   autoDeployTrigger: off
 - type: web
   name: endur-graphql-api-v2
